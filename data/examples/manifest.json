@@ -1,0 +1,43 @@
+{
+  "casos": [
+    {
+      "nome": "Caso normal",
+      "descricao": "Consulta de rotina sem queixas.",
+      "video_path": "data/examples/caso_normal/video.mp4",
+      "audio_path": "data/examples/caso_normal/audio.wav",
+      "context_text": "Paciente 28 anos, 24 semanas de gestacao, consulta de rotina. Sem queixas. Pressao 110x70 mmHg. Auscultacao fetal preservada.",
+      "patient_metadata": {
+        "id": "exemplo-normal",
+        "idade": 28,
+        "semanas": 24
+      },
+      "nivel_esperado": "normal"
+    },
+    {
+      "nome": "Caso moderado",
+      "descricao": "Suspeita de quadro depressivo puerperal.",
+      "video_path": null,
+      "audio_path": "data/examples/caso_moderado/audio.wav",
+      "context_text": "Paciente 32 anos, puerpera 4 semanas. Relata cansaco persistente, anedonia e dificuldade em vincular-se com o bebe. Sono fragmentado. Sem queixas fisicas agudas.",
+      "patient_metadata": {
+        "id": "exemplo-moderado",
+        "idade": 32,
+        "puerperio_semanas": 4
+      },
+      "nivel_esperado": "moderate"
+    },
+    {
+      "nome": "Caso critico",
+      "descricao": "Hemorragia ativa em gestante de termo.",
+      "video_path": "data/examples/caso_critico/video.mp4",
+      "audio_path": "data/examples/caso_critico/audio.wav",
+      "context_text": "Paciente 35 anos, 36 semanas de gestacao. Chegou ao pronto-socorro com queixa de hemorragia vaginal intensa nas ultimas duas horas e dor abdominal severa. Pressao 150x100 mmHg.",
+      "patient_metadata": {
+        "id": "exemplo-critico",
+        "idade": 35,
+        "semanas": 36
+      },
+      "nivel_esperado": "critical"
+    }
+  ]
+}

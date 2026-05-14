@@ -1,0 +1,253 @@
+"""Aba "Auditoria" da UI Gradio.
+
+Lista os casos registrados pelo `AuditLogger` (SQLite), permite detalhar
+um caso pelo `audit_id` e exportar o registro completo em JSON.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import tempfile
+from collections.abc import Callable
+from pathlib import Path
+
+import gradio as gr
+
+from ui.components import (
+    empty_state,
+    kpi_grid,
+    kpi_tile,
+    risk_badge_inline,
+    section_title,
+)
+
+logger = logging.getLogger(__name__)
+
+AuditListFn = Callable[[int], list[dict]]
+AuditGetFn = Callable[[int], "dict | None"]
+
+LIST_HEADERS: list[str] = ["ID", "Case ID", "Criado em", "Risco", "Modalidades"]
+DEFAULT_LIMIT: int = 20
+
+
+def _compute_refresh(limit: float, list_cases: AuditListFn) -> tuple[list[list], str]:
+    """Calcula linhas da tabela e bloco de KPIs para um dado limite.
+
+    Extraido como funcao top-level (em vez de closure) para poder ser
+    chamado tanto na inicializacao da aba (popular valor default) quanto
+    como callback de eventos (.change, .click, .load).
+    """
+    try:
+        limit_int = max(1, int(limit or DEFAULT_LIMIT))
+    except (TypeError, ValueError):
+        limit_int = DEFAULT_LIMIT
+    cases = list_cases(limit_int)
+    rows: list[list] = []
+    criticos = 0
+    moderados = 0
+    normais = 0
+    for case in cases:
+        modalities_raw = case.get("modalities") or "[]"
+        try:
+            modalities = ", ".join(json.loads(modalities_raw))
+        except json.JSONDecodeError:
+            modalities = str(modalities_raw)
+        level = case.get("risk_level", "normal")
+        if level == "critical":
+            criticos += 1
+        elif level == "moderate":
+            moderados += 1
+        else:
+            normais += 1
+        rows.append(
+            [
+                case.get("id"),
+                case.get("case_id", ""),
+                case.get("created_at", ""),
+                risk_badge_inline(level),
+                modalities or "-",
+            ]
+        )
+    kpis = kpi_grid(
+        [
+            kpi_tile("Total", str(len(cases)), hint="casos listados"),
+            kpi_tile("Normais", str(normais), hint="sem anomalia"),
+            kpi_tile("Moderados", str(moderados), hint="atencao"),
+            kpi_tile("Criticos", str(criticos), hint="acao imediata"),
+        ]
+    )
+    return rows, kpis
+
+
+def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
+    """Constroi a aba de auditoria.
+
+    Args:
+        list_cases: callable `(limit) -> list[dict]` (geralmente
+            `auditor.list_cases`).
+        get_case: callable `(audit_id) -> dict | None` (geralmente
+            `auditor.get_case`).
+    """
+    # Carga inicial: dados ja pre-calculados ao construir a aba para
+    # evitar a necessidade de clique inicial. O usuario ja entra na aba
+    # vendo a lista populada (e os KPIs).
+    initial_rows, initial_kpis = _compute_refresh(DEFAULT_LIMIT, list_cases)
+
+    with gr.Group():
+        # Header da secao: titulo a esquerda, botao Recarregar no canto
+        # superior direito (substitui o antigo "Atualizar lista" full-width
+        # que parecia divisor entre o input e a tabela).
+        with gr.Row(equal_height=True):
+            with gr.Column(scale=8):
+                gr.HTML(
+                    section_title(
+                        "Casos registrados",
+                        "Casos processados pelo orquestrador sao registrados em "
+                        "SQLite (`data/processed/audit.sqlite`). A lista atualiza "
+                        "automaticamente ao mudar o limite.",
+                    )
+                )
+            with gr.Column(scale=0, min_width=110, elem_classes=["audit-recarregar"]):
+                refresh_btn = gr.Button("Recarregar", variant="secondary", size="sm")
+        kpis_html = gr.HTML(value=initial_kpis)
+        limit_input = gr.Number(
+            value=DEFAULT_LIMIT,
+            label="Limite (numero maximo de casos)",
+            precision=0,
+        )
+        list_table = gr.Dataframe(
+            headers=LIST_HEADERS,
+            datatype=["number", "str", "str", "html", "str"],
+            wrap=True,
+            interactive=False,
+            value=initial_rows,
+            max_height=520,
+            elem_classes="audit-table",
+        )
+
+    with gr.Accordion("Detalhar e exportar um caso", open=False):
+        # ----- Card 1: Audit ID + Buscar detalhe ---------------------------
+        with gr.Group():
+            gr.HTML(
+                section_title(
+                    "Buscar detalhe",
+                    "Informe um Audit ID da tabela acima para inspecionar o caso "
+                    "(relatorio + registro completo em JSON).",
+                )
+            )
+            audit_id_input = gr.Number(value=None, label="Audit ID", precision=0)
+            detail_btn = gr.Button("Buscar detalhe", variant="primary")
+
+        status_html = gr.HTML(
+            value=empty_state(
+                "Nenhum caso selecionado.",
+                hint="Informe um Audit ID e clique em Buscar detalhe.",
+            )
+        )
+
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=1):
+                with gr.Group():
+                    gr.HTML(section_title("Relatorio do caso"))
+                    with gr.Column(elem_classes="content-box"):
+                        detail_md = gr.Markdown(value="")
+            with gr.Column(scale=1):
+                with gr.Group():
+                    gr.HTML(section_title("Registro completo (JSON)"))
+                    detail_json = gr.JSON(value={})
+
+        # ----- Card 2: Exportar JSON (acao secundaria, separada) -----------
+        with gr.Group():
+            gr.HTML(
+                section_title(
+                    "Exportar registro",
+                    "Gera o JSON do caso indicado acima para download.",
+                )
+            )
+            export_btn = gr.Button("Exportar JSON", variant="primary")
+            download_file = gr.File(label="Arquivo exportado", interactive=False)
+
+    def _on_refresh(limit: float) -> tuple[list[list], str]:
+        return _compute_refresh(limit, list_cases)
+
+    def _on_detail(audit_id: float | None) -> tuple[str, str, dict]:
+        if audit_id is None:
+            return (
+                empty_state(
+                    "Audit ID nao informado.",
+                    hint="Digite o ID numerico do caso na caixa acima.",
+                ),
+                "",
+                {},
+            )
+        try:
+            audit_id_int = int(audit_id)
+        except (TypeError, ValueError):
+            return (empty_state("Audit ID invalido."), "", {})
+        case = get_case(audit_id_int)
+        if case is None:
+            return (
+                empty_state(
+                    f"Nenhum caso encontrado para audit_id={audit_id_int}.",
+                    hint="Clique em Recarregar para conferir IDs disponiveis.",
+                ),
+                "",
+                {},
+            )
+        status = (
+            '<div style="display: flex; align-items: center; gap: 12px;">'
+            f"{risk_badge_inline(case.get('risk_level', 'normal'))}"
+            '<span style="color: var(--body-text-color); font-size: 13px;">'
+            f"case_id={case.get('case_id')} &middot; "
+            f"criado em {case.get('created_at')}</span></div>"
+        )
+        report_md = case.get("report_md") or "_Sem relatorio armazenado._"
+        return status, report_md, case
+
+    def _on_export(audit_id: float | None) -> str | None:
+        if audit_id is None:
+            return None
+        try:
+            audit_id_int = int(audit_id)
+        except (TypeError, ValueError):
+            return None
+        case = get_case(audit_id_int)
+        if case is None:
+            return None
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".json",
+            delete=False,
+            prefix=f"audit_{audit_id_int}_",
+            encoding="utf-8",
+        ) as tmp:
+            json.dump(case, tmp, ensure_ascii=False, indent=2, default=str)
+            tmp_path = tmp.name
+        return str(Path(tmp_path))
+
+    # Auto-refresh ao mudar o Limite + recarga manual pelo botao
+    limit_input.change(
+        fn=_on_refresh,
+        inputs=[limit_input],
+        outputs=[list_table, kpis_html],
+        show_progress="minimal",
+    )
+    refresh_btn.click(
+        fn=_on_refresh,
+        inputs=[limit_input],
+        outputs=[list_table, kpis_html],
+        show_progress="minimal",
+    )
+    detail_btn.click(
+        fn=_on_detail,
+        inputs=[audit_id_input],
+        outputs=[status_html, detail_md, detail_json],
+        show_progress="minimal",
+    )
+    export_btn.click(
+        fn=_on_export,
+        inputs=[audit_id_input],
+        outputs=[download_file],
+        show_progress="minimal",
+    )

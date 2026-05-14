@@ -1,0 +1,109 @@
+# =====================================================================
+# Python
+# =====================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
+# =====================================================================
+# Ambientes virtuais
+# =====================================================================
+.venv/
+venv/
+env/
+.python-version
+
+# =====================================================================
+# Caches de ferramentas
+# =====================================================================
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# =====================================================================
+# Variaveis de ambiente e segredos
+# =====================================================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# =====================================================================
+# Modelos e datasets pesados
+# =====================================================================
+models/*
+!models/.gitkeep
+
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Mantem amostras pequenas e exemplos rastreados.
+# data/synthetic e data/examples ficam versionados (com seus proprios .gitkeep).
+
+# Artefatos gerados automaticamente por scripts (regeneraveis).
+data/synthetic/demo_video.mp4
+data/synthetic/audio_*.wav
+
+# =====================================================================
+# Indice RAG (Chroma) regenerado por scripts/build_rag_index.py
+# =====================================================================
+data/processed/chroma/
+
+# =====================================================================
+# Banco de auditoria SQLite (gerado em runtime)
+# =====================================================================
+*.db
+*.sqlite
+*.sqlite3
+
+# =====================================================================
+# Logs e relatorios temporarios
+# =====================================================================
+*.log
+logs/
+reports/runs/
+
+# =====================================================================
+# IDE / editores
+# =====================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =====================================================================
+# macOS / SO
+# =====================================================================
+.DS_Store
+Thumbs.db
+
+# =====================================================================
+# Hugging Face / Gradio cache
+# =====================================================================
+gradio_cached_examples/
+flagged/
+.cache/
+
+# =====================================================================
+# Notebooks (se aparecerem ao longo do projeto)
+# =====================================================================
+.ipynb_checkpoints/
+
+# Claude Code internal state
+.claude/
