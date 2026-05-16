@@ -33,6 +33,7 @@ from src.rag.retriever import Retriever
 from src.rag.types import Chunk
 from src.report import generate_report
 from src.video.pipeline import VideoPipeline
+from src.video.scene_classifier import SceneType
 from src.video.types import VideoEvent
 
 if TYPE_CHECKING:
@@ -72,6 +73,7 @@ class CaseOutput(BaseModel):
     report_markdown: str
     alert: Alert | None = None
     audit_id: int | None = None
+    scene_type: SceneType | None = None
 
 
 class Orchestrator:
@@ -126,6 +128,11 @@ class Orchestrator:
         logger.info("Iniciando caso %s", case_id)
 
         video_events = self._run_video(case.video_path)
+        scene_type: SceneType | None = (
+            self.video_pipeline.last_scene_type
+            if case.video_path is not None and video_events is not None
+            else None
+        )
         audio_analysis = self._run_audio(case.audio_path)
 
         anomaly = self.classifier.classify(video_events=video_events, audio_analysis=audio_analysis)
@@ -138,6 +145,7 @@ class Orchestrator:
             video_events=video_events,
             rag_chunks=rag_context,
             patient_metadata=case.patient_metadata,
+            scene_type=scene_type,
             llm_client=self.llm_client,
         )
 
@@ -174,6 +182,7 @@ class Orchestrator:
             report_markdown=report_markdown,
             alert=alert,
             audit_id=audit_id,
+            scene_type=scene_type,
         )
 
     def _new_case_id(self) -> str:

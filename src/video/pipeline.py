@@ -17,6 +17,7 @@ from src.video.azure_video import AzureVideoIndexerClient
 from src.video.detector import BleedingDetector
 from src.video.emotion import FacialEmotionDetector
 from src.video.pose import PoseEstimator
+from src.video.scene_classifier import SceneType, classify_scene_type
 from src.video.types import VideoEvent
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,8 @@ class VideoPipeline:
         self.pose_estimator: PoseEstimator = pose_estimator or PoseEstimator()
         self.emotion_detector: FacialEmotionDetector = emotion_detector or FacialEmotionDetector()
         self.azure_client: AzureVideoIndexerClient = azure_client or AzureVideoIndexerClient()
+        # Preenchido apos cada chamada a `process()`.
+        self.last_scene_type: SceneType = SceneType.UNKNOWN
 
     def process(self, video_path: Path) -> list[VideoEvent]:
         """Processa um video e retorna a lista de `VideoEvent`.
@@ -80,6 +83,9 @@ class VideoPipeline:
                 self.target_fps,
                 sampling_step,
             )
+
+            self.last_scene_type = classify_scene_type(video_path)
+            logger.info("Tipo de cena identificado: %s", self.last_scene_type.value)
 
             azure_metadata = self.azure_client.analyze(video_path)
 

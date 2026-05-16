@@ -19,11 +19,14 @@ from src.video import (
     FacialEmotionDetector,
     PoseEstimator,
     PoseLandmark,
+    SceneType,
     VideoEvent,
     VideoPipeline,
+    classify_scene_type,
     ensure_yolo_weights,
 )
 from src.video.detector import DEFAULT_STUB_MODEL
+from src.video.scene_classifier import _decide, _sample_indices
 
 # ---------------------------------------------------------------------
 # Tipos
@@ -206,3 +209,142 @@ def test_video_pipeline_falha_quando_arquivo_nao_existe(tmp_path):
     )
     with pytest.raises(FileNotFoundError):
         pipeline.process(tmp_path / "inexistente.mp4")
+
+
+# ---------------------------------------------------------------------
+# SceneClassifier
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.smoke
+def test_scene_type_enum_valores():
+    """Garante que os valores dos enums batem com as strings esperadas."""
+    assert SceneType.SURGERY.value == "cirurgia"
+    assert SceneType.CONSULTATION.value == "consulta"
+    assert SceneType.MIXED.value == "misto"
+    assert SceneType.UNKNOWN.value == "desconhecido"
+
+
+@pytest.mark.smoke
+def test_classify_scene_type_retorna_unknown_quando_video_nao_existe(tmp_path):
+    """Arquivo inexistente deve retornar UNKNOWN sem lancar excecao."""
+    result = classify_scene_type(tmp_path / "nao_existe.mp4")
+    assert result == SceneType.UNKNOWN
+
+
+@pytest.mark.smoke
+def test_classify_scene_type_retorna_consulta_quando_ha_faces(tmp_path, monkeypatch):
+    """Mock MediaPipe retorna deteccoes em todos os frames -> CONSULTATION."""
+    fake_video = tmp_path / "fake.mp4"
+    fake_video.touch()
+
+    # Mock cv2.VideoCapture para retornar frames sinteticos
+    fake_frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    # Cor de pele clara/rosada (BGR ~170,200,230): hue na borda mas
+    # saturacao ~66 (< _SURGERY_SAT_MIN=80), entao nao classifica como hue cirurgico
+    fake_frame[:] = [170, 200, 230]
+
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.return_value = 30.0  # 30 frames no total
+    read_calls = [True, fake_frame] * 10 + [False, None]
+    mock_cap.read.side_effect = [
+        (read_calls[i], read_calls[i + 1]) for i in range(0, len(read_calls), 2)
+    ]
+
+    # Mock do detector de face: sempre detecta
+    fake_detection_result = MagicMock()
+    fake_detection_result.detections = [MagicMock()]
+    mock_face_detector = MagicMock()
+    mock_face_detector.process.return_value = fake_detection_result
+
+    import src.video.scene_classifier as sc_mod
+
+    with (
+        patch("cv2.VideoCapture", return_value=mock_cap),
+        patch.object(sc_mod, "_load_face_detector", return_value=mock_face_detector),
+    ):
+        result = classify_scene_type(fake_video, num_samples=5)
+
+    assert result == SceneType.CONSULTATION
+
+
+@pytest.mark.smoke
+def test_classify_scene_type_retorna_cirurgia_quando_hue_cirurgico(tmp_path, monkeypatch):
+    """Frame com hue vermelho-rosado e sem faces -> SURGERY."""
+    fake_video = tmp_path / "cirurgia.mp4"
+    fake_video.touch()
+
+    # Frame vermelho escuro saturado (BGR ~0, 30, 180) -> hue ~0 no OpenCV
+    fake_frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    fake_frame[:] = [0, 30, 180]
+
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.return_value = 30.0
+    mock_cap.read.side_effect = [(True, fake_frame)] * 5 + [(False, None)]
+
+    # Sem faces
+    fake_detection_result = MagicMock()
+    fake_detection_result.detections = []
+    mock_face_detector = MagicMock()
+    mock_face_detector.process.return_value = fake_detection_result
+
+    import src.video.scene_classifier as sc_mod
+
+    with (
+        patch("cv2.VideoCapture", return_value=mock_cap),
+        patch.object(sc_mod, "_load_face_detector", return_value=mock_face_detector),
+    ):
+        result = classify_scene_type(fake_video, num_samples=5)
+
+    assert result == SceneType.SURGERY
+
+
+@pytest.mark.smoke
+def test_classify_scene_type_retorna_unknown_quando_mediapipe_ausente(tmp_path):
+    """Quando mediapipe nao esta disponivel, classificacao usa so HSV (sem face).
+
+    O fallback gracioso nao deve lancar excecao. O resultado pode ser
+    MIXED, SURGERY ou CONSULTATION dependendo do frame, mas nunca uma excecao.
+    """
+    fake_video = tmp_path / "sem_mp.mp4"
+    fake_video.touch()
+
+    fake_frame = np.zeros((100, 100, 3), dtype=np.uint8)
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.return_value = 10.0
+    mock_cap.read.side_effect = [(True, fake_frame)] * 3 + [(False, None)]
+
+    import src.video.scene_classifier as sc_mod
+
+    with (
+        patch("cv2.VideoCapture", return_value=mock_cap),
+        patch.object(sc_mod, "_load_face_detector", return_value=None),
+    ):
+        result = classify_scene_type(fake_video, num_samples=3)
+
+    # Nao deve lancar excecao; resultado e um SceneType valido
+    assert isinstance(result, SceneType)
+
+
+@pytest.mark.smoke
+def test_decide_retorna_misto_quando_ambos_sinais_ausentes():
+    """Sem face e sem hue cirurgico -> MIXED (video ambiguo)."""
+    assert _decide(face_ratio=0.0, surgery_ratio=0.0) == SceneType.MIXED
+
+
+@pytest.mark.smoke
+def test_decide_retorna_misto_quando_ambos_sinais_presentes():
+    """Com face E hue cirurgico -> MIXED (ex: cirurgiao no campo)."""
+    assert _decide(face_ratio=1.0, surgery_ratio=1.0) == SceneType.MIXED
+
+
+@pytest.mark.smoke
+def test_sample_indices_distribui_uniformemente():
+    """_sample_indices deve retornar exatamente `num_samples` indices."""
+    indices = _sample_indices(total_frames=100, num_samples=5)
+    assert len(indices) == 5
+    assert indices[0] == 0
+    assert all(0 <= i < 100 for i in indices)

@@ -5,6 +5,7 @@ from src.video.detector import BleedingDetector, ensure_yolo_weights
 from src.video.emotion import FacialEmotionDetector
 from src.video.pipeline import VideoPipeline
 from src.video.pose import PoseEstimator
+from src.video.scene_classifier import SceneType, classify_scene_type
 from src.video.types import (
     BoundingBox,
     Detection,
@@ -22,7 +23,9 @@ __all__ = [
     "FacialEmotionDetector",
     "PoseEstimator",
     "PoseLandmark",
+    "SceneType",
     "VideoEvent",
     "VideoPipeline",
+    "classify_scene_type",
     "ensure_yolo_weights",
 ]

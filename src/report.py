@@ -20,6 +20,7 @@ from src.anomaly.types import AnomalyResult
 from src.audio.types import AudioAnalysis
 from src.llm.azure_openai import AzureOpenAIClient
 from src.rag.types import Chunk
+from src.video.scene_classifier import SceneType
 from src.video.types import VideoEvent
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,12 @@ SYSTEM_PROMPT_PT_BR: str = (
     "e oriente avaliacao clinica direta.\n"
     "6. Limitacao conhecida: classificadores de emocao vocal e facial podem "
     "ter vies em vozes/rostos fora do dominio de treino. Pondere o sinal "
-    "junto com outros pilares antes de afirmar um afeto patologico."
+    "junto com outros pilares antes de afirmar um afeto patologico.\n"
+    "7. Quando o campo 'Tipo de cena identificada' estiver presente no contexto, "
+    "use-o para adaptar o tom do relatorio: 'consulta' indica orientacao clinica "
+    "ambulatorial; 'cirurgia' indica relato cirurgico tecnico; 'misto' indica "
+    "cenario hibrido (ex: cirurgiao em consulta pos-operatoria); 'desconhecido' "
+    "indica que a classificacao nao foi possivel e o tom deve ser neutro."
 )
 
 
@@ -60,6 +66,7 @@ def generate_report(
     video_events: list[VideoEvent] | None = None,
     rag_chunks: list[Chunk] | None = None,
     patient_metadata: dict | None = None,
+    scene_type: SceneType | None = None,
     llm_client: AzureOpenAIClient | None = None,
 ) -> str:
     """Gera um relatorio clinico em markdown.
@@ -70,6 +77,8 @@ def generate_report(
         video_events: lista de eventos do pipeline de video (opcional).
         rag_chunks: trechos das diretrizes recuperados pelo RAG (opcional).
         patient_metadata: dict com metadata do paciente (opcional).
+        scene_type: tipo de cena identificado pelo classificador de cena (opcional).
+            Quando fornecido, e adicionado ao prompt e orienta o tom do relatorio.
         llm_client: cliente Azure OpenAI; quando ausente, sera instanciado.
 
     Returns:
@@ -85,6 +94,7 @@ def generate_report(
             video_events=video_events,
             rag_chunks=rag_chunks,
             patient_metadata=patient_metadata,
+            scene_type=scene_type,
         )
         llm_text = client.chat(
             [
@@ -113,11 +123,14 @@ def _build_user_prompt(
     video_events: list[VideoEvent] | None,
     rag_chunks: list[Chunk] | None,
     patient_metadata: dict | None,
+    scene_type: SceneType | None = None,
 ) -> str:
     """Monta o prompt do usuario com todos os fatos estruturados."""
     lines: list[str] = []
     if patient_metadata:
         lines.append(f"Paciente: {patient_metadata}")
+    if scene_type is not None:
+        lines.append(f"Tipo de cena identificada: {scene_type.value}")
     lines.append(f"Nivel de risco final: {anomaly.level}")
     if anomaly.triggers:
         lines.append("Triggers detectados:")
