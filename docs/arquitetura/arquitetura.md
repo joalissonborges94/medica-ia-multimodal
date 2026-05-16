@@ -145,10 +145,15 @@ medica-ia-multimodal/
 │       └── test_ui_app.py
 ├── scripts/
 │   ├── build_rag_index.py        (carrega PDFs no Chroma)
-│   ├── gen_synthetic_audio.py    (áudios sintéticos para dev)
+│   ├── build_demo_videos.py      (ffmpeg sobre frames CholecSeg8k → MP4s da demo)
+│   ├── gen_tts_scripts.py        (Azure Speech TTS PT-BR → WAVs por cenário)
+│   ├── gen_contexts.py           (GPT-4.1-mini → contextos clínicos por caso)
+│   ├── seed_real_examples.py     (orquestra os 3 acima + manifest dos 4 casos)
+│   ├── gen_synthetic_audio.py    (legado: áudios sintéticos para dev)
 │   ├── gen_synthetic_pdfs.py     (PDFs sintéticos para RAG)
-│   ├── seed_examples.py          (3 casos pré-carregados na UI)
+│   ├── seed_examples.py          (legado: 3 casos sintéticos, superseded por seed_real_examples)
 │   ├── train_yolo.py             (rodado uma vez no Colab)
+│   ├── warmup.py                 (orquestra todo o setup de modelos + dados)
 │   └── demo_*.py                 (demos por módulo)
 ├── data/
 │   ├── raw/                      (gitignored)

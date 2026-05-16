@@ -3,11 +3,18 @@
 Roda todos os downloads upfront, idempotentemente: se ja esta em disco/cache,
 pula. Cobre 5 grupos:
 
-1. **Modelos**: YOLOv8n stub, Whisper small, wav2vec2 (emocao), bge-m3 (RAG)
-2. **Datasets**: CholecSeg8k via Hugging Face (~3.1 GB) + conversao YOLO
-3. **PDFs**: 8 diretrizes brasileiras oficiais pro RAG (~18 MB total)
-4. **Index RAG**: reconstroi Chroma a partir dos PDFs
-5. **Exemplos UI**: audios sinteticos + 3 casos pre-carregados pro Gradio
+1. **Modelos**: YOLOv8n stub, Whisper small, wav2vec2 (emocao), bge-m3 (RAG).
+   Todos os modelos sao baixados lazy pelos proprios pipelines na primeira
+   chamada. O warmup so disparara o download com antecedencia para evitar
+   pausa na primeira demo. Stub YOLO pode ser substituido pelo `.pt` custom
+   treinado no notebook do Colab (ver `notebooks/train_yolo_colab.ipynb`).
+2. **Datasets**: CholecSeg8k via Hugging Face (~3.1 GB) + conversao YOLO.
+3. **PDFs**: 8 diretrizes brasileiras oficiais pro RAG (~18 MB total).
+4. **Index RAG**: reconstroi Chroma a partir dos PDFs.
+5. **Exemplos UI**: 4 casos reais pre-carregados pro Gradio. Videos vem do
+   CholecSeg8k via ffmpeg, audios via Azure Speech TTS PT-BR e contextos
+   clinicos via GPT-4.1-mini (Azure OpenAI). Orquestrados por
+   `scripts/seed_real_examples.py`.
 
 Uso:
     python scripts/warmup.py                  # tudo (~3 GB modelos + 3 GB dataset + 18 MB PDFs)
@@ -56,13 +63,15 @@ DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 CHOLECSEG8K_RAW = DATA_RAW / "cholecseg8k"
 CHOLECSEG8K_YOLO = DATA_PROCESSED / "cholecseg8k_yolo"
 CHROMA_DIR = DATA_PROCESSED / "chroma"
-SYNTHETIC_DIR = PROJECT_ROOT / "data" / "synthetic"
 EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
-SYNTHETIC_AUDIOS = (
-    "audio_normal.wav",
-    "audio_ansiedade.wav",
-    "audio_depressao.wav",
-    "audio_monocordico.wav",
+# Casos reais gerados por seed_real_examples.py (videos CholecSeg8k + TTS Azure +
+# contextos GPT-4.1-mini). Cada caso tem pelo menos audio.wav e context.txt;
+# normal e critico-cirurgia tambem tem video.mp4.
+EXAMPLE_CASES = (
+    "caso_normal",
+    "caso_moderado",
+    "caso_critico_cirurgia",
+    "caso_critico_consulta",
 )
 
 
@@ -284,25 +293,30 @@ def cleanup_rag_index() -> None:
 # ---------------------------------------------------------------------
 
 
-def check_synthetic_audios() -> bool:
-    return all((SYNTHETIC_DIR / name).exists() for name in SYNTHETIC_AUDIOS)
+def check_real_examples() -> bool:
+    """Verifica que o manifest existe e cada caso tem audio.wav + context.txt."""
+    manifest = EXAMPLES_DIR / "manifest.json"
+    if not manifest.exists():
+        return False
+    for caso in EXAMPLE_CASES:
+        pasta = EXAMPLES_DIR / caso
+        if not (pasta / "audio.wav").exists():
+            return False
+        ctx = pasta / "context.txt"
+        if not ctx.exists() or ctx.stat().st_size == 0:
+            return False
+    return True
 
 
-def generate_synthetic_audios() -> None:
-    """Gera 4 wavs sinteticos rodando scripts/gen_synthetic_audio.py."""
-    script = PROJECT_ROOT / "scripts" / "gen_synthetic_audio.py"
-    if not script.exists():
-        raise RuntimeError(f"Script nao encontrado: {script}")
-    subprocess.run([sys.executable, str(script)], check=True)
+def generate_real_examples() -> None:
+    """Gera 4 casos reais via scripts/seed_real_examples.py.
 
-
-def check_examples_manifest() -> bool:
-    return (EXAMPLES_DIR / "manifest.json").exists()
-
-
-def generate_examples() -> None:
-    """Gera 3 casos pre-carregados rodando scripts/seed_examples.py."""
-    script = PROJECT_ROOT / "scripts" / "seed_examples.py"
+    Orquestra os 3 sub-scripts: video.mp4 (ffmpeg sobre CholecSeg8k),
+    audio.wav (Azure Speech TTS PT-BR) e context.txt (GPT-4.1-mini).
+    Requer ffmpeg no PATH e as chaves AZURE_SPEECH_* / AZURE_OPENAI_*
+    no .env.
+    """
+    script = PROJECT_ROOT / "scripts" / "seed_real_examples.py"
     if not script.exists():
         raise RuntimeError(f"Script nao encontrado: {script}")
     subprocess.run([sys.executable, str(script)], check=True)
@@ -403,20 +417,11 @@ def build_steps() -> list[Step]:
     # Grupo 5: Exemplos da UI
     steps.append(
         Step(
-            titulo="Audios sinteticos (4 wavs)",
+            titulo="Casos reais pre-carregados (4 cenarios: videos + TTS + contextos)",
             group="examples",
-            size_label="~400 KB",
-            check=check_synthetic_audios,
-            download=generate_synthetic_audios,
-        )
-    )
-    steps.append(
-        Step(
-            titulo="Casos pre-carregados (3 cenarios + manifest)",
-            group="examples",
-            size_label="~60 KB",
-            check=check_examples_manifest,
-            download=generate_examples,
+            size_label="~4.5 MB",
+            check=check_real_examples,
+            download=generate_real_examples,
         )
     )
 

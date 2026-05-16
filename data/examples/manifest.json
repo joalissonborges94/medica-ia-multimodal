@@ -1,24 +1,24 @@
 {
   "casos": [
     {
-      "nome": "Caso normal",
-      "descricao": "Consulta de rotina sem queixas.",
+      "nome": "Caso normal (consulta de rotina)",
+      "descricao": "Gestante 28 semanas em consulta de rotina, sem queixas.",
       "video_path": "data/examples/caso_normal/video.mp4",
       "audio_path": "data/examples/caso_normal/audio.wav",
-      "context_text": "Paciente 28 anos, 24 semanas de gestacao, consulta de rotina. Sem queixas. Pressao 110x70 mmHg. Auscultacao fetal preservada.",
+      "context_text": "Paciente do sexo feminino, 28 anos, com 28 semanas de gestação. Comparece para consulta de pré-natal de rotina. Refere ausência de queixas clínicas no momento. Pressão arterial aferida em 120/75 mmHg, frequência cardíaca 78 bpm. Exames laboratoriais anteriores dentro dos parâmetros normais. História obstétrica sem intercorrências relevantes. Não há sinais de trabalho de parto prematuro ou complicações associadas. Conduta mantida com acompanhamento regular.",
       "patient_metadata": {
         "id": "exemplo-normal",
         "idade": 28,
-        "semanas": 24
+        "semanas": 28
       },
       "nivel_esperado": "normal"
     },
     {
-      "nome": "Caso moderado",
-      "descricao": "Suspeita de quadro depressivo puerperal.",
+      "nome": "Caso moderado (depressao pos-parto)",
+      "descricao": "Puerpera 4 semanas com anedonia e queixa afetiva.",
       "video_path": null,
       "audio_path": "data/examples/caso_moderado/audio.wav",
-      "context_text": "Paciente 32 anos, puerpera 4 semanas. Relata cansaco persistente, anedonia e dificuldade em vincular-se com o bebe. Sono fragmentado. Sem queixas fisicas agudas.",
+      "context_text": "Paciente do sexo feminino, 32 anos, no quarto semana do puerpério. Queixa principal de anedonia e episódios frequentes de choro. Relata dificuldade na formação do vínculo afetivo com o recém-nascido. Sono fragmentado com despertares frequentes durante a noite. Pressão arterial dentro dos limites normais, sem sinais de febre ou taquicardia. História obstétrica recente sem complicações no parto. Nega uso de medicações psiquiátricas prévias. Suspeita clínica de depressão pós-parto moderada.",
       "patient_metadata": {
         "id": "exemplo-moderado",
         "idade": 32,
@@ -27,14 +27,26 @@
       "nivel_esperado": "moderate"
     },
     {
-      "nome": "Caso critico",
-      "descricao": "Hemorragia ativa em gestante de termo.",
-      "video_path": "data/examples/caso_critico/video.mp4",
-      "audio_path": "data/examples/caso_critico/audio.wav",
-      "context_text": "Paciente 35 anos, 36 semanas de gestacao. Chegou ao pronto-socorro com queixa de hemorragia vaginal intensa nas ultimas duas horas e dor abdominal severa. Pressao 150x100 mmHg.",
+      "nome": "Caso critico (cirurgia em andamento)",
+      "descricao": "Laparoscopia com ansiedade pre-procedimento.",
+      "video_path": "data/examples/caso_critico_cirurgia/video.mp4",
+      "audio_path": "data/examples/caso_critico_cirurgia/audio.wav",
+      "context_text": "Paciente feminina, 38 anos, com 28 semanas de gestação. Queixa principal de dor abdominal intensa e náuseas persistentes. Apresenta pressão arterial limítrofe de 140/90 mmHg e frequência cardíaca elevada em 110 bpm. Histórico de hipertensão gestacional controlada e ansiedade pré-procedimento. Em cirurgia laparoscópica em andamento para colecistectomia. Equipe relata estado ansioso e agitação. Risco crítico devido instabilidade hemodinâmica e gestação avançada.",
       "patient_metadata": {
-        "id": "exemplo-critico",
-        "idade": 35,
+        "id": "exemplo-critico-cirurgia",
+        "idade": 38
+      },
+      "nivel_esperado": "critical"
+    },
+    {
+      "nome": "Caso critico (hemorragia em gestante de termo)",
+      "descricao": "Gestante 36 semanas com sangramento intenso e PA elevada.",
+      "video_path": null,
+      "audio_path": "data/examples/caso_critico_consulta/audio.wav",
+      "context_text": "Paciente gestante, 36 anos, com 36 semanas de gestação. Apresenta hemorragia vaginal intensa e dor abdominal severa. Pressão arterial aferida em 150 por 100 mmHg. Frequência cardíaca elevada, indicando possível estado de choque. História prévia de hipertensão gestacional. Sem relato de trauma ou uso de medicações recentes. Quadro sugestivo de descolamento prematuro de placenta. Condição crítica com risco iminente para mãe e feto.",
+      "patient_metadata": {
+        "id": "exemplo-critico-consulta",
+        "idade": 36,
         "semanas": 36
       },
       "nivel_esperado": "critical"

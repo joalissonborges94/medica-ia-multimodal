@@ -17,14 +17,14 @@ UI Gradio com 4 abas: **Vídeo**, **Áudio**, **Multimodal** e **Auditoria**. Se
 
 ## Como Rodar
 
-Pré-requisitos: Python 3.12, ~6 GB livres em disco (modelos + dataset).
+Pré-requisitos: Python ≥ 3.12, ~6 GB livres em disco (modelos + dataset).
 
 ```bash
 # 1. Clonar e entrar no diretório
 git clone <repo-url> medica-ia-multimodal && cd medica-ia-multimodal
 
 # 2. Criar venv e instalar dependências
-python3.12 -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
@@ -32,7 +32,10 @@ pip install -r requirements.txt
 cp .env.example .env
 # Editar .env preenchendo as chaves Azure que você tiver
 
-# 4. Setup completo em um comando: modelos + dataset + PDFs + índice RAG + exemplos UI
+# 4. Setup completo em um comando: dataset + PDFs + índice RAG + exemplos reais da UI.
+#    Modelos (YOLO stub, Whisper, wav2vec2, bge-m3) são baixados lazy pelos
+#    próprios pipelines na primeira chamada: o warmup só dispara o download
+#    com antecedência pra evitar pausa na demo.
 python scripts/warmup.py
 
 # 5. Subir a UI Gradio
@@ -41,6 +44,17 @@ python app.py
 ```
 
 O `warmup.py` é idempotente e aceita filtros: `--models`, `--datasets`, `--pdfs`, `--examples`, `--skip-rag`. Detalhes em `python scripts/warmup.py --help`.
+
+Os exemplos da aba **Multimodal** são gerados por `scripts/seed_real_examples.py` (orquestra `build_demo_videos.py` + `gen_tts_scripts.py` + `gen_contexts.py`): vídeos vêm de frames CholecSeg8k via ffmpeg, áudios vêm de Azure Speech TTS PT-BR e os contextos clínicos saem do GPT-4.1-mini. Para regerar manualmente:
+
+```bash
+python scripts/seed_real_examples.py --force   # tudo do zero
+python scripts/build_demo_videos.py --force    # só os MP4s
+python scripts/gen_tts_scripts.py --force      # só os WAVs
+python scripts/gen_contexts.py --force         # só os contextos
+```
+
+Requer `ffmpeg` no PATH (`brew install ffmpeg` no macOS) e as variáveis `AZURE_SPEECH_*` e `AZURE_OPENAI_*` configuradas no `.env`.
 
 ## Integrações Azure
 
