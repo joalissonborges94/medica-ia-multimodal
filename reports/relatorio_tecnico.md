@@ -4,13 +4,7 @@ Tech Challenge Fase 4, pós-graduação Tech IADT.
 
 **Equipe:** Joalisson Borges, Luis Gustavo Santini, Marina Souza Lucas, Diego Santos.
 
-**Data:** 2026-05-17
-
 **Repositório:** https://github.com/joalissonborges94/medica-ia-multimodal
-
-**Demo (Hugging Face Spaces):** <!-- TODO: URL pública do Space (Sprint 8) -->
-
-**Vídeo de apresentação:** <!-- TODO: URL do vídeo de até 15 min (Sprint 8) -->
 
 ---
 
@@ -284,16 +278,21 @@ A escolha por Azure puro (em vez de AWS ou híbrido) está formalizada na ADR-00
 
 ### 7.1 Dataset (CholecSeg8k, ADR-012)
 
-Após pesquisa empírica em Roboflow Universe, Kaggle, Hugging Face, PhysioNet e repositórios acadêmicos, nenhuma fonte sustentou o alvo original "sangramento anômalo" no domínio ginecológico com reprodutibilidade aceitável. As alternativas avaliadas:
+Após pesquisa empírica em Roboflow Universe, Kaggle, Hugging Face, PhysioNet, Synapse e repositórios acadêmicos, nenhuma fonte sustentou o alvo original "sangramento anômalo" no domínio ginecológico com reprodutibilidade aceitável. As alternativas avaliadas ao longo do projeto:
 
 | Dataset | Veredito |
 |---|---|
 | WCEBleedGen | Sangramento gastrointestinal (cápsula endoscópica), domínio errado |
 | BUSI | Ultrassom mamário diagnóstico, sem sangramento |
 | Dresden Surgical Anatomy | Ginecológico real, mas 19 GB e licença restritiva inviabilizam Colab/HF Spaces |
+| m2caiseg | Mesmo domínio do CholecSeg8k (colecistectomia), 307 imagens, escala insuficiente |
+| AutoLaparo-T3 | Histerectomia laparoscópica real (único dataset ginecológico público), 1.800 frames com anotação pixel-wise. Acesso solicitado e autorizado, mas link de download fornecido pela equipe estava inacessível no momento da implementação. Licença restrita a pesquisa acadêmica |
+| CholecInstanceSeg | Mesmo domínio do CholecSeg8k, mas 5x mais dados (41.9k frames) e 7 classes de instrumento (Grasper, Bipolar, Hook, Clipper, Scissors, Irrigator, Snare), licença Apache 2.0. Requer retreino completo a partir de instance segmentation |
 | **CholecSeg8k** | 3.1 GB, anônimo via HF, classes adequadas, licença CC BY-NC-SA 4.0 |
 
 A decisão foi pivotar para CholecSeg8k (Hong et al., arXiv 2012.12463): 8080 frames anotados de colecistectomia laparoscópica, contendo `Grasper` e `L-hook Electrocautery`, instrumentos idênticos aos usados em cirurgia ginecológica laparoscópica. A transferência de domínio é justificada clinicamente pela técnica (mesmo trocarte, mesma pinça, mesmo eletrocautério).
+
+Os candidatos AutoLaparo-T3 e CholecInstanceSeg foram identificados como tecnicamente superiores ao CholecSeg8k para o caso de uso (o primeiro pela aderência ao domínio ginecológico, o segundo pela escala e amplitude taxonômica). Não foram integrados na entrega por restrições de janela do projeto: o link de acesso ao AutoLaparo não funcionou e o CholecInstanceSeg exigiria recomeçar o ciclo de conversão, treino e validação, o que iria além do escopo deste módulo.
 
 Splits utilizados: 5656 train, 1616 val, 808 test.
 
@@ -444,43 +443,16 @@ Cenário de procedimento cirúrgico ginecológico em curso, com detecção persi
 - **Transferência de domínio do YOLO.** Treinado em colecistectomia (CholecSeg8k), aplicado a cirurgia ginecológica. Técnica laparoscópica e instrumental são idênticos (Grasper, L-hook), mas tecidos e contexto visual diferem. **Cobertura parcial da taxonomia ginecológica:** outros instrumentos comuns em histerectomia laparoscópica (Harmonic Scalpel, LigaSure, tesoura laparoscópica) não estão nas classes treinadas e não serão detectados.
 - **Áudios de consulta sintéticos.** O gold standard da demo é TTS Azure (vozes Francisca, Antonio, Brenda com estilos `sad`, `empathetic`, `terrified`). Áudios reais de pacientes não são usados por LGPD e ausência de comitê de ética. Validação em fala espontânea é feita via CORAA-SER, mas mesmo aí a fidelidade do wav2vec2 é baixa (ver acima).
 - **Cobertura limitada do RAG (8 PDFs).** Documentos indexados cobrem pré-natal, pré-eclâmpsia, alto risco, câncer mama/colo, IST/violência, parto normal, saúde reprodutiva. Temas como endometriose, SOP, mioma, infertilidade, menopausa e câncer de ovário ficam fora. O threshold de score 0.3 no retriever evita responder com chunks irrelevantes, mas a lacuna de cobertura permanece.
-- **Azure Face adiado por RAI policy.** Análise de emoção facial em vídeo cai no fallback FER local quando a política do tenant não autoriza o serviço.
-- **Sinais vitais fora do escopo.** A 4ª funcionalidade do enunciado está formalmente adiada (ADR-014). Mantida em "Próximos Passos".
-- **Detecção de violência doméstica fora do escopo.** Requer dataset rotulado específico e cuidado ético adicional.
 - **Deploy em HF Spaces.** 16 GB RAM, 2 vCPU, sem GPU. Inferência foi planejada para CPU. Hibernação ao ocioso é aceitável para demonstração.
 
-### 9.2 Próximos Passos
+### 9.2 Caminhos de Extensão Identificados
 
-- **Provisionar deployment `gpt-4o-mini-audio-preview` no Azure AI Foundry** e habilitar `AZURE_OPENAI_AUDIO_DEPLOYMENT` no `.env`. O cliente `AzureOpenAIAudioEmotion` já está implementado e plugável.
-- Estender o mesmo cliente para receber frames de vídeo (GPT-4o aceita imagem) e substituir o pilar FER pela mesma lógica multimodal, eliminando o viés de FER-2013.
-- **Treinar YOLO custom em dataset ginecológico real** quando viável. Dois candidatos foram investigados ativamente:
+Levantamentos feitos durante o projeto que apontam direções possíveis de melhoria, sem compromisso de execução dentro do escopo deste módulo:
 
-  - **[AutoLaparo](https://autolaparo.github.io/)** (Wang et al., MICCAI 2022; [arXiv:2208.02049](https://arxiv.org/abs/2208.02049)): dataset acadêmico de histerectomia laparoscópica do T Stone Robotics Institute (CUHK). Solicitamos formalmente o acesso ao Task 3 (`AutoLaparo-T3 Instrument and key anatomy segmentation`, 1.800 frames com anotação pixel-wise, splits 3.501/1.127/1.258), preenchendo o formulário oficial. A equipe respondeu rapidamente com um link de download, porém o link estava inacessível no momento da entrega. Aguardamos retorno do contato `ziyiwangx@gmail.com` para refazer o acesso. Vantagem técnica: **único dataset público no domínio exato** (histerectomia ginecológica), eliminando a transferência de domínio. Limitação: licença restrita a pesquisa acadêmica (sem uso comercial) e escala modesta (1.800 frames vs 8.080 atuais).
-
-  - Como alternativa não-ginecológica mas com taxonomia ampliada, ver `CholecInstanceSeg` no parágrafo seguinte.
-
-- Possibilidade futura: parceria direta com hospital escola para coleta supervisionada de cirurgias ginecológicas anotadas no padrão LGPD/ética.
-- **Expansão da taxonomia laparoscópica via dataset complementar.** O `m2caiseg` foi avaliado como candidato e descartado: cobre o mesmo domínio do CholecSeg8k (colecistectomia) e oferece apenas 307 imagens anotadas, escala insuficiente para justificar retreino.
-
-  Como alternativa superior identificou-se o [`CholecInstanceSeg`](https://www.nature.com/articles/s41597-025-05163-w) (Ramesh et al., Nature Scientific Data, 2025; [arXiv:2406.16039](https://arxiv.org/abs/2406.16039)). Comparado ao baseline atual:
-
-  | Aspecto | CholecSeg8k (atual) | CholecInstanceSeg |
-  |---|---|---|
-  | Tamanho | 8080 imgs | 41.9k frames, 64.4k instâncias (5x maior) |
-  | Classes de instrumento | 2 (Grasper, L-hook) | 7 (Grasper, Bipolar, Hook, Clipper, Scissors, Irrigator, Snare) |
-  | Tipo de anotação | máscara semântica | instance segmentation + class labels |
-  | Licença | CC BY-NC-SA 4.0 (não comercial) | **Apache 2.0** (uso comercial OK) |
-  | Distribuição | Hugging Face | [Synapse syn60239970](https://www.synapse.org/Synapse:syn60239970) (cadastro acadêmico) |
-  | Código | n/a | [github.com/cai4cai/cholec_instance_seg](https://github.com/cai4cai/cholec_instance_seg) |
-
-  **Ganhos concretos para o caso ginecológico:** as 5 classes adicionais cobrem instrumentos presentes em histerectomia laparoscópica. `Bipolar` é parcialmente equivalente a `LigaSure` (ambos coagulam vasos por energia bipolar); `Scissors` cobre a tesoura laparoscópica; `Irrigator` cobre o suction. Permanece sem cobertura o `Harmonic Scalpel` (ultrassônico), que exigiria dataset adicional específico (ex.: AutoLaparo, LapGyn4).
-
-  **Esforço estimado** (~4-6h): cadastro Synapse, conversão de instance segmentation para bbox YOLO, retreino na A100 (~30 min com 41.9k frames) e re-validação. Domínio continua sendo colecistectomia: a transferência para ginecologia laparoscópica continua sendo argumento de generalização visual entre técnicas equivalentes, agora com cobertura taxonômica significativamente ampliada.
-- Expandir o RAG com diretrizes adicionais (endometriose, SOP, infertilidade, menopausa, câncer de ovário) para reduzir a lacuna de cobertura.
-- Integrar sinais vitais (cardiotocografia, pressão arterial) como nova modalidade do orquestrador.
-- Backend FastAPI dedicado com frontend React para separar UI de inferência.
-- Substituir wav2vec2 RAVDESS por modelo fine-tunado em CORAA-SER (caminho alternativo ao GPT-4o-audio para quem prefere modelo proprietário on-prem).
-- Avaliar Azure Face mediante aprovação RAI.
+- O cliente `AzureOpenAIAudioEmotion` (`src/audio/azure_openai_audio.py`) e `AzureOpenAIVisionEmotion` (`src/video/azure_openai_vision.py`) ficam plugáveis ao Azure AI Foundry sem alteração de pipeline: basta preencher `AZURE_OPENAI_AUDIO_DEPLOYMENT` e `AZURE_OPENAI_VISION_DEPLOYMENT` no `.env`. Substituem wav2vec2 e FER respectivamente.
+- Expansão da taxonomia do detector visual via `AutoLaparo-T3` (histerectomia) ou `CholecInstanceSeg` (7 classes vs 2 atuais), comparados em 7.1.
+- Expansão da cobertura do RAG para temas hoje fora dos 8 PDFs indexados (endometriose, SOP, infertilidade, menopausa, câncer de ovário).
+- Substituição do `wav2vec2-base-superb-er` por modelo fine-tunado em CORAA-SER, caso queira manter classificação de emoção vocal totalmente local.
 
 ---
 
@@ -488,7 +460,7 @@ Cenário de procedimento cirúrgico ginecológico em curso, com detecção persi
 
 O projeto entrega uma solução multimodal funcional cobrindo três das quatro funcionalidades e quatro dos cinco objetivos do enunciado, com integração Azure real (não simulada) e fallback gracioso quando as chaves não estão disponíveis. A pivotagem do alvo YOLO de "sangramento anômalo" para "instrumentos cirúrgicos laparoscópicos" (ADR-012) sustentou aderência LITERAL ao alvo 1 do enunciado mediante dataset público reproduzível (CholecSeg8k), preservando coerência clínica via transferência de domínio entre colecistectomia e cirurgia ginecológica laparoscópica. A separação explícita entre os três artefatos (dataset, RAG, LLM) torna o pipeline auditável e cada peça substituível.
 
-Quantitativamente, o detector custom convergiu com mAP@50 = 0.989 e mAP@50-95 = 0.882 no test split, mantendo desempenho equilibrado entre as 3 classes (variação de 0.982 a 0.993 em mAP@50), inclusive na classe minoritária `blood` (71 instâncias). A decisão de adicionar a classe `Blood` ao escopo das 3 classes finais, justificada em ADR-013, ampliou a cobertura do detector de 1 para 2 dos 4 entregáveis sugeridos pelo enunciado (detecção de instrumentos e detecção de sangramento intraoperatório), com custo de treino marginal. As limitações reconhecidas (transferência de domínio CholecSeg8k para ginecologia, viés do wav2vec2 e do FER em PT-BR) já estão mitigadas arquiteturalmente: o cliente multimodal `AzureOpenAIAudioEmotion` baseado em GPT-4o está implementado e plugável, aguardando apenas o provisionamento do deployment correspondente no Azure AI Foundry. Como trabalho futuro priorizado, destacam-se a ativação do GPT-4o-vision para o pilar de emoção facial (substituindo o FER) e a expansão da taxonomia laparoscópica via `AutoLaparo` ou `CholecInstanceSeg`, ambos com escala e cobertura superiores ao baseline atual.
+Quantitativamente, o detector custom convergiu com mAP@50 = 0.989 e mAP@50-95 = 0.882 no test split, mantendo desempenho equilibrado entre as 3 classes (variação de 0.982 a 0.993 em mAP@50), inclusive na classe minoritária `blood` (71 instâncias). A decisão de adicionar a classe `Blood` ao escopo das 3 classes finais, justificada em ADR-013, ampliou a cobertura do detector de 1 para 2 dos 4 entregáveis sugeridos pelo enunciado (detecção de instrumentos e detecção de sangramento intraoperatório), com custo de treino marginal. As limitações de viés reconhecidas em wav2vec2 e FER foram mitigadas arquiteturalmente com clientes alternativos plugáveis (`AzureOpenAIAudioEmotion` e `AzureOpenAIVisionEmotion`), que assumem o pilar quando os respectivos deployments Azure são provisionados, mantendo fallback local funcional caso contrário.
 
 ---
 
