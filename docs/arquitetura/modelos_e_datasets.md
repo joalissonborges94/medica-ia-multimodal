@@ -40,7 +40,7 @@ Lista consolidada de modelos pré-treinados, datasets e outras fontes de dados u
 
 | Dataset | Fonte | Uso | Observação |
 |---|---|---|---|
-| **CholecSeg8k** | Hugging Face (`minwoosun/CholecSeg8k`) — Hong et al., arXiv 2012.12463, CC BY-NC-SA 4.0 | Treino YOLO custom para instrumentos cirúrgicos | 8080 frames, 3.1 GB; classes alvo `Grasper` + `L-hook Electrocautery`; splits 5656/1616/808. ADR-012 |
+| **CholecSeg8k** | Hugging Face (`minwoosun/CholecSeg8k`), Hong et al., arXiv 2012.12463, CC BY-NC-SA 4.0 | Treino YOLO custom para instrumentos cirúrgicos | 8080 frames, 3.1 GB; classes alvo `Grasper` + `L-hook Electrocautery`; splits 5656/1616/808. ADR-012 |
 
 ### Datasets de demonstração (Sprint 7)
 
@@ -50,9 +50,9 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 |---|---|---|---|
 | CholecSeg8k test split | Hugging Face | Cirurgia laparoscópica real (validação visual do YOLO custom) | 808 frames separados do treino |
 | AVOS Open Surgery | research.bidmc.org/surgical-informatics/avos | Cirurgia aberta (referência comparativa) | Vídeos publicamente disponíveis para pesquisa |
-| Geeky Medics (YouTube CC) | YouTube — canal Geeky Medics, licença CC | Consulta clínica simulada (entrevista médico-paciente) | Mídia em EN; usar trechos curtos com legenda |
-| Wikimedia — Pelvic Floor | Wikimedia Commons | Fisioterapia pélvica / educação | CC BY-SA |
-| WHO — RESPECT Women | World Health Organization | Conteúdo sobre violência contra a mulher (sensível) | Uso ilustrativo apenas |
+| Geeky Medics (YouTube CC) | YouTube, canal Geeky Medics, licença CC | Consulta clínica simulada (entrevista médico-paciente) | Mídia em EN; usar trechos curtos com legenda |
+| Wikimedia Pelvic Floor | Wikimedia Commons | Fisioterapia pélvica / educação | CC BY-SA |
+| WHO RESPECT Women | World Health Organization | Conteúdo sobre violência contra a mulher (sensível) | Uso ilustrativo apenas |
 | RAVDESS | Universidade Ryerson | Atrizes em estados afetivos (referência cruzada) | Inglês, complementar ao TTS PT-BR |
 
 ### Áudio (Sprint 7)
@@ -63,7 +63,7 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 | **CORAA-SER** | Hugging Face (`alefiury/CORAA-SER`) | Validação cruzada do classificador wav2vec2 em fala espontânea PT-BR | Garante que o classificador não overfita ao timbre sintético do TTS. ADR-013 |
 | RAVDESS (legado) | Universidade Ryerson | Benchmark internacional de emoção | Inglês, comparativo apenas |
 
-### Texto e RAG — Knowledge base
+### Texto e RAG (knowledge base)
 
 8 PDFs públicos indexados no Chroma. Cada documento cobre cenário clínico distinto:
 
@@ -72,11 +72,11 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 | Manual MS Pré-natal de baixo e alto risco | `manual_ms_prenatal` | Ministério da Saúde | Pré-natal de rotina, fatores de risco |
 | Diretriz FEBRASGO Pré-eclâmpsia | `febrasgo_preeclampsia` | FEBRASGO | Hipertensão na gravidez, sinais de gravidade |
 | Manual MS Gestação de Alto Risco | `ms_gestacao_alto_risco` | Ministério da Saúde | Condutas em gestação de alto risco |
-| INCA — Detecção Precoce do Câncer de Mama | `inca_cancer_mama` | INCA | Rastreio mamográfico, sinais clínicos |
-| INCA — Detecção Precoce do Câncer do Colo do Útero | `inca_cancer_colo_utero` | INCA | Citologia, HPV, condutas |
-| MS — PCDT IST e Atenção a Vítimas de Violência | `ms_pcdt_ist_violencia` | Ministério da Saúde | IST, violência sexual, profilaxia |
-| MS — Diretrizes de Atenção ao Parto Normal | `ms_parto_normal` | Ministério da Saúde | Parto fisiológico, intervenções |
-| Caderno AB nº 26 — Saúde Sexual e Reprodutiva | `cab26_saude_sexual_reprodutiva` | Ministério da Saúde | Contracepção, planejamento reprodutivo |
+| INCA, Detecção Precoce do Câncer de Mama | `inca_cancer_mama` | INCA | Rastreio mamográfico, sinais clínicos |
+| INCA, Detecção Precoce do Câncer do Colo do Útero | `inca_cancer_colo_utero` | INCA | Citologia, HPV, condutas |
+| MS, PCDT IST e Atenção a Vítimas de Violência | `ms_pcdt_ist_violencia` | Ministério da Saúde | IST, violência sexual, profilaxia |
+| MS, Diretrizes de Atenção ao Parto Normal | `ms_parto_normal` | Ministério da Saúde | Parto fisiológico, intervenções |
+| Caderno AB nº 26, Saúde Sexual e Reprodutiva | `cab26_saude_sexual_reprodutiva` | Ministério da Saúde | Contracepção, planejamento reprodutivo |
 
 ## Convenções
 
@@ -101,7 +101,7 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 
 ## Licenças e Considerações Legais
 
-- CholecSeg8k: licença CC BY-NC-SA 4.0 — uso académico/demo permitido, citar Hong et al. (arXiv 2012.12463)
+- CholecSeg8k: licença CC BY-NC-SA 4.0. Uso académico/demo permitido, citar Hong et al. (arXiv 2012.12463)
 - CORAA-SER: verificar termos da Hugging Face (`alefiury/CORAA-SER`) antes de redistribuir
 - PDFs do MS, FEBRASGO e INCA são públicos para uso educacional
 - Áudios gerados por TTS Azure têm uso comercial permitido

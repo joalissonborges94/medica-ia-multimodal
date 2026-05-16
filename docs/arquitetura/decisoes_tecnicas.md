@@ -93,7 +93,7 @@ C. Modelos open source local
 
 **Justificativa:** mantém tudo no ecossistema Azure, reforça o requisito de integração Azure do desafio. Mesmos modelos GPT-4.1-mini e Whisper, com SLA empresarial.
 
-**Consequências:** precisa provisionar deployment de modelo no Azure OpenAI (via AI Foundry — caminho de provisionamento adotado no 2026-05-14, sem espera de aprovação manual). Custo controlado por limites no painel.
+**Consequências:** precisa provisionar deployment de modelo no Azure OpenAI (via AI Foundry, caminho de provisionamento adotado no 2026-05-14, sem espera de aprovação manual). Custo controlado por limites no painel.
 
 ---
 
@@ -222,7 +222,7 @@ C. Stub com `yolov8n.pt` agora E pesos Roboflow assim que aparecerem como melhor
 - **WCEBleedGen (Kaggle/Wireless Capsule Endoscopy):** sangramento sim, mas em gastroenterologia (cápsula endoscópica). Domínio não-ginecológico, framing forçado.
 - **BUSI (Breast Ultrasound Images):** ultrassom mamário diagnóstico, sem sangramento. Substituir "sangramento" por "lesão mamária" seria mudança implícita, sem aderência ao enunciado.
 - **Dresden Surgical Anatomy Dataset:** alvo cirúrgico ginecológico real, mas 19 GB com licença restritiva e pipeline de download inviável para reprodutibilidade em Colab/HF Spaces.
-- **CholecSeg8k (Hong et al., arXiv 2012.12463, CC BY-NC-SA 4.0):** 8080 frames anotados de colecistectomia laparoscópica, 3.1 GB, disponível anônimo via Hugging Face Datasets. Contém **Grasper** e **L-hook Electrocautery** anotados — exatamente os instrumentos usados em cirurgia ginecológica laparoscópica.
+- **CholecSeg8k (Hong et al., arXiv 2012.12463, CC BY-NC-SA 4.0):** 8080 frames anotados de colecistectomia laparoscópica, 3.1 GB, disponível anônimo via Hugging Face Datasets. Contém **Grasper** e **L-hook Electrocautery** anotados, exatamente os instrumentos usados em cirurgia ginecológica laparoscópica.
 
 **Opções:**
 
@@ -247,9 +247,9 @@ D. Pivotar para "instrumentos cirúrgicos" usando CholecSeg8k (3.1 GB, HF, class
 
 ---
 
-## ADR-013: Estratégia de áudio — TTS Azure scriptado + validação CORAA-SER
+## ADR-013: Estratégia de áudio (TTS Azure scriptado + validação CORAA-SER)
 
-**Contexto:** o pipeline de áudio precisa de exemplos clínicos em PT-BR para demonstrar emoção vocal, transcrição e classificação de afeto. Não existe corpus público brasileiro de consultas ginecológicas/obstétricas reais com rótulos de emoção — pacientes reais implicam LGPD e comité de ética, inviável no escopo do challenge. Corpora estrangeiros (RAVDESS, IEMOCAP) são em inglês e atuados, e o pipeline Whisper + wav2vec2 precisa de PT-BR para ser convincente.
+**Contexto:** o pipeline de áudio precisa de exemplos clínicos em PT-BR para demonstrar emoção vocal, transcrição e classificação de afeto. Não existe corpus público brasileiro de consultas ginecológicas/obstétricas reais com rótulos de emoção (pacientes reais implicam LGPD e comité de ética, inviável no escopo do challenge). Corpora estrangeiros (RAVDESS, IEMOCAP) são em inglês e atuados, e o pipeline Whisper + wav2vec2 precisa de PT-BR para ser convincente.
 
 **Opções:**
 
@@ -273,7 +273,7 @@ C. Híbrida: TTS Azure como "rótulo gold" da demo + CORAA-SER como validação 
 
 ## ADR-014: 3ª funcionalidade (sinais vitais) marcada como Adiado
 
-**Contexto:** o enunciado pede no mínimo 2 funcionalidades dentre as 4 listadas. O projeto já cobre 3 funcionalidades atuais — análise de vídeo, processamento de áudio, integração com Azure Cognitive Services. A 4ª opção do enunciado é "Monitoramento de sinais vitais" (integração com dados de cardiotocografia, pressão arterial, ECG, etc.).
+**Contexto:** o enunciado pede no mínimo 2 funcionalidades dentre as 4 listadas. O projeto já cobre 3 funcionalidades atuais: análise de vídeo, processamento de áudio e integração com Azure Cognitive Services. A 4ª opção do enunciado é "Monitoramento de sinais vitais" (integração com dados de cardiotocografia, pressão arterial, ECG, etc.).
 
 **Opções:**
 

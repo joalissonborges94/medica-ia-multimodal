@@ -1,6 +1,6 @@
 # Padrões de Código
 
-Convenções gerais que guiam o projeto. São diretrizes pragmáticas, não regras absolutas — trabalho acadêmico, escopo finito.
+Convenções gerais que guiam o projeto. São diretrizes pragmáticas, não regras absolutas (trabalho acadêmico, escopo finito).
 
 ## Linguagem e Versão
 
@@ -33,7 +33,7 @@ def detect_surgical_instrument(video_path: Path, weights: Path) -> list[Detectio
 
 ## Docstrings
 
-Google style, em funções/classes públicas. Resumir o que faz e descrever args/returns relevantes — sem encher de boilerplate.
+Google style, em funções/classes públicas. Resumir o que faz e descrever args/returns relevantes, sem encher de boilerplate.
 
 ```python
 def detect_surgical_instrument(video_path: Path, weights: Path) -> list[Detection]:

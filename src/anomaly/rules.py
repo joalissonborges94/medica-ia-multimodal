@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 RISK_LEVEL_ORDER: dict[RiskLevel, int] = {"normal": 0, "moderate": 1, "critical": 2}
 
 # Instrumentos cirurgicos laparoscopicos (detector custom Sprint 6, treinado em CholecSeg8k).
-# Deteccao de instrumento e NORMAL em cirurgia — regra so dispara moderate
+# Deteccao de instrumento e NORMAL em cirurgia; regra so dispara moderate
 # (documentacao de procedimento), critical vem de outros pilares (vocal/textual/facial).
 SURGICAL_INSTRUMENT_CLASS_NAMES: frozenset[str] = frozenset(
     {"grasper", "l_hook_electrocautery", "hook"}

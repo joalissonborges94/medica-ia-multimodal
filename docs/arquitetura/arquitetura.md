@@ -235,11 +235,11 @@ Documentos indexados (8 PDFs):
 - Manual MS Pré-natal de baixo e alto risco (`manual_ms_prenatal`)
 - Diretriz FEBRASGO de pré-eclâmpsia (`febrasgo_preeclampsia`)
 - Manual MS Gestação de Alto Risco (`ms_gestacao_alto_risco`)
-- INCA — Diretrizes de Detecção Precoce do Câncer de Mama (`inca_cancer_mama`)
-- INCA — Diretrizes de Detecção Precoce do Câncer do Colo do Útero (`inca_cancer_colo_utero`)
-- MS — PCDT de IST e Atenção a Vítimas de Violência (`ms_pcdt_ist_violencia`)
-- MS — Diretrizes de Atenção ao Parto Normal (`ms_parto_normal`)
-- Caderno de Atenção Básica nº 26 — Saúde Sexual e Reprodutiva (`cab26_saude_sexual_reprodutiva`)
+- INCA: Diretrizes de Detecção Precoce do Câncer de Mama (`inca_cancer_mama`)
+- INCA: Diretrizes de Detecção Precoce do Câncer do Colo do Útero (`inca_cancer_colo_utero`)
+- MS: PCDT de IST e Atenção a Vítimas de Violência (`ms_pcdt_ist_violencia`)
+- MS: Diretrizes de Atenção ao Parto Normal (`ms_parto_normal`)
+- Caderno de Atenção Básica nº 26: Saúde Sexual e Reprodutiva (`cab26_saude_sexual_reprodutiva`)
 
 ### Pipeline de Anomalia
 

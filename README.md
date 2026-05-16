@@ -51,7 +51,7 @@ Quando as chaves estão preenchidas no `.env`, o sistema usa os serviços gerenc
 | **Azure OpenAI** (GPT-4.1-mini, AI Foundry) | Gera o relatório clínico final em markdown | `src/llm/azure_openai.py`, `src/report.py` | Relatório determinístico em markdown construído a partir das triggers |
 | **Azure Speech** | Transcrição de áudio + TTS para gerar voz PT-BR | `src/audio/transcriber.py` (toggle `USE_CLOUD_TRANSCRIPTION`) | `faster-whisper` local |
 | **Azure Language** | Análise de sentimento + key phrases na transcrição | `src/audio/azure_language.py` | Pular esse pilar (não há substituto local equivalente) |
-| **Azure Face** | Emoção facial em vídeo (adiado por RAI policy) | — | `FER` local (Py 3.12) |
+| **Azure Face** | Emoção facial em vídeo (adiado por RAI policy) | n/a | `FER` local (Py 3.12) |
 
 A aba **Configurações** da UI mostra em tempo real quais serviços estão ativos (cloud) ou em fallback (local).
 
@@ -71,11 +71,11 @@ ruff check src/ ui/ tests/ scripts/ app.py
 
 ## Documentação
 
-- [docs/overview.md](docs/overview.md) — visão geral, escopo, métricas de sucesso
-- [docs/arquitetura/arquitetura.md](docs/arquitetura/arquitetura.md) — módulos, fluxo, interfaces
-- [docs/arquitetura/decisoes_tecnicas.md](docs/arquitetura/decisoes_tecnicas.md) — ADRs com justificativa
-- [docs/arquitetura/modelos_e_datasets.md](docs/arquitetura/modelos_e_datasets.md) — modelos e fontes de dados
-- [docs/arquitetura/padroes_codigo.md](docs/arquitetura/padroes_codigo.md) — convenções de código
+- [docs/overview.md](docs/overview.md): visão geral, escopo, métricas de sucesso
+- [docs/arquitetura/arquitetura.md](docs/arquitetura/arquitetura.md): módulos, fluxo, interfaces
+- [docs/arquitetura/decisoes_tecnicas.md](docs/arquitetura/decisoes_tecnicas.md): ADRs com justificativa
+- [docs/arquitetura/modelos_e_datasets.md](docs/arquitetura/modelos_e_datasets.md): modelos e fontes de dados
+- [docs/arquitetura/padroes_codigo.md](docs/arquitetura/padroes_codigo.md): convenções de código
 
 ## Equipe
 

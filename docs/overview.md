@@ -22,7 +22,7 @@ Demonstrar uma solução multimodal funcional que:
 
 ### Funcionalidades selecionadas (3 de 4 do enunciado)
 
-1. Análise de vídeos clínicos (YOLOv8 customizado para instrumentos cirúrgicos — Grasper, L-hook Electrocautery — treinado em CholecSeg8k)
+1. Análise de vídeos clínicos (YOLOv8 customizado para instrumentos cirúrgicos: Grasper e L-hook Electrocautery, treinado em CholecSeg8k)
 2. Processamento de gravações de voz em consultas
 3. Integração com Azure Cognitive Services
 
@@ -35,7 +35,7 @@ Demonstrar uma solução multimodal funcional que:
 
 ### Foco do YOLOv8 customizado
 
-Detecção de instrumental cirúrgico em vídeo laparoscópico real (classes `Grasper` e `L-hook Electrocautery`). Treino sobre CholecSeg8k (Hong et al., 2020, CC BY-NC-SA 4.0). Justificativa: aderência LITERAL ao alvo 1 do enunciado, reprodutibilidade (3.1 GB, anônimo na Hugging Face) e transferência clínica válida — a técnica laparoscópica é idêntica entre colecistectomia (treino) e cirurgia ginecológica (aplicação). Detalhes em [ADR-012](arquitetura/decisoes_tecnicas.md).
+Detecção de instrumental cirúrgico em vídeo laparoscópico real (classes `Grasper` e `L-hook Electrocautery`). Treino sobre CholecSeg8k (Hong et al., 2020, CC BY-NC-SA 4.0). Justificativa: aderência LITERAL ao alvo 1 do enunciado, reprodutibilidade (3.1 GB, anônimo na Hugging Face) e transferência clínica válida, já que a técnica laparoscópica é idêntica entre colecistectomia (treino) e cirurgia ginecológica (aplicação). Detalhes em [ADR-012](arquitetura/decisoes_tecnicas.md).
 
 ## Fora de Escopo
 
