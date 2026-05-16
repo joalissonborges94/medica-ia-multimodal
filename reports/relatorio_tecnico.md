@@ -147,11 +147,13 @@ Pipeline em `src/video/pipeline.py`. Entrada: caminho de vídeo. Saída: lista d
 Etapas:
 
 1. Extração de frames com OpenCV (1 a 5 fps, configurável).
-2. YOLOv8 customizado executado em cada frame (interface model-agnostic em `src/video/detector.py`).
+2. YOLOv8 customizado executado em cada frame (interface model-agnostic em `src/video/detector.py`). Modelo treinado em **3 classes**: `grasper` (id 0), `l_hook_electrocautery` (id 1) e `blood` (id 2). As duas primeiras cobrem o requisito "Instrumentos cirúrgicos ginecológicos" do enunciado; a terceira cobre "Sinais de complicações em cirurgias ginecológicas" e dispara trigger `critical` no pipeline de anomalia quando sangramento é detectado.
 3. MediaPipe Pose extrai landmarks corporais em paralelo.
 4. FER (local, Python 3.12) ou Azure Face em ROIs faciais detectadas.
 5. Azure Video Indexer chamado uma vez no vídeo completo para cenas e transcrição embutida.
 6. Agregação em estrutura `VideoEvent` por frame.
+
+**Limite de upload (`ui/limits.py`):** vídeos até 30 MB e 60 segundos, validados via `ffprobe` antes de despachar para o pipeline. Acima disso, a UI rejeita com mensagem clara, evitando OOM em casos abusivos.
 
 ### 4.3 Pilar Áudio
 
@@ -161,10 +163,14 @@ Etapas:
 
 1. Transcrição via `faster-whisper` local ou Azure Speech (toggle por `USE_CLOUD_TRANSCRIPTION`).
 2. `librosa` extrai jitter, shimmer e MFCC.
-3. `wav2vec2` (pré-treinado em RAVDESS) classifica emoção predominante.
+3. Classificação de emoção vocal com dois caminhos disponíveis:
+   - **Padrão (fallback local):** `wav2vec2-base-superb-er` (pré-treinado em RAVDESS, atores americanos em inglês).
+   - **Multimodal cloud:** `AzureOpenAIAudioEmotion` em `src/audio/azure_openai_audio.py` envia o WAV em base64 + prompt JSON-mode para um deployment de modelo de áudio no Azure AI Foundry (ex.: `gpt-4o-mini-audio-preview`) e recebe a classificação no schema do `EmotionScore`. Quando `AZURE_OPENAI_AUDIO_DEPLOYMENT` está vazio, cai automaticamente no wav2vec2. Detalhes da motivação dessa decisão em 9.1.
 4. Azure Language analisa sentimento e frases-chave sobre a transcrição.
 
 Estratégia de dados híbrida (ADR-013): Azure TTS PT-BR Neural gera áudios scriptados como gold standard para a demo; CORAA-SER valida que o classificador não overfita ao timbre sintético.
+
+**Limite de upload (`ui/limits.py`):** áudios até 15 MB e 60 segundos.
 
 ### 4.4 Pilar RAG (Diretrizes Clínicas)
 
@@ -176,6 +182,7 @@ Etapas:
 2. Embeddings `BAAI/bge-m3` (multilíngue, CPU, cerca de 1 GB).
 3. Vector store Chroma persistido em `data/processed/chroma` (ADR-008).
 4. Retriever LangChain com filtros opcionais por fonte e seção.
+5. **Threshold de similaridade (`min_score=0.3` por default)** em `src/rag/retriever.py`: chunks com score abaixo do limiar são descartados. Quando a query toca tema fora dos 8 PDFs indexados (ex.: endometriose, SOP, mioma, infertilidade, menopausa, câncer de ovário), o retriever retorna lista vazia. O LLM é instruído pelo system prompt a sinalizar explicitamente "tema fora das diretrizes indexadas" em vez de redigir recomendações genéricas com chunks irrelevantes.
 
 Documentos indexados:
 
@@ -196,11 +203,16 @@ Pipeline em `src/anomaly/`. Entrada: agregação de `VideoAnalysis` e `AudioAnal
 
 Camadas:
 
-1. **Regras clínicas explícitas** em `src/anomaly/rules.py`. Exemplo: detecção de instrumental cirúrgico em mais de N frames consecutivos eleva o nível para `moderate`, sinalizando procedimento invasivo em curso (semântica nova introduzida pela ADR-012, em que detecção de instrumento é estado NORMAL de cirurgia laparoscópica).
+1. **Regras clínicas explícitas** em `src/anomaly/rules.py`. Exemplos:
+   - `rule_surgical_instrument_presence`: detecção de Grasper ou L-hook em mais de N frames consecutivos eleva o nível para `moderate`, sinalizando procedimento invasivo em curso (semântica nova introduzida pela ADR-012, em que detecção de instrumento é estado NORMAL de cirurgia laparoscópica).
+   - `rule_bleeding_detected`: detecção da classe `blood` em mais de 2 frames consecutivos OU em mais de 5% do vídeo dispara trigger **`critical`** com mensagem específica de protocolo de hemorragia. Threshold de confiança mais baixo (`0.4`) que o de instrumento (`0.5`) porque sangue tem forma irregular e o YOLO classifica com confiança menor.
+   - `rule_vocal_distress`, `rule_facial_distress`, `rule_negative_sentiment`, `rule_critical_terms`: triggers por modalidade.
 2. **Isolation Forest** em `src/anomaly/statistical.py` sobre features agregadas (energia da voz, frequência de movimento, jitter, shimmer).
 3. **Classificador final** em `src/anomaly/classifier.py` combina rules e statistical com prioridade para regras críticas.
 
 Níveis possíveis: `normal`, `moderate`, `critical`.
+
+**Inconsistência multimodal como achado clínico:** o system prompt do `src/report.py` instrui explicitamente o LLM a destacar casos em que o texto e a voz divergem (ex.: paciente verbaliza "estou bem" mas tom é monótono e expressão facial mostra distress). Esse padrão é típico de depressão pós-parto velada e justifica o investimento em pipeline multimodal versus análise text-only.
 
 ### 4.6 Orquestrador e Auditoria
 
@@ -402,19 +414,25 @@ Cenário de procedimento cirúrgico ginecológico em curso, com detecção persi
 
 ### 9.1 Limitações Conhecidas
 
-- **Transferência de domínio do YOLO.** Treinado em colecistectomia, aplicado a cirurgia ginecológica. A técnica laparoscópica é equivalente, mas tecidos e contexto visual diferem. Avaliação visual em vídeos ginecológicos públicos é qualitativa, não há benchmark com ground truth no domínio alvo.
-- **Áudios de consulta sintéticos.** O gold standard da demo é TTS Azure (vozes Francisca, Antonio, Brenda com estilos `sad`, `empathetic`, `terrified`). Áudios reais de pacientes não são usados por LGPD e ausência de comitê de ética. Validação em fala espontânea é feita via CORAA-SER, mas o classificador wav2vec2 ainda parte de RAVDESS (inglês atuado).
-- **Azure Face adiado por RAI policy.** A análise de emoção facial em vídeo cai no fallback FER local quando a política do tenant não autoriza o serviço.
+- **Viés do classificador de emoção vocal (wav2vec2).** Em validação empírica com TTS Azure Speech e TTS de alta qualidade (ElevenLabs/Fish Audio), o `wav2vec2-base-superb-er` (pré-treinado em RAVDESS, atores americanos em inglês) classifica praticamente toda voz feminina em PT-BR como `angry` com confiança superior a 0.95, **independentemente da emoção real expressa**. Análise de features acústicas (F0 std=47.8 Hz, range tonal=198 Hz) confirma que o áudio testado é expressivo; o modelo está enviesado. Mitigação implementada: cliente alternativo `AzureOpenAIAudioEmotion` (`src/audio/azure_openai_audio.py`) usa GPT-4o multimodal sem o viés daquele domínio de treino. Quando o deployment de áudio não está provisionado, o pipeline cai no wav2vec2 com peso reduzido na decisão de risco final (sentimento textual via Azure Language passa a ser o pilar primário de afeto).
+- **Viés provável do classificador de emoção facial (FER).** Hipótese análoga à do wav2vec2: o modelo `justinshenk/fer` foi treinado em FER-2013 (fotos atuadas frontais) e pode atribuir distress a expressões neutras em iluminação variável ou ângulos atípicos. O mesmo `AzureOpenAIAudioEmotion` pode ser estendido para receber frames (GPT-4o suporta imagem) e substituir o pilar facial pela mesma lógica.
+- **Transferência de domínio do YOLO.** Treinado em colecistectomia (CholecSeg8k), aplicado a cirurgia ginecológica. Técnica laparoscópica e instrumental são idênticos (Grasper, L-hook), mas tecidos e contexto visual diferem. **Cobertura parcial da taxonomia ginecológica:** outros instrumentos comuns em histerectomia laparoscópica (Harmonic Scalpel, LigaSure, tesoura laparoscópica) não estão nas classes treinadas e não serão detectados.
+- **Áudios de consulta sintéticos.** O gold standard da demo é TTS Azure (vozes Francisca, Antonio, Brenda com estilos `sad`, `empathetic`, `terrified`). Áudios reais de pacientes não são usados por LGPD e ausência de comitê de ética. Validação em fala espontânea é feita via CORAA-SER, mas mesmo aí a fidelidade do wav2vec2 é baixa (ver acima).
+- **Cobertura limitada do RAG (8 PDFs).** Documentos indexados cobrem pré-natal, pré-eclâmpsia, alto risco, câncer mama/colo, IST/violência, parto normal, saúde reprodutiva. Temas como endometriose, SOP, mioma, infertilidade, menopausa e câncer de ovário ficam fora. O threshold de score 0.3 no retriever evita responder com chunks irrelevantes, mas a lacuna de cobertura permanece.
+- **Azure Face adiado por RAI policy.** Análise de emoção facial em vídeo cai no fallback FER local quando a política do tenant não autoriza o serviço.
 - **Sinais vitais fora do escopo.** A 4ª funcionalidade do enunciado está formalmente adiada (ADR-014). Mantida em "Próximos Passos".
 - **Detecção de violência doméstica fora do escopo.** Requer dataset rotulado específico e cuidado ético adicional.
 - **Deploy em HF Spaces.** 16 GB RAM, 2 vCPU, sem GPU. Inferência foi planejada para CPU. Hibernação ao ocioso é aceitável para demonstração.
 
 ### 9.2 Próximos Passos
 
+- **Provisionar deployment `gpt-4o-mini-audio-preview` no Azure AI Foundry** e habilitar `AZURE_OPENAI_AUDIO_DEPLOYMENT` no `.env`. O cliente `AzureOpenAIAudioEmotion` já está implementado e plugável.
+- Estender o mesmo cliente para receber frames de vídeo (GPT-4o aceita imagem) e substituir o pilar FER pela mesma lógica multimodal, eliminando o viés de FER-2013.
+- Treinar YOLO custom em dataset ginecológico real quando viável (ex.: parceria com Dresden ou hospital escola), incluindo classes específicas de ginecologia (Harmonic Scalpel, LigaSure).
+- Expandir o RAG com diretrizes adicionais (endometriose, SOP, infertilidade, menopausa, câncer de ovário) para reduzir a lacuna de cobertura.
 - Integrar sinais vitais (cardiotocografia, pressão arterial) como nova modalidade do orquestrador.
-- Treinar YOLO em dataset ginecológico real quando viável (ex.: parceria com Dresden ou hospital escola).
 - Backend FastAPI dedicado com frontend React para separar UI de inferência.
-- Substituir wav2vec2 RAVDESS por modelo fine-tunado em CORAA-SER para reduzir gap PT-BR.
+- Substituir wav2vec2 RAVDESS por modelo fine-tunado em CORAA-SER (caminho alternativo ao GPT-4o-audio para quem prefere modelo proprietário on-prem).
 - Avaliar Azure Face mediante aprovação RAI.
 
 ---
