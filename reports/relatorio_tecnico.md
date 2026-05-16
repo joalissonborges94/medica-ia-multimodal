@@ -100,7 +100,7 @@ Três artefatos coexistem com responsabilidades distintas:
 flowchart LR
     subgraph Offline["Offline (uma vez, Colab)"]
         DS[CholecSeg8k<br/>8080 frames]
-        TR[scripts/train_yolo.py]
+        TR[notebooks/train_yolo_colab.ipynb]
         WT[yolo_v1.pt]
         DS --> TR --> WT
     end

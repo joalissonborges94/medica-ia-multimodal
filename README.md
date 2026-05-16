@@ -45,16 +45,15 @@ python app.py
 
 O `warmup.py` é idempotente e aceita filtros: `--models`, `--datasets`, `--pdfs`, `--examples`, `--skip-rag`. Detalhes em `python scripts/warmup.py --help`.
 
-Os exemplos da aba **Multimodal** são gerados por `scripts/seed_real_examples.py` (orquestra `build_demo_videos.py` + `gen_tts_scripts.py` + `gen_contexts.py`): vídeos vêm de frames CholecSeg8k via ffmpeg, áudios vêm de Azure Speech TTS PT-BR e os contextos clínicos saem do GPT-4.1-mini. Para regerar manualmente:
+Os exemplos da aba **Multimodal** são gerados por `scripts/seed_real_examples.py` (orquestra `gen_tts_scripts.py` + `gen_contexts.py`): os MP4s já vêm versionados no repo em `data/examples/`, os áudios vêm de Azure Speech TTS PT-BR e os contextos clínicos saem do GPT-4.1-mini. Para regerar áudios e contextos:
 
 ```bash
-python scripts/seed_real_examples.py --force   # tudo do zero
-python scripts/build_demo_videos.py --force    # só os MP4s
+python scripts/seed_real_examples.py --force   # áudios + contextos
 python scripts/gen_tts_scripts.py --force      # só os WAVs
 python scripts/gen_contexts.py --force         # só os contextos
 ```
 
-Requer `ffmpeg` no PATH (`brew install ffmpeg` no macOS) e as variáveis `AZURE_SPEECH_*` e `AZURE_OPENAI_*` configuradas no `.env`.
+Requer as variáveis `AZURE_SPEECH_*` e `AZURE_OPENAI_*` configuradas no `.env`.
 
 ## Integrações Azure
 
@@ -85,9 +84,7 @@ ruff check src/ ui/ tests/ scripts/ app.py
 
 ## Treino do YOLO custom
 
-O detector de vídeo usa pesos próprios treinados sobre CholecSeg8k (ADR-012). Para reproduzir o treino, abrir [notebooks/train_yolo_colab.ipynb](notebooks/train_yolo_colab.ipynb) no Google Colab (GPU T4 gratuita). O notebook baixa o dataset do Hugging Face, converte máscaras em bounding boxes, treina o YOLOv8n e exporta `best.pt`. Idempotente: se o dataset já estiver na pasta configurada, pula direto para o treino.
-
-Alternativa local: `scripts/train_yolo.py` aceita o dataset já convertido em `data/processed/cholecseg8k_yolo/` e roda em GPU CUDA/MPS quando disponível.
+O detector de vídeo usa pesos próprios treinados sobre CholecSeg8k (ADR-012). O treino é feito exclusivamente no Google Colab (GPU T4 gratuita): abrir [notebooks/train_yolo_colab.ipynb](notebooks/train_yolo_colab.ipynb), rodar do começo ao fim. O notebook baixa o dataset do Hugging Face, converte máscaras em bounding boxes, treina o YOLOv8n e exporta `best.pt` para download. O dataset não é mantido localmente no repo.
 
 ## Documentação
 

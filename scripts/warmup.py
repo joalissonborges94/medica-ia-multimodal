@@ -1,25 +1,26 @@
-"""Centraliza setup do projeto: modelos, datasets, PDFs, indice RAG e exemplos UI.
+"""Centraliza setup do projeto: modelos, PDFs, indice RAG e exemplos UI.
 
 Roda todos os downloads upfront, idempotentemente: se ja esta em disco/cache,
-pula. Cobre 5 grupos:
+pula. Cobre 4 grupos:
 
 1. **Modelos**: YOLOv8n stub, Whisper small, wav2vec2 (emocao), bge-m3 (RAG).
    Todos os modelos sao baixados lazy pelos proprios pipelines na primeira
    chamada. O warmup so disparara o download com antecedencia para evitar
    pausa na primeira demo. Stub YOLO pode ser substituido pelo `.pt` custom
    treinado no notebook do Colab (ver `notebooks/train_yolo_colab.ipynb`).
-2. **Datasets**: CholecSeg8k via Hugging Face (~3.1 GB) + conversao YOLO.
-3. **PDFs**: 8 diretrizes brasileiras oficiais pro RAG (~18 MB total).
-4. **Index RAG**: reconstroi Chroma a partir dos PDFs.
-5. **Exemplos UI**: 4 casos reais pre-carregados pro Gradio. Videos vem do
-   CholecSeg8k via ffmpeg, audios via Azure Speech TTS PT-BR e contextos
-   clinicos via GPT-4.1-mini (Azure OpenAI). Orquestrados por
-   `scripts/seed_real_examples.py`.
+2. **PDFs**: 8 diretrizes brasileiras oficiais pro RAG (~18 MB total).
+3. **Index RAG**: reconstroi Chroma a partir dos PDFs.
+4. **Exemplos UI**: 4 casos reais pre-carregados pro Gradio. Os MP4s ja
+   vem versionados no repo em `data/examples/`; este passo so garante que
+   audios (Azure Speech TTS PT-BR) e contextos (GPT-4.1-mini) estejam
+   gerados. Orquestrado por `scripts/seed_real_examples.py`.
+
+O dataset CholecSeg8k (~3 GB) nao e baixado localmente: o treino do YOLO
+acontece exclusivamente no notebook do Colab, que baixa direto do HF.
 
 Uso:
-    python scripts/warmup.py                  # tudo (~3 GB modelos + 3 GB dataset + 18 MB PDFs)
+    python scripts/warmup.py                  # tudo (~3 GB modelos + 18 MB PDFs)
     python scripts/warmup.py --models         # so modelos
-    python scripts/warmup.py --datasets       # so CholecSeg8k
     python scripts/warmup.py --pdfs           # so PDFs
     python scripts/warmup.py --examples       # so exemplos da UI
     python scripts/warmup.py --skip-rag       # pula bge-m3 + index (compat)
@@ -29,8 +30,8 @@ Uso:
 Tamanhos aproximados:
     YOLOv8n:       6 MB        wav2vec2:     360 MB
     Whisper small: 500 MB      bge-m3:       2 GB
-    CholecSeg8k:   3.1 GB      8 PDFs:       ~18 MB
-    Total:         ~6 GB
+    8 PDFs:        ~18 MB
+    Total:         ~3 GB
 """
 
 from __future__ import annotations
@@ -60,8 +61,6 @@ logger = logging.getLogger("warmup")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DATA_RAW = PROJECT_ROOT / "data" / "raw"
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
-CHOLECSEG8K_RAW = DATA_RAW / "cholecseg8k"
-CHOLECSEG8K_YOLO = DATA_PROCESSED / "cholecseg8k_yolo"
 CHROMA_DIR = DATA_PROCESSED / "chroma"
 EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
 # Casos reais gerados por seed_real_examples.py (videos CholecSeg8k + TTS Azure +
@@ -157,47 +156,7 @@ def download_bge_m3() -> None:
 
 
 # ---------------------------------------------------------------------
-# Grupo 2: Datasets
-# ---------------------------------------------------------------------
-
-
-def check_cholecseg8k() -> bool:
-    """Verifica se o dataset bruto ja foi baixado."""
-    return CHOLECSEG8K_RAW.exists() and any(CHOLECSEG8K_RAW.iterdir())
-
-
-def download_cholecseg8k() -> None:
-    """Baixa CholecSeg8k via huggingface_hub snapshot_download (sem login)."""
-    try:
-        from huggingface_hub import snapshot_download
-    except ImportError as exc:
-        raise RuntimeError(
-            "huggingface_hub nao instalado. Rodar: pip install huggingface_hub"
-        ) from exc
-
-    CHOLECSEG8K_RAW.mkdir(parents=True, exist_ok=True)
-    snapshot_download(
-        repo_id="minwoosun/CholecSeg8k",
-        repo_type="dataset",
-        local_dir=str(CHOLECSEG8K_RAW),
-    )
-
-
-def check_cholecseg8k_yolo() -> bool:
-    """Verifica se a conversao mask->bbox YOLO ja foi feita."""
-    return (CHOLECSEG8K_YOLO / "data.yaml").exists()
-
-
-def convert_cholecseg8k_yolo() -> None:
-    """Roda o script de conversao mask -> bbox YOLO."""
-    script = PROJECT_ROOT / "scripts" / "convert_cholecseg8k_to_yolo.py"
-    if not script.exists():
-        raise RuntimeError(f"Script nao encontrado: {script}")
-    subprocess.run([sys.executable, str(script)], check=True)
-
-
-# ---------------------------------------------------------------------
-# Grupo 3: PDFs do RAG
+# Grupo 2: PDFs do RAG
 # ---------------------------------------------------------------------
 
 PDFS: dict[str, dict[str, str]] = {
@@ -369,27 +328,7 @@ def build_steps() -> list[Step]:
         )
     )
 
-    # Grupo 2: Datasets
-    steps.append(
-        Step(
-            titulo="CholecSeg8k (Hugging Face)",
-            group="datasets",
-            size_label="~3.1 GB",
-            check=check_cholecseg8k,
-            download=download_cholecseg8k,
-        )
-    )
-    steps.append(
-        Step(
-            titulo="CholecSeg8k -> YOLO format (mask -> bbox)",
-            group="datasets",
-            size_label="processamento",
-            check=check_cholecseg8k_yolo,
-            download=convert_cholecseg8k_yolo,
-        )
-    )
-
-    # Grupo 3: PDFs
+    # Grupo 2: PDFs
     for filename, info in PDFS.items():
         steps.append(
             Step(
@@ -401,7 +340,7 @@ def build_steps() -> list[Step]:
             )
         )
 
-    # Grupo 4: Index RAG
+    # Grupo 3: Index RAG
     steps.append(
         Step(
             titulo="Index Chroma (8 PDFs)",
@@ -414,7 +353,7 @@ def build_steps() -> list[Step]:
         )
     )
 
-    # Grupo 5: Exemplos da UI
+    # Grupo 4: Exemplos da UI
     steps.append(
         Step(
             titulo="Casos reais pre-carregados (4 cenarios: videos + TTS + contextos)",
@@ -466,7 +405,6 @@ def main(argv: list[str] | None = None) -> int:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--models", action="store_true", help="So roda modelos.")
-    parser.add_argument("--datasets", action="store_true", help="So roda datasets.")
     parser.add_argument("--pdfs", action="store_true", help="So roda PDFs.")
     parser.add_argument("--examples", action="store_true", help="So roda exemplos UI.")
     parser.add_argument("--skip-rag", action="store_true", help="Pula bge-m3 + index Chroma.")
@@ -483,13 +421,11 @@ def main(argv: list[str] | None = None) -> int:
     all_steps = build_steps()
 
     # Filtros de grupo
-    filters_used = any([args.models, args.datasets, args.pdfs, args.examples])
+    filters_used = any([args.models, args.pdfs, args.examples])
     if filters_used:
         groups_to_run = set()
         if args.models:
             groups_to_run.add("modelos")
-        if args.datasets:
-            groups_to_run.add("datasets")
         if args.pdfs:
             groups_to_run.add("pdfs")
         if args.examples:

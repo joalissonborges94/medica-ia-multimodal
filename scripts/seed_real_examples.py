@@ -1,14 +1,14 @@
-"""Orquestra os 3 scripts de seed e regenera o `manifest.json` real.
+"""Orquestra os scripts de seed e regenera o `manifest.json` real.
 
 Executa em sequencia:
-    1. `build_demo_videos.py` (MP4s CholecSeg8k -> ffmpeg)
-    2. `gen_tts_scripts.py`  (WAVs Azure Speech TTS)
-    3. `gen_contexts.py`     (TXTs GPT-4.1-mini)
+    1. `gen_tts_scripts.py`  (WAVs Azure Speech TTS)
+    2. `gen_contexts.py`     (TXTs GPT-4.1-mini)
 
-Em seguida sobrescreve `data/examples/manifest.json` com as 4 entradas dos
-casos demo (normal, moderado, critico cirurgia, critico consulta) lendo o
-conteudo de cada `context.txt`. Casos sem `context.txt` valido sao pulados
-do manifest (mas listados no stdout para investigacao).
+Os MP4s ja vem versionados em `data/examples/<caso>/video.mp4` (commitados
+no repo). Em seguida sobrescreve `data/examples/manifest.json` com as 4
+entradas dos casos demo (normal, moderado, critico cirurgia, critico
+consulta) lendo o conteudo de cada `context.txt`. Casos sem `context.txt`
+valido sao pulados do manifest (mas listados no stdout para investigacao).
 
 Limpa pastas obsoletas do esquema antigo (`data/examples/caso_critico/`)
 para evitar lixo.
@@ -153,7 +153,6 @@ def main(argv: list[str] | None = None) -> int:
 
     EXAMPLES_DIR.mkdir(parents=True, exist_ok=True)
 
-    rc_video = _rodar("build_demo_videos.py", extra)
     rc_tts = _rodar("gen_tts_scripts.py", extra)
     rc_ctx = _rodar("gen_contexts.py", extra)
 
@@ -162,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
 
     print(
         f"Seed real concluido: {incluidos} caso(s) no manifest, {pulados} pulado(s). "
-        f"Exit codes: video={rc_video}, tts={rc_tts}, contextos={rc_ctx}."
+        f"Exit codes: tts={rc_tts}, contextos={rc_ctx}."
     )
     if incluidos == 0:
         return 1

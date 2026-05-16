@@ -34,7 +34,7 @@ Em outras palavras: o **dataset** vira pesos `.pt`, que viram um **detector** ch
 flowchart LR
     subgraph Offline["Offline (uma vez, Colab)"]
         DS[CholecSeg8k<br/>8080 frames]
-        TR[scripts/train_yolo.py]
+        TR[notebooks/train_yolo_colab.ipynb]
         WT[yolo_v1.pt]
         DS --> TR --> WT
     end
@@ -145,16 +145,16 @@ medica-ia-multimodal/
 │       └── test_ui_app.py
 ├── scripts/
 │   ├── build_rag_index.py        (carrega PDFs no Chroma)
-│   ├── build_demo_videos.py      (ffmpeg sobre frames CholecSeg8k → MP4s da demo)
 │   ├── gen_tts_scripts.py        (Azure Speech TTS PT-BR → WAVs por cenário)
 │   ├── gen_contexts.py           (GPT-4.1-mini → contextos clínicos por caso)
-│   ├── seed_real_examples.py     (orquestra os 3 acima + manifest dos 4 casos)
+│   ├── seed_real_examples.py     (orquestra TTS + contextos + manifest dos 4 casos)
 │   ├── gen_synthetic_audio.py    (legado: áudios sintéticos para dev)
 │   ├── gen_synthetic_pdfs.py     (PDFs sintéticos para RAG)
 │   ├── seed_examples.py          (legado: 3 casos sintéticos, superseded por seed_real_examples)
-│   ├── train_yolo.py             (rodado uma vez no Colab)
-│   ├── warmup.py                 (orquestra todo o setup de modelos + dados)
+│   ├── warmup.py                 (orquestra setup de modelos + PDFs + index RAG + exemplos)
 │   └── demo_*.py                 (demos por módulo)
+├── notebooks/
+│   └── train_yolo_colab.ipynb    (treino do YOLO custom no Colab, download + conversão inline)
 ├── data/
 │   ├── raw/                      (gitignored)
 │   ├── processed/                (gitignored)
