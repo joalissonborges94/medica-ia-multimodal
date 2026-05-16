@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     azure_openai_key: SecretStr = Field(default=SecretStr(""))
     azure_openai_endpoint: str = Field(default="")
     azure_openai_deployment: str = Field(default="gpt-4.1-mini")
+    # Modelo multimodal (audio input) - deploy separado no Foundry,
+    # ex: gpt-4o-mini-audio-preview. Quando vazio, pilar de emocao vocal
+    # cai pra wav2vec2 local (com viés conhecido em PT-BR).
+    azure_openai_audio_deployment: str = Field(default="")
 
     # ----- Toggles cloud vs local --------------------------------------
     use_cloud_transcription: bool = Field(default=False)
