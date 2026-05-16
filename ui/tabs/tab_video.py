@@ -25,6 +25,7 @@ from ui.components import (
     section_title,
     video_events_to_rows,
 )
+from ui.limits import validate_video
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +102,18 @@ def render(process_video: VideoProcessor) -> None:
                 [],
                 {"events": []},
             )
+
+        validation = validate_video(Path(video_path))
+        if not validation.ok:
+            logger.warning("Video rejeitado na validacao: %s", validation.message)
+            return (
+                empty_state("Video fora dos limites aceitos.", hint=validation.message),
+                "",
+                None,
+                [],
+                {"events": []},
+            )
+
         try:
             events = process_video(Path(video_path))
         except (FileNotFoundError, RuntimeError, ValueError) as exc:

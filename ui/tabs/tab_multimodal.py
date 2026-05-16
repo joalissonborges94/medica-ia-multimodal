@@ -27,6 +27,7 @@ from ui.components import (
     section_title,
     triggers_to_rows,
 )
+from ui.limits import validate_audio, validate_video
 
 if TYPE_CHECKING:
     from src.orchestrator import CaseOutput
@@ -193,6 +194,24 @@ def render(
                 "",
                 "",
             )
+
+        # Valida limites de tamanho/duracao antes de despachar pro pipeline.
+        if video_path:
+            v_check = validate_video(Path(video_path))
+            if not v_check.ok:
+                logger.warning("Video rejeitado na validacao multimodal: %s", v_check.message)
+                return (
+                    empty_state("Video fora dos limites aceitos.", hint=v_check.message),
+                    "", "", "", [], "", "", "",
+                )
+        if audio_path:
+            a_check = validate_audio(Path(audio_path))
+            if not a_check.ok:
+                logger.warning("Audio rejeitado na validacao multimodal: %s", a_check.message)
+                return (
+                    empty_state("Audio fora dos limites aceitos.", hint=a_check.message),
+                    "", "", "", [], "", "", "",
+                )
 
         try:
             output = run_case(

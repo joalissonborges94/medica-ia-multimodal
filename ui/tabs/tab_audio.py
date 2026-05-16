@@ -25,6 +25,7 @@ from ui.components import (
     sentiment_provider_label,
     transcription_provider_label,
 )
+from ui.limits import validate_audio
 
 if TYPE_CHECKING:
     from src.audio.types import AudioAnalysis
@@ -110,6 +111,19 @@ def render(process_audio: AudioProcessor) -> None:
                 "",
                 {},
             )
+
+        validation = validate_audio(Path(audio_path))
+        if not validation.ok:
+            logger.warning("Audio rejeitado na validacao: %s", validation.message)
+            return (
+                empty_state("Audio fora dos limites aceitos.", hint=validation.message),
+                "",
+                "",
+                None,
+                "",
+                {},
+            )
+
         try:
             analysis = process_audio(Path(audio_path))
         except (FileNotFoundError, RuntimeError, ValueError) as exc:
