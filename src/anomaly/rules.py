@@ -43,6 +43,14 @@ SURGICAL_INSTRUMENT_MIN_CONFIDENCE: float = 0.5
 SURGICAL_INSTRUMENT_PRESENCE_THRESHOLD: int = 3
 SURGICAL_INSTRUMENT_MODERATE_FRAME_RATIO: float = 0.1
 
+# Sangramento detectado em video cirurgico (classe blood do YOLO custom).
+# Sangue em cirurgia laparoscopica = sinal de complicacao real; regra dispara
+# critical ao detectar presenca persistente em frames consecutivos.
+BLEEDING_CLASS_NAMES: frozenset[str] = frozenset({"blood", "bleeding"})
+BLEEDING_MIN_CONFIDENCE: float = 0.4
+BLEEDING_PRESENCE_THRESHOLD: int = 2
+BLEEDING_CRITICAL_FRAME_RATIO: float = 0.05
+
 # Distress facial agregado pelo pipeline de video (FER).
 FACIAL_DISTRESS_LABELS: frozenset[str] = frozenset({"fear", "sad", "angry", "disgust"})
 FACIAL_DISTRESS_MIN_CONFIDENCE: float = 0.55
@@ -184,6 +192,60 @@ def rule_surgical_instrument_presence(events: list[VideoEvent]) -> Trigger | Non
             message=(
                 f"Instrumental cirurgico em uso em {confident_count}/{len(events)} frames"
                 f" ({ratio:.1%} do video)."
+            ),
+            source="video",
+            evidence=evidence,
+        )
+    return None
+
+
+def rule_bleeding_detected(events: list[VideoEvent]) -> Trigger | None:
+    """Alerta sangramento detectado em video cirurgico.
+
+    Diferente da regra de instrumento (descritiva, `moderate`), sangramento
+    persistente em cirurgia laparoscopica e um sinal de complicacao real e
+    dispara `critical`. Threshold de confianca menor que o de instrumento
+    porque sangue tem forma irregular e e mais dificil de classificar com
+    alta confianca pelo YOLO.
+    """
+    if not events:
+        return None
+
+    bleeding_flags: list[bool] = []
+    confident_count = 0
+    for event in events:
+        has_bleeding = any(
+            det.class_name.lower() in BLEEDING_CLASS_NAMES
+            and det.confidence >= BLEEDING_MIN_CONFIDENCE
+            for det in event.detections
+        )
+        bleeding_flags.append(has_bleeding)
+        if has_bleeding:
+            confident_count += 1
+
+    if confident_count == 0:
+        return None
+
+    longest_streak = _longest_consecutive_streak(bleeding_flags)
+    ratio = confident_count / len(events)
+
+    evidence = {
+        "frames_with_bleeding": confident_count,
+        "total_frames": len(events),
+        "longest_consecutive_streak": longest_streak,
+        "ratio": round(ratio, 3),
+    }
+
+    if (
+        longest_streak >= BLEEDING_PRESENCE_THRESHOLD
+        or ratio >= BLEEDING_CRITICAL_FRAME_RATIO
+    ):
+        return Trigger(
+            rule_id="video.bleeding_detected",
+            level="critical",
+            message=(
+                f"Sangramento detectado em {confident_count}/{len(events)} frames"
+                f" ({ratio:.1%}), maior streak consecutivo: {longest_streak}."
             ),
             source="video",
             evidence=evidence,
@@ -390,6 +452,7 @@ AudioRule = Callable[[AudioAnalysis], Trigger | None]
 
 VIDEO_RULES: tuple[VideoRule, ...] = (
     rule_surgical_instrument_presence,
+    rule_bleeding_detected,
     rule_facial_distress,
 )
 
@@ -464,6 +527,10 @@ def recommend_actions(triggers: list[Trigger]) -> list[str]:
         if trigger.rule_id.startswith("video.surgical_instrument"):
             _add("Documentar uso de instrumental cirurgico no prontuario.")
             _add("Correlacionar com fase cirurgica e contexto clinico do procedimento.")
+        elif trigger.rule_id == "video.bleeding_detected":
+            _add("Acionar protocolo de hemorragia: avaliar fonte e magnitude.")
+            _add("Verificar parametros hemodinamicos e necessidade de transfusao.")
+            _add("Reforcar equipe cirurgica caso intraoperatorio.")
         elif trigger.rule_id == "video.facial_distress":
             _add("Avaliar quadro emocional e oferecer suporte psicologico.")
         elif trigger.rule_id == "audio.vocal_distress":
