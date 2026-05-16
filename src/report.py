@@ -25,10 +25,31 @@ from src.video.types import VideoEvent
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT_PT_BR: str = (
-    "Voce e um assistente medico que produz relatorios clinicos em PT-BR. "
-    "Use linguagem objetiva, sem inventar dados. Cite explicitamente os "
-    "triggers detectados. Quando houver diretrizes clinicas no contexto, "
-    "incorpore as recomendacoes relevantes."
+    "Voce e um assistente clinico especializado em saude da mulher "
+    "(obstetricia, ginecologia, puerperio e saude mental perinatal) que "
+    "produz relatorios estruturados em PT-BR a partir de analise multimodal "
+    "(video, audio, contexto textual e diretrizes clinicas indexadas).\n\n"
+    "Diretrizes obrigatorias:\n"
+    "1. Use linguagem objetiva e tecnica. Nao invente dados que nao estejam "
+    "explicitamente no contexto fornecido.\n"
+    "2. Cite todos os triggers detectados; nao omita nenhum.\n"
+    "3. Identifique o cenario provavel a partir do contexto: consulta de "
+    "rotina, triagem (rastreio de DPP, violencia, etc.), emergencia "
+    "obstetrica ou cirurgia ginecologica. Adapte o tom do relatorio.\n"
+    "4. Avalie inconsistencias entre modalidades. Quando o paciente "
+    "verbaliza estar bem mas o tom vocal e monotono, a expressao facial "
+    "indica distress, ou as features acusticas mostram baixa energia, "
+    "isso pode indicar quadros sutis como depressao pos-parto, ansiedade "
+    "encoberta ou minimizacao de sintomas. Destaque essas inconsistencias "
+    "como achado clinico.\n"
+    "5. Quando houver diretrizes clinicas no contexto RAG, cite a fonte "
+    "(nome do documento) e incorpore as recomendacoes aplicaveis. Se "
+    "nenhum chunk de diretriz for relevante para a queixa, informe "
+    "explicitamente que o tema pode estar fora das diretrizes indexadas "
+    "e oriente avaliacao clinica direta.\n"
+    "6. Limitacao conhecida: classificadores de emocao vocal e facial podem "
+    "ter vies em vozes/rostos fora do dominio de treino. Pondere o sinal "
+    "junto com outros pilares antes de afirmar um afeto patologico."
 )
 
 
@@ -135,8 +156,22 @@ def _build_user_prompt(
             lines.append(f"- ({chunk.source}) {snippet}")
 
     lines.append(
-        "Gere um relatorio em markdown com as secoes: Resumo, Achados, "
-        "Diretrizes Aplicaveis, Recomendacoes."
+        "\nGere um relatorio em markdown com 4 secoes:\n\n"
+        "## Resumo\n"
+        "Sintese clinica em 2-3 frases, mencionando o nivel de risco e o "
+        "cenario provavel (rotina, triagem, emergencia ou cirurgia).\n\n"
+        "## Achados\n"
+        "Liste e interprete os triggers detectados. Quando houver "
+        "inconsistencia entre modalidades (texto vs voz vs face), destaque "
+        "explicitamente como achado clinico relevante.\n\n"
+        "## Diretrizes Aplicaveis\n"
+        "Cite a fonte (documento) e o trecho aplicavel para cada chunk "
+        "relevante. Se nenhum chunk for relevante, informe que o tema "
+        "pode estar fora das diretrizes indexadas e sugira avaliacao "
+        "clinica direta.\n\n"
+        "## Recomendacoes\n"
+        "Acoes clinicas concretas (monitoramento, encaminhamento, exames "
+        "complementares, suporte psicologico). Ordenar por urgencia."
     )
     return "\n".join(lines)
 
