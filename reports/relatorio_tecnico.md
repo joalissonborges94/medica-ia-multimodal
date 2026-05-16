@@ -348,7 +348,8 @@ Curvas, matriz de confusão e exemplos com bounding boxes detectadas pelo modelo
 
 A célula 4.5 do notebook seleciona automaticamente uma sequência consecutiva do test split contendo a classe `blood`, roda inferência do `best.pt` frame a frame, desenha bounding boxes anotadas e empacota um MP4 de demonstração:
 
-- Output: `MyDrive/medica-ia/yolo_runs/surgical_instruments/validation_blood_detected.mp4`
+- Output original (Colab): `MyDrive/medica-ia/yolo_runs/surgical_instruments/validation_blood_detected.mp4`
+- Versionado no repo em [`reports/figures/validation_blood_detected.mp4`](figures/validation_blood_detected.mp4) (332 KB).
 - Conteúdo: 11 frames consecutivos da sequência `video01_28660` (CholecSeg8k test split) com Blood visível, anotados com bboxes em `red` (Blood), `lime` (Grasper) e `magenta` (L-hook), inferidas pelo modelo final.
 - Esse MP4 serve como evidência visual direta da capacidade do modelo de detectar sangramento intraoperatório.
 
