@@ -1,0 +1,36 @@
+# Vídeos demo da aba Multimodal.
+# Cada caso aponta para 1 URL do YouTube + segmento (start, duration).
+# - `extract_audio: true` extrai voz do paciente do proprio video (mais coerente).
+# - `extract_audio: false` mantem apenas o video; audio fica por gen_tts_scripts.py.
+#
+# Preencher as URLs apos buscar no YouTube (filtro Creative Commons).
+# Rodar: python scripts/fetch_youtube_demo_videos.py
+
+cases:
+  caso_normal:
+    note: "Gestante 28 sem em consulta de pre-natal de rotina. Paciente calma, frontal."
+    url: ""  # TODO: preencher com URL CC
+    start: "00:00:00"
+    duration: 30
+    extract_audio: true
+
+  caso_moderado:
+    note: "Puerpera 4 sem com sinais sutis de depressao pos-parto (afeto plano)."
+    url: ""  # TODO: preencher com URL CC
+    start: "00:00:00"
+    duration: 40
+    extract_audio: true
+
+  caso_critico_cirurgia:
+    note: "Histerectomia laparoscopica com complicacao (sangramento intraoperatorio)."
+    url: ""  # TODO: preencher com URL CC
+    start: "00:00:00"
+    duration: 25
+    extract_audio: false  # cirurgia, sem voz do paciente
+
+  caso_critico_consulta:
+    note: "Gestante 36 sem em emergencia por hemorragia, paciente apreensiva."
+    url: ""  # TODO: preencher com URL CC
+    start: "00:00:00"
+    duration: 35
+    extract_audio: true
