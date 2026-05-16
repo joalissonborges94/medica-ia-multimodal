@@ -454,7 +454,22 @@ Cenário de procedimento cirúrgico ginecológico em curso, com detecção persi
 - **Provisionar deployment `gpt-4o-mini-audio-preview` no Azure AI Foundry** e habilitar `AZURE_OPENAI_AUDIO_DEPLOYMENT` no `.env`. O cliente `AzureOpenAIAudioEmotion` já está implementado e plugável.
 - Estender o mesmo cliente para receber frames de vídeo (GPT-4o aceita imagem) e substituir o pilar FER pela mesma lógica multimodal, eliminando o viés de FER-2013.
 - Treinar YOLO custom em dataset ginecológico real quando viável (ex.: parceria com Dresden ou hospital escola), incluindo classes específicas de ginecologia (Harmonic Scalpel, LigaSure).
-- **Expansão da taxonomia laparoscópica via dataset complementar.** O `m2caiseg` foi avaliado como candidato e descartado: cobre o mesmo domínio do CholecSeg8k (colecistectomia) e oferece apenas 307 imagens anotadas, escala insuficiente para justificar retreino. Como alternativa superior identificou-se o `CholecInstanceSeg` (Nature Scientific Data, 2025, https://www.nature.com/articles/s41597-025-05163-w), que entrega segmentação de instâncias em escala publicada e amplia a taxonomia de instrumentos, sendo o candidato priorizado para a próxima iteração de expansão do detector.
+- **Expansão da taxonomia laparoscópica via dataset complementar.** O `m2caiseg` foi avaliado como candidato e descartado: cobre o mesmo domínio do CholecSeg8k (colecistectomia) e oferece apenas 307 imagens anotadas, escala insuficiente para justificar retreino.
+
+  Como alternativa superior identificou-se o [`CholecInstanceSeg`](https://www.nature.com/articles/s41597-025-05163-w) (Ramesh et al., Nature Scientific Data, 2025; [arXiv:2406.16039](https://arxiv.org/abs/2406.16039)). Comparado ao baseline atual:
+
+  | Aspecto | CholecSeg8k (atual) | CholecInstanceSeg |
+  |---|---|---|
+  | Tamanho | 8080 imgs | 41.9k frames, 64.4k instâncias (5x maior) |
+  | Classes de instrumento | 2 (Grasper, L-hook) | 7 (Grasper, Bipolar, Hook, Clipper, Scissors, Irrigator, Snare) |
+  | Tipo de anotação | máscara semântica | instance segmentation + class labels |
+  | Licença | CC BY-NC-SA 4.0 (não comercial) | **Apache 2.0** (uso comercial OK) |
+  | Distribuição | Hugging Face | [Synapse syn60239970](https://www.synapse.org/Synapse:syn60239970) (cadastro acadêmico) |
+  | Código | n/a | [github.com/cai4cai/cholec_instance_seg](https://github.com/cai4cai/cholec_instance_seg) |
+
+  **Ganhos concretos para o caso ginecológico:** as 5 classes adicionais cobrem instrumentos presentes em histerectomia laparoscópica. `Bipolar` é parcialmente equivalente a `LigaSure` (ambos coagulam vasos por energia bipolar); `Scissors` cobre a tesoura laparoscópica; `Irrigator` cobre o suction. Permanece sem cobertura o `Harmonic Scalpel` (ultrassônico), que exigiria dataset adicional específico (ex.: AutoLaparo, LapGyn4).
+
+  **Esforço estimado** (~4-6h): cadastro Synapse, conversão de instance segmentation para bbox YOLO, retreino na A100 (~30 min com 41.9k frames) e re-validação. Domínio continua sendo colecistectomia: a transferência para ginecologia laparoscópica continua sendo argumento de generalização visual entre técnicas equivalentes, agora com cobertura taxonômica significativamente ampliada.
 - Expandir o RAG com diretrizes adicionais (endometriose, SOP, infertilidade, menopausa, câncer de ovário) para reduzir a lacuna de cobertura.
 - Integrar sinais vitais (cardiotocografia, pressão arterial) como nova modalidade do orquestrador.
 - Backend FastAPI dedicado com frontend React para separar UI de inferência.
