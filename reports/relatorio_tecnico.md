@@ -453,7 +453,13 @@ Cenário de procedimento cirúrgico ginecológico em curso, com detecção persi
 
 - **Provisionar deployment `gpt-4o-mini-audio-preview` no Azure AI Foundry** e habilitar `AZURE_OPENAI_AUDIO_DEPLOYMENT` no `.env`. O cliente `AzureOpenAIAudioEmotion` já está implementado e plugável.
 - Estender o mesmo cliente para receber frames de vídeo (GPT-4o aceita imagem) e substituir o pilar FER pela mesma lógica multimodal, eliminando o viés de FER-2013.
-- Treinar YOLO custom em dataset ginecológico real quando viável (ex.: parceria com Dresden ou hospital escola), incluindo classes específicas de ginecologia (Harmonic Scalpel, LigaSure).
+- **Treinar YOLO custom em dataset ginecológico real** quando viável. Dois candidatos foram investigados ativamente:
+
+  - **[AutoLaparo](https://autolaparo.github.io/)** (Wang et al., MICCAI 2022; [arXiv:2208.02049](https://arxiv.org/abs/2208.02049)) — dataset acadêmico de histerectomia laparoscópica do T Stone Robotics Institute (CUHK). Solicitamos formalmente o acesso ao Task 3 (`AutoLaparo-T3 Instrument and key anatomy segmentation`, 1.800 frames com anotação pixel-wise, splits 3.501/1.127/1.258), preenchendo o formulário oficial. A equipe respondeu rapidamente com um link de download, porém o link estava inacessível no momento da entrega. Aguardamos retorno do contato `ziyiwangx@gmail.com` para refazer o acesso. Vantagem técnica: **único dataset público no domínio exato** (histerectomia ginecológica), eliminando a transferência de domínio. Limitação: licença restrita a pesquisa acadêmica (sem uso comercial) e escala modesta (1.800 frames vs 8.080 atuais).
+
+  - Como alternativa não-ginecológica mas com taxonomia ampliada, ver `CholecInstanceSeg` no parágrafo seguinte.
+
+- Possibilidade futura: parceria direta com hospital escola para coleta supervisionada de cirurgias ginecológicas anotadas no padrão LGPD/ética.
 - **Expansão da taxonomia laparoscópica via dataset complementar.** O `m2caiseg` foi avaliado como candidato e descartado: cobre o mesmo domínio do CholecSeg8k (colecistectomia) e oferece apenas 307 imagens anotadas, escala insuficiente para justificar retreino.
 
   Como alternativa superior identificou-se o [`CholecInstanceSeg`](https://www.nature.com/articles/s41597-025-05163-w) (Ramesh et al., Nature Scientific Data, 2025; [arXiv:2406.16039](https://arxiv.org/abs/2406.16039)). Comparado ao baseline atual:
