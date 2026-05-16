@@ -24,6 +24,7 @@ from ui.components import (
     section_title,
     sentiment_provider_label,
     transcription_provider_label,
+    vocal_emotion_provider_label,
 )
 from ui.limits import validate_audio
 
@@ -159,7 +160,7 @@ def render(process_audio: AudioProcessor) -> None:
         kpis = kpi_grid(
             [
                 kpi_tile("Duracao", duration, hint="audio analisado"),
-                kpi_tile("Emocao", emotion_label, hint="wav2vec2 (superb-er)"),
+                kpi_tile("Emocao", emotion_label, hint=vocal_emotion_provider_label()),
                 kpi_tile("Sentimento", sentiment_label, hint=sentiment_provider_label()),
                 kpi_tile(
                     "Segmentos",

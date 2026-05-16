@@ -309,6 +309,24 @@ def emotion_provider_label() -> str:
     return "FER local"
 
 
+def vocal_emotion_provider_label() -> str:
+    """Descreve o classificador de emocao vocal ativo.
+
+    Quando `AZURE_OPENAI_AUDIO_DEPLOYMENT` esta preenchido e o cliente Azure
+    consegue inicializar, o pipeline usa GPT-4o multimodal. Caso contrario,
+    cai no wav2vec2 local (com vies conhecido em PT-BR; ver relatorio).
+    """
+    from src.config.settings import settings
+
+    if (
+        settings.azure_openai_audio_deployment
+        and settings.azure_openai_key.get_secret_value()
+        and settings.azure_openai_endpoint
+    ):
+        return f"Azure OpenAI multimodal ({settings.azure_openai_audio_deployment})"
+    return "wav2vec2 local (superb-er)"
+
+
 def sentiment_provider_label() -> str:
     """Descreve o provider de sentimento textual."""
     from src.config.settings import settings

@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 
 from src.audio.azure_language import AzureLanguageClient
-from src.audio.emotion import VocalEmotionClassifier
+from src.audio.emotion import EmotionClassifierProtocol, get_emotion_classifier
 from src.audio.features import extract_features
 from src.audio.transcriber import TranscriberProtocol, get_transcriber
 from src.audio.types import AudioAnalysis
@@ -25,7 +25,7 @@ class AudioPipeline:
     def __init__(
         self,
         transcriber: TranscriberProtocol | None = None,
-        emotion_classifier: VocalEmotionClassifier | None = None,
+        emotion_classifier: EmotionClassifierProtocol | None = None,
         language_client: AzureLanguageClient | None = None,
     ) -> None:
         """Configura o pipeline.
@@ -33,12 +33,14 @@ class AudioPipeline:
         Args:
             transcriber: instancia opcional. Default usa `get_transcriber()`
                 que respeita o toggle `USE_CLOUD_TRANSCRIPTION`.
-            emotion_classifier: instancia opcional de `VocalEmotionClassifier`.
+            emotion_classifier: instancia opcional. Default usa
+                `get_emotion_classifier()` que escolhe entre wav2vec2 local
+                e GPT-4o multimodal conforme `AZURE_OPENAI_AUDIO_DEPLOYMENT`.
             language_client: instancia opcional de `AzureLanguageClient`.
         """
         self.transcriber: TranscriberProtocol = transcriber or get_transcriber()
-        self.emotion_classifier: VocalEmotionClassifier = (
-            emotion_classifier or VocalEmotionClassifier()
+        self.emotion_classifier: EmotionClassifierProtocol = (
+            emotion_classifier or get_emotion_classifier()
         )
         self.language_client: AzureLanguageClient = language_client or AzureLanguageClient()
 

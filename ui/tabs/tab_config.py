@@ -112,6 +112,28 @@ def _status_panel() -> str:
         )
     )
 
+    # Emocao vocal: cloud (GPT-4o multimodal) vence se deployment estiver setado;
+    # senao cai no wav2vec2 local (com vies conhecido em PT-BR).
+    voice_cloud_ativo = bool(
+        settings.azure_openai_audio_deployment
+        and settings.azure_openai_key.get_secret_value()
+        and settings.azure_openai_endpoint
+    )
+    linhas.append(
+        _row(
+            "Emocao vocal",
+            _badge(
+                "info" if voice_cloud_ativo else "ok",
+                "Cloud" if voice_cloud_ativo else "Local",
+            ),
+            (
+                f"Azure OpenAI multimodal ({settings.azure_openai_audio_deployment})."
+                if voice_cloud_ativo
+                else "wav2vec2 local (superb-er). Vies conhecido em PT-BR; ver relatorio 9.1."
+            ),
+        )
+    )
+
     # ---- Servicos Azure ---------------------------------------------------
     cases: list[tuple[str, str, str | None, str]] = [
         (

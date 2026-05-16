@@ -3,20 +3,40 @@
 Usa `superb/wav2vec2-base-superb-er` (treinado em IEMOCAP, 4 emocoes).
 Lazy-load + fallback gracioso: se o modelo nao puder ser carregado
 (rede, espaco em disco, incompatibilidade), retorna `None` sem quebrar.
+
+Quando `AZURE_OPENAI_AUDIO_DEPLOYMENT` esta preenchido em `.env`, o pipeline
+usa `AzureOpenAIAudioEmotion` em vez deste (caminho multimodal sem vies de
+RAVDESS, ver `src/audio/azure_openai_audio.py`). A selecao acontece em
+`get_emotion_classifier()` no fim deste modulo.
 """
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Protocol
 
 import numpy as np
 
 from src.audio.types import EmotionScore
+from src.config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "superb/wav2vec2-base-superb-er"
+
+
+class EmotionClassifierProtocol(Protocol):
+    """Interface comum para classificadores de emocao vocal.
+
+    Tanto o wav2vec2 local quanto o cliente GPT-4o multimodal Azure
+    implementam essa assinatura, permitindo trocas plug-and-play no
+    `AudioPipeline`.
+    """
+
+    def classify(self, audio_path: Path) -> EmotionScore | None:
+        """Classifica a emocao predominante. Retorna `None` em fallback."""
+        ...
 
 
 class VocalEmotionClassifier:
@@ -86,3 +106,33 @@ def _ensure_float32(samples: np.ndarray) -> np.ndarray:
     if samples.dtype != np.float32:
         return samples.astype(np.float32)
     return samples
+
+
+def get_emotion_classifier() -> EmotionClassifierProtocol:
+    """Seleciona o classificador de emocao conforme `.env`.
+
+    Quando `AZURE_OPENAI_AUDIO_DEPLOYMENT` esta preenchido E o cliente
+    Azure consegue inicializar, retorna `AzureOpenAIAudioEmotion`
+    (multimodal cloud, sem vies de RAVDESS). Caso contrario, cai para
+    `VocalEmotionClassifier` (wav2vec2 local).
+
+    A decisao acontece no momento da chamada, lazy. Trocas em runtime
+    exigem instanciar o pipeline novamente (mesmo padrao de
+    `get_transcriber`).
+    """
+    if settings.azure_openai_audio_deployment:
+        # Import local pra evitar carregar SDK openai quando nao for usado.
+        from src.audio.azure_openai_audio import AzureOpenAIAudioEmotion
+
+        cloud = AzureOpenAIAudioEmotion()
+        if cloud.is_configured:
+            logger.info(
+                "Usando AzureOpenAIAudioEmotion (deployment=%s)",
+                cloud.deployment,
+            )
+            return cloud
+        logger.warning(
+            "AZURE_OPENAI_AUDIO_DEPLOYMENT preenchido mas Azure OpenAI nao "
+            "configurado completamente; caindo no wav2vec2 local."
+        )
+    return VocalEmotionClassifier()
