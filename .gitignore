@@ -46,6 +46,8 @@ htmlcov/
 # =====================================================================
 models/*
 !models/.gitkeep
+# Pesos custom treinados via notebooks/train_yolo_colab.ipynb (~6 MB, vale commitar).
+!models/yolov8n_surgical.pt
 
 data/raw/*
 !data/raw/.gitkeep

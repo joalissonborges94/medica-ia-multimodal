@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     use_cloud_emotion: bool = Field(default=False)
 
     # ----- Caminhos de modelos e indices -------------------------------
-    yolo_weights_path: Path = Field(default=Path("models/yolo_v1.pt"))
+    yolo_weights_path: Path = Field(default=Path("models/yolov8n_surgical.pt"))
     rag_index_path: Path = Field(default=Path("data/processed/chroma"))
 
     # ----- Logging -----------------------------------------------------
