@@ -1,24 +1,19 @@
 """Treina YOLOv8n no dataset CholecSeg8k convertido (formato YOLO).
 
-Pensado pra rodar no Google Colab com GPU T4 gratuita. Também roda local
-se houver GPU CUDA ou MPS (Apple Silicon). Em CPU vai funcionar mas
-30 epochs em 8080 imagens leva horas.
+Alternativa local ao notebook `notebooks/train_yolo_colab.ipynb` (caminho
+recomendado para reproduzir o treino no Colab). Use este script quando o
+dataset já estiver convertido em `data/processed/cholecseg8k_yolo/` e você
+quiser rodar localmente em GPU CUDA, MPS (Apple Silicon) ou CPU.
 
-Fluxo no Colab:
-    1. Upload do diretório `data/processed/cholecseg8k_yolo/` (ou montar
-       Google Drive com o diretório).
-    2. `pip install ultralytics`
-    3. `python train_yolo.py --data /content/cholecseg8k_yolo/data.yaml`
-    4. Baixar `runs/detect/<name>/weights/best.pt` no fim.
+Uso típico:
+    python scripts/train_yolo.py \\
+        --data data/processed/cholecseg8k_yolo/data.yaml \\
+        --epochs 40
 
-Saída esperada:
-    - `runs/detect/<name>/weights/best.pt`: pesos finais
-    - `runs/detect/<name>/results.csv`: métricas por epoch
-    - `runs/detect/<name>/confusion_matrix.png`
-    - `runs/detect/<name>/results.png`: curvas de loss/mAP
-
-Após o treino, copiar `best.pt` para `models/yolov8n_surgical.pt` no projeto
-local e apontar `YOLO_WEIGHTS_PATH` no `.env` (ou deixar em `models/`).
+Saída em `runs/detect/<name>/`:
+    - `weights/best.pt`: pesos finais (copiar para `models/yolov8n_surgical.pt`)
+    - `results.csv`: métricas por epoch
+    - `results.png`: curvas de loss/mAP
 """
 
 from __future__ import annotations

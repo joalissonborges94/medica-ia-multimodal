@@ -69,6 +69,12 @@ pytest -m integration  # end-to-end com pipelines mockados
 ruff check src/ ui/ tests/ scripts/ app.py
 ```
 
+## Treino do YOLO custom
+
+O detector de vídeo usa pesos próprios treinados sobre CholecSeg8k (ADR-012). Para reproduzir o treino, abrir [notebooks/train_yolo_colab.ipynb](notebooks/train_yolo_colab.ipynb) no Google Colab (GPU T4 gratuita). O notebook baixa o dataset do Hugging Face, converte máscaras em bounding boxes, treina o YOLOv8n e exporta `best.pt`. Idempotente: se o dataset já estiver na pasta configurada, pula direto para o treino.
+
+Alternativa local: `scripts/train_yolo.py` aceita o dataset já convertido em `data/processed/cholecseg8k_yolo/` e roda em GPU CUDA/MPS quando disponível.
+
 ## Documentação
 
 - [docs/overview.md](docs/overview.md): visão geral, escopo, métricas de sucesso
