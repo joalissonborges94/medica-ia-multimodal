@@ -4,7 +4,7 @@ Cada regra e uma funcao pura que recebe a saida agregada dos pipelines
 de video e audio (`list[VideoEvent]` e `AudioAnalysis`) e devolve um
 `Trigger` quando o criterio clinico e atingido, ou `None` caso contrario.
 
-Filosofia: regras tem prioridade sobre o modelo estatistico (Sprint 4.2)
+Filosofia: regras tem prioridade sobre o modelo estatistico
 porque sao auditaveis e diretamente justificaveis em contexto clinico.
 O classificador final (4.3) combina ambos preservando triggers criticos.
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 # Ordem numerica usada para escolher o trigger mais grave em `derive_risk_level`.
 RISK_LEVEL_ORDER: dict[RiskLevel, int] = {"normal": 0, "moderate": 1, "critical": 2}
 
-# Instrumentos cirurgicos laparoscopicos (detector custom Sprint 6, treinado em CholecSeg8k).
+# Instrumentos cirurgicos laparoscopicos (detector custom treinado em CholecSeg8k).
 # Deteccao de instrumento e NORMAL em cirurgia; regra so dispara moderate
 # (documentacao de procedimento), critical vem de outros pilares (vocal/textual/facial).
 SURGICAL_INSTRUMENT_CLASS_NAMES: frozenset[str] = frozenset(

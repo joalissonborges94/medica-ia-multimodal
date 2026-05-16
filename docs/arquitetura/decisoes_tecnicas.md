@@ -103,15 +103,15 @@ C. Modelos open source local
 
 **Opções:**
 
-A. Treinar YOLO custom no Sprint 1 antes de tudo
+A. Treinar YOLO custom antes de tudo o mais
 B. Usar YOLOv8 base do ultralytics como stub
 C. Usar YOLO pré-treinado clínico do Roboflow Universe
 
-**Decisão:** Opção C primeiro, depois Sprint 6 para treinar custom.
+**Decisão:** Opção C primeiro, depois treino custom em etapa posterior.
 
 **Justificativa:** padrão "stub the model" destrava o desenvolvimento. Detector é model-agnostic, troca de pesos não afeta arquitetura. Roboflow Universe oferece modelos clínicos prontos.
 
-**Consequências:** Sprint 1 começa rápido, Sprint 6 entrega modelo custom para a versão final.
+**Consequências:** o pipeline inicial começa rápido; a etapa de treino custom entrega o modelo final.
 
 ---
 
@@ -191,25 +191,25 @@ C. Logs em arquivos JSON
 
 ---
 
-## ADR-011: Stub `yolov8n.pt` no Sprint 1; Roboflow Universe só no Sprint 6
+## ADR-011: Stub `yolov8n.pt` inicial; Roboflow Universe avaliado para etapa de treino custom
 
-**Contexto:** ADR-006 escolheu Roboflow Universe como fonte do modelo pré-treinado para destravar o Sprint 1. Na prática, garimpar um modelo público de "bleeding" no Universe com pesos baixáveis, license permissiva e mAP confiável tem custo de tempo alto, e o Universe ainda bloqueia automação externa. Isso bloqueia o Sprint 1 inteiro por algo que é desnecessário no curto prazo: o detector é model-agnostic e o Sprint 6 vai treinar custom de qualquer jeito.
+**Contexto:** ADR-006 escolheu Roboflow Universe como fonte do modelo pré-treinado para destravar o pipeline inicial. Na prática, garimpar um modelo público de "bleeding" no Universe com pesos baixáveis, license permissiva e mAP confiável tem custo de tempo alto, e o Universe ainda bloqueia automação externa. Isso bloqueia o pipeline inicial inteiro por algo que é desnecessário no curto prazo: o detector é model-agnostic e o treino custom está planejado para etapa posterior de qualquer jeito.
 
 **Opções:**
 
-A. Continuar buscando modelo Roboflow ideal antes do Sprint 1
-B. Stub com `yolov8n.pt` base (Ultralytics) no Sprint 1, trocar pelos pesos custom no Sprint 6
+A. Continuar buscando modelo Roboflow ideal antes de destravar o pipeline
+B. Stub com `yolov8n.pt` base (Ultralytics) imediatamente, trocar pelos pesos custom na etapa de treino
 C. Stub com `yolov8n.pt` agora E pesos Roboflow assim que aparecerem como melhoria opcional
 
 **Decisão:** Opção B.
 
-**Justificativa:** Sprint 6 já planeja treino custom (com dataset rotulado vindo de Roboflow Universe ou outras fontes). Não há ganho real em ter modelo "intermediário Roboflow" entre `yolov8n` base e o custom final. Roboflow Universe segue como **fonte de dataset** (não de modelo) no Sprint 6.
+**Justificativa:** o treino custom está planejado para etapa posterior (com dataset rotulado vindo de Roboflow Universe ou outras fontes). Não há ganho real em ter modelo "intermediário Roboflow" entre `yolov8n` base e o custom final. Roboflow Universe segue como **fonte de dataset** (não de modelo) na etapa de treino.
 
 **Consequências:**
-- Sprint 1 desbloqueia imediatamente, sem dependência externa.
+- O pipeline inicial desbloqueia imediatamente, sem dependência externa.
 - O detector aceita qualquer `.pt` via `YOLO_WEIGHTS_PATH` (env var), mantendo a model-agnosticidade prometida no ADR-006.
-- ADR-006 letra C continua válido para o Sprint 6: avaliar Roboflow Universe como dataset; alternativas (Kaggle, HuggingFace, PhysioNet) ficam abertas.
-- Stub atual detecta classes COCO (não `bleeding`). O pipeline roda end-to-end mesmo assim; a relevância clínica vem do treino custom no Sprint 6.
+- ADR-006 letra C continua válido para a etapa de treino custom: avaliar Roboflow Universe como dataset; alternativas (Kaggle, HuggingFace, PhysioNet) ficam abertas.
+- Stub atual detecta classes COCO (não `bleeding`). O pipeline roda end-to-end mesmo assim; a relevância clínica vem do treino custom.
 
 ---
 
@@ -217,7 +217,7 @@ C. Stub com `yolov8n.pt` agora E pesos Roboflow assim que aparecerem como melhor
 
 **Supersede:** ADR-007.
 
-**Contexto:** ADR-007 escolheu "sangramento anômalo" como alvo do YOLO custom. Ao executar o Sprint 6.1 (provisionamento de dataset), uma rodada de pesquisa empírica em fontes públicas (Roboflow Universe, Kaggle, Hugging Face, PhysioNet, repositórios académicos) revelou que nenhuma das opções viáveis sustenta o alvo "sangramento" no domínio ginecológico:
+**Contexto:** ADR-007 escolheu "sangramento anômalo" como alvo do YOLO custom. Ao executar o provisionamento de dataset, uma rodada de pesquisa empírica em fontes públicas (Roboflow Universe, Kaggle, Hugging Face, PhysioNet, repositórios académicos) revelou que nenhuma das opções viáveis sustenta o alvo "sangramento" no domínio ginecológico:
 
 - **WCEBleedGen (Kaggle/Wireless Capsule Endoscopy):** sangramento sim, mas em gastroenterologia (cápsula endoscópica). Domínio não-ginecológico, framing forçado.
 - **BUSI (Breast Ultrasound Images):** ultrassom mamário diagnóstico, sem sangramento. Substituir "sangramento" por "lesão mamária" seria mudança implícita, sem aderência ao enunciado.
@@ -241,7 +241,7 @@ D. Pivotar para "instrumentos cirúrgicos" usando CholecSeg8k (3.1 GB, HF, class
 
 **Consequências:**
 - Dataset baixado em `data/raw/cholecseg8k/`, convertido para formato YOLO em `data/processed/cholecseg8k_yolo/` (8080 frames, 2 classes, splits 5656/1616/808 train/val/test).
-- Refactor em código: `LESION_MAMA_*` → `SURGICAL_INSTRUMENT_*` em `src/anomaly/rules.py`, `src/anomaly/statistical.py` e respectivos testes (Sprint 6 B6).
+- Refactor em código: `LESION_MAMA_*` → `SURGICAL_INSTRUMENT_*` em `src/anomaly/rules.py`, `src/anomaly/statistical.py` e respectivos testes.
 - **Semântica nova:** detecção de instrumento é estado NORMAL de cirurgia laparoscópica. Trigger correspondente eleva nível para `moderate` apenas (sinaliza presença de procedimento invasivo em curso); nunca para `critical` isoladamente. Combinação com outros triggers (vocais, textuais) pode escalar.
 - ADR-007 superseded. Histórico de pivots preservado neste registro: WCEBleedGen → BUSI → Dresden → CholecSeg8k.
 
@@ -265,7 +265,7 @@ C. Híbrida: TTS Azure como "rótulo gold" da demo + CORAA-SER como validação 
 - Estratégia híbrida mantém demo previsível (TTS) e responsabilidade técnica (validação em fala real).
 
 **Consequências:**
-- Sprint 6/7 inclui geração de áudios TTS Azure em `data/synthetic/audio/` cobrindo cenários: normal, ansiedade, depressão, sofrimento agudo.
+- O projeto gera áudios TTS Azure em `data/synthetic/audio/` cobrindo cenários: normal, ansiedade, depressão, sofrimento agudo.
 - `tests/integration/test_audio_validation.py` (a criar) roda subset de CORAA-SER e reporta acurácia agregada do classificador.
 - TTS Azure exige `AZURE_SPEECH_KEY` (já provisionado). CORAA-SER baixado on-demand pelo `datasets` da HF.
 
@@ -283,7 +283,7 @@ B. Adiar formalmente, marcar como `⏸️ Adiado` no roadmap
 **Decisão:** Opção B.
 
 **Justificativa:**
-- Estimativa de 1.5 a 2 sprints adicionais (modelagem de série temporal + nova aba + novos triggers + integração no orquestrador) para ganho marginal frente ao requisito de ≥2 funcionalidades já cumprido.
+- Estimativa de esforco adicional significativo (modelagem de serie temporal + nova aba + novos triggers + integracao no orquestrador) para ganho marginal frente ao requisito de >=2 funcionalidades ja cumprido.
 - Quebra coerência multimodal: vídeo + áudio + texto formam uma análise unificada (humana, qualitativa); série temporal de PA/CTG é outro paradigma (numérico, monitoramento contínuo) e exigiria UX própria.
 - Aderência ao padrão "stub-first + fallback gracioso": registrar como adiado é melhor do que entregar versão parcial.
 

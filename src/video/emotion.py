@@ -4,7 +4,7 @@ FER exige `Pillow` legado (nao builda em Python 3.14). O Dockerfile fixa
 `python:3.12-slim` onde a instalacao funciona normalmente. Em ambiente
 de desenvolvimento com Python 3.14 o detector faz fallback gracioso e
 retorna lista vazia, sem quebrar o pipeline. Trocar por modelo HuggingFace
-no Sprint 6 caso desejado.
+como evolucao futura caso desejado.
 
 Como alternativa cloud sem vies de FER-2013 (que tende a rotular faces
 femininas em repouso como `angry`/`sad`), existe `AzureOpenAIVisionEmotion`

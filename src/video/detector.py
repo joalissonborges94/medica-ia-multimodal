@@ -1,11 +1,11 @@
 """Detector de objetos baseado em YOLO (model-agnostic).
 
 A classe `BleedingDetector` (nome historico, agora generico) opera com
-qualquer arquivo `.pt` compativel com YOLOv8. No Sprint 1 usa o stub
+qualquer arquivo `.pt` compativel com YOLOv8. Por padrao usa o stub
 `yolov8n.pt` (classes COCO, sem relevancia clinica direta) para destravar o
-pipeline. No Sprint 6 sera trocado por pesos custom de instrumentos
-cirurgicos (treinados em CholecSeg8k) via `YOLO_WEIGHTS_PATH` no `.env`
-(ADR-006, ADR-011, ADR-012).
+pipeline. Quando os pesos custom de instrumentos cirurgicos (treinados em
+CholecSeg8k) estao disponiveis em `YOLO_WEIGHTS_PATH`, o detector os carrega
+automaticamente (ADR-006, ADR-011, ADR-012).
 """
 
 from __future__ import annotations
@@ -31,8 +31,8 @@ def ensure_yolo_weights(target_path: Path) -> Path:
     """Garante que o arquivo de pesos YOLO exista em `target_path`.
 
     Se o arquivo nao existir, baixa o stub `yolov8n.pt` via ultralytics e
-    move para o local destino. No Sprint 6, basta substituir o arquivo
-    pelo modelo custom (mesmo path) que o detector continua funcionando.
+    move para o local destino. Para usar pesos custom, basta substituir o
+    arquivo no mesmo path que o detector continua funcionando.
 
     Args:
         target_path: caminho desejado para os pesos `.pt`.

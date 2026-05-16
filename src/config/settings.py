@@ -40,23 +40,23 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # ----- Azure Speech (Sprint 2) -------------------------------------
+    # ----- Azure Speech ------------------------------------------------
     azure_speech_key: SecretStr = Field(default=SecretStr(""))
     azure_speech_region: str = Field(default="brazilsouth")
 
-    # ----- Azure Language (Sprint 2) -----------------------------------
+    # ----- Azure Language ----------------------------------------------
     azure_language_key: SecretStr = Field(default=SecretStr(""))
     azure_language_endpoint: str = Field(default="")
 
-    # ----- Azure Video Indexer (Sprint 1) ------------------------------
+    # ----- Azure Video Indexer -----------------------------------------
     azure_video_indexer_key: SecretStr = Field(default=SecretStr(""))
     azure_video_indexer_account_id: str = Field(default="")
 
-    # ----- Azure Face (Sprint 1) ---------------------------------------
+    # ----- Azure Face --------------------------------------------------
     azure_face_key: SecretStr = Field(default=SecretStr(""))
     azure_face_endpoint: str = Field(default="")
 
-    # ----- Azure OpenAI (Sprint 4) -------------------------------------
+    # ----- Azure OpenAI ------------------------------------------------
     azure_openai_key: SecretStr = Field(default=SecretStr(""))
     azure_openai_endpoint: str = Field(default="")
     azure_openai_deployment: str = Field(default="gpt-4.1-mini")

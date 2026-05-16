@@ -1,4 +1,4 @@
-"""Demo do orquestrador completo (Sprint 4.10).
+"""Demo do orquestrador completo.
 
 Roda 3 cenarios sinteticos end-to-end e imprime nivel de risco, triggers
 e o trecho inicial do relatorio markdown gerado:

@@ -1,7 +1,7 @@
 """Gera PDFs sinteticos curtos com texto ficticio sobre pre-natal e pre-eclampsia.
 
-Util para destravar o RAG (Sprint 3) enquanto os PDFs reais (S7 e S8 do
-`setup_servicos.md`) nao estao disponiveis. **Nao representam diretrizes
+Util para destravar o RAG enquanto os PDFs reais nao estao disponiveis.
+**Nao representam diretrizes
 oficiais**: substituir pelos arquivos reais do MS e da FEBRASGO antes da demo.
 
 Uso:

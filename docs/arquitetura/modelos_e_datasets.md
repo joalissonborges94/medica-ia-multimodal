@@ -42,7 +42,7 @@ Lista consolidada de modelos pré-treinados, datasets e outras fontes de dados u
 |---|---|---|---|
 | **CholecSeg8k** | Hugging Face (`minwoosun/CholecSeg8k`), Hong et al., arXiv 2012.12463, CC BY-NC-SA 4.0 | Treino YOLO custom para instrumentos cirúrgicos | 8080 frames, 3.1 GB; classes alvo `Grasper` + `L-hook Electrocautery`; splits 5656/1616/808. ADR-012 |
 
-### Datasets de demonstração (Sprint 7)
+### Datasets de demonstração
 
 Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (sem treino), cobrindo cenários do enunciado:
 
@@ -55,7 +55,7 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 | WHO RESPECT Women | World Health Organization | Conteúdo sobre violência contra a mulher (sensível) | Uso ilustrativo apenas |
 | RAVDESS | Universidade Ryerson | Atrizes em estados afetivos (referência cruzada) | Inglês, complementar ao TTS PT-BR |
 
-### Áudio (Sprint 7)
+### Áudio (validação em fala espontânea)
 
 | Fonte | Onde | Uso | Observação |
 |---|---|---|---|
