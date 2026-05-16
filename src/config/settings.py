@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     # ex: gpt-4o-mini-audio-preview. Quando vazio, pilar de emocao vocal
     # cai pra wav2vec2 local (com viés conhecido em PT-BR).
     azure_openai_audio_deployment: str = Field(default="")
+    # Modelo multimodal (vision input) - deploy separado no Foundry,
+    # ex: gpt-4o-mini ou gpt-4o. Quando vazio, pilar de emocao facial
+    # cai pra FER local (com vies conhecido de FER-2013).
+    azure_openai_vision_deployment: str = Field(default="")
 
     # ----- Toggles cloud vs local --------------------------------------
     use_cloud_transcription: bool = Field(default=False)

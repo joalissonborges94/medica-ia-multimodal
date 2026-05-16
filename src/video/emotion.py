@@ -5,6 +5,14 @@ FER exige `Pillow` legado (nao builda em Python 3.14). O Dockerfile fixa
 de desenvolvimento com Python 3.14 o detector faz fallback gracioso e
 retorna lista vazia, sem quebrar o pipeline. Trocar por modelo HuggingFace
 no Sprint 6 caso desejado.
+
+Como alternativa cloud sem vies de FER-2013 (que tende a rotular faces
+femininas em repouso como `angry`/`sad`), existe `AzureOpenAIVisionEmotion`
+em `src/video/azure_openai_vision.py`. Ele usa um deployment GPT-4o vision
+(ex: `gpt-4o-mini`) no Foundry e segue a mesma estrategia adotada para
+audio com `AzureOpenAIAudioEmotion`. A integracao plug-and-play (analoga
+a `get_emotion_classifier()` em `src/audio/emotion.py`) sera feita quando
+o deployment de visao for provisionado.
 """
 
 from __future__ import annotations

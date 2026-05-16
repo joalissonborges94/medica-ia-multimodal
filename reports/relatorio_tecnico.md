@@ -4,13 +4,13 @@ Tech Challenge Fase 4, pós-graduação Tech IADT.
 
 **Equipe:** Joalisson Borges, Luis Gustavo Santini, Marina Souza Lucas, Diego Santos.
 
-**Data:** <!-- TODO: preencher data de fechamento da entrega -->
+**Data:** 2026-05-17
 
-**Repositório:** <!-- TODO: URL pública do repo Git -->
+**Repositório:** https://github.com/joalissonborges94/medica-ia-multimodal
 
-**Demo (Hugging Face Spaces):** <!-- TODO: URL pública do Space -->
+**Demo (Hugging Face Spaces):** <!-- TODO: URL pública do Space (Sprint 8) -->
 
-**Vídeo de apresentação:** <!-- TODO: URL do vídeo de até 15 min -->
+**Vídeo de apresentação:** <!-- TODO: URL do vídeo de até 15 min (Sprint 8) -->
 
 ---
 
@@ -18,7 +18,7 @@ Tech Challenge Fase 4, pós-graduação Tech IADT.
 
 O projeto entrega um sistema de monitoramento multimodal voltado à saúde da mulher, processando vídeo, áudio e texto para gerar nível de risco, relatório clínico e alerta estruturado. Cobre três das quatro funcionalidades do enunciado (análise de vídeo, processamento de áudio em consultas, integração Azure Cognitive Services) e quatro dos cinco objetivos (detecção precoce de riscos materno-ginecológicos, bem-estar psicológico, uso de cloud, detecção de anomalias em tempo real). O detector de vídeo usa YOLOv8 customizado sobre CholecSeg8k para identificar instrumentos de cirurgia laparoscópica (`Grasper`, `L-hook Electrocautery`). O pipeline de áudio combina `faster-whisper`, `librosa` e `wav2vec2`. RAG sobre oito diretrizes clínicas brasileiras (Ministério da Saúde, FEBRASGO, INCA) enriquece o relatório. LLM é Azure OpenAI GPT-4.1-mini via AI Foundry, com fallback determinístico offline. A UI é Gradio Blocks publicada em Hugging Face Spaces.
 
-**Métricas-chave:** <!-- TODO: preencher após treino e validações finais (mAP@50 do YOLO, latência média por caso, taxa de acerto do classificador wav2vec2 em CORAA-SER) -->
+**Métricas-chave:** YOLOv8 customizado atinge mAP@50 = **0.989** e mAP@50-95 = **0.882** no test split do CholecSeg8k (808 imagens, 920 instâncias), com desempenho balanceado entre as 3 classes treinadas (`grasper`, `l_hook_electrocautery`, `blood`). Treino completo em ~17 min em GPU A100 (40 epochs, YOLOv8m, batch 16, imgsz 640). Pipeline multimodal cobre 3 das 4 funcionalidades do enunciado (vídeo, áudio e Azure Cognitive Services) e 4 dos 5 objetivos listados.
 
 ---
 
@@ -454,6 +454,7 @@ Cenário de procedimento cirúrgico ginecológico em curso, com detecção persi
 - **Provisionar deployment `gpt-4o-mini-audio-preview` no Azure AI Foundry** e habilitar `AZURE_OPENAI_AUDIO_DEPLOYMENT` no `.env`. O cliente `AzureOpenAIAudioEmotion` já está implementado e plugável.
 - Estender o mesmo cliente para receber frames de vídeo (GPT-4o aceita imagem) e substituir o pilar FER pela mesma lógica multimodal, eliminando o viés de FER-2013.
 - Treinar YOLO custom em dataset ginecológico real quando viável (ex.: parceria com Dresden ou hospital escola), incluindo classes específicas de ginecologia (Harmonic Scalpel, LigaSure).
+- **Expansão da taxonomia laparoscópica via dataset complementar.** O `m2caiseg` foi avaliado como candidato e descartado: cobre o mesmo domínio do CholecSeg8k (colecistectomia) e oferece apenas 307 imagens anotadas, escala insuficiente para justificar retreino. Como alternativa superior identificou-se o `CholecInstanceSeg` (Nature Scientific Data, 2025, https://www.nature.com/articles/s41597-025-05163-w), que entrega segmentação de instâncias em escala publicada e amplia a taxonomia de instrumentos, sendo o candidato priorizado para a próxima iteração de expansão do detector.
 - Expandir o RAG com diretrizes adicionais (endometriose, SOP, infertilidade, menopausa, câncer de ovário) para reduzir a lacuna de cobertura.
 - Integrar sinais vitais (cardiotocografia, pressão arterial) como nova modalidade do orquestrador.
 - Backend FastAPI dedicado com frontend React para separar UI de inferência.
@@ -466,7 +467,7 @@ Cenário de procedimento cirúrgico ginecológico em curso, com detecção persi
 
 O projeto entrega uma solução multimodal funcional cobrindo três das quatro funcionalidades e quatro dos cinco objetivos do enunciado, com integração Azure real (não simulada) e fallback gracioso quando as chaves não estão disponíveis. A pivotagem do alvo YOLO de "sangramento anômalo" para "instrumentos cirúrgicos laparoscópicos" (ADR-012) sustentou aderência LITERAL ao alvo 1 do enunciado mediante dataset público reproduzível (CholecSeg8k), preservando coerência clínica via transferência de domínio entre colecistectomia e cirurgia ginecológica laparoscópica. A separação explícita entre os três artefatos (dataset, RAG, LLM) torna o pipeline auditável e cada peça substituível.
 
-<!-- TODO: parágrafo curto comentando os resultados quantitativos reais do YOLO e o comportamento observado nos 4 cenários da seção 8 -->
+Quantitativamente, o detector custom convergiu com mAP@50 = 0.989 e mAP@50-95 = 0.882 no test split, mantendo desempenho equilibrado entre as 3 classes (variação de 0.982 a 0.993 em mAP@50), inclusive na classe minoritária `blood` (71 instâncias). A decisão de adicionar a classe `Blood` ao escopo das 3 classes finais, justificada em ADR-013, ampliou a cobertura do detector de 1 para 2 dos 4 entregáveis sugeridos pelo enunciado (detecção de instrumentos e detecção de sangramento intraoperatório), com custo de treino marginal. As limitações reconhecidas (transferência de domínio CholecSeg8k para ginecologia, viés do wav2vec2 e do FER em PT-BR) já estão mitigadas arquiteturalmente: o cliente multimodal `AzureOpenAIAudioEmotion` baseado em GPT-4o está implementado e plugável, aguardando apenas o provisionamento do deployment correspondente no Azure AI Foundry. Como trabalho futuro priorizado, destacam-se a ativação do GPT-4o-vision para o pilar de emoção facial (substituindo o FER) e a expansão da taxonomia laparoscópica via `AutoLaparo` ou `CholecInstanceSeg`, ambos com escala e cobertura superiores ao baseline atual.
 
 ---
 
