@@ -36,48 +36,89 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 
+# Mapeia caso -> categoria (subpasta em data/examples/). Casos de
+# consulta com paciente ficam em `consultas/`; videos cirurgicos em
+# `cirurgias/`. Nomes descrevem o conteudo do video (nao a severidade
+# esperada, que e atribuida pelo pipeline em tempo de execucao).
+CATEGORIA_POR_CASO: dict[str, str] = {
+    "prenatal":       "consultas",
+    "rastreio_mama":  "consultas",
+    "dermatologica":  "consultas",
+    "rotina":         "cirurgias",
+    "sangramento":    "cirurgias",
+}
+
 # Esquema do manifest. Paths sao relativos a raiz do projeto.
 CASOS: list[dict] = [
     {
-        "key": "caso_normal",
-        "nome": "Caso normal (consulta de rotina)",
-        "descricao": "Gestante 28 semanas em consulta de rotina, sem queixas.",
-        "video_path": "data/examples/caso_normal/video.mp4",
-        "audio_path": "data/examples/caso_normal/audio.wav",
-        "patient_metadata": {"id": "exemplo-normal", "idade": 28, "semanas": 28},
+        "key": "prenatal",
+        "nome": "Pre-natal de rotina",
+        "descricao": (
+            "Consulta clinica simulada de pre-natal de rotina, "
+            "paciente sem queixas relevantes."
+        ),
+        "video_path": "data/examples/consultas/prenatal/video.mp4",
+        "audio_path": "data/examples/consultas/prenatal/audio.wav",
+        "patient_metadata": {"id": "exemplo-prenatal"},
         "nivel_esperado": "normal",
     },
     {
-        "key": "caso_moderado",
-        "nome": "Caso moderado (depressao pos-parto)",
-        "descricao": "Puerpera 4 semanas com anedonia e queixa afetiva.",
-        "video_path": None,
-        "audio_path": "data/examples/caso_moderado/audio.wav",
-        "patient_metadata": {"id": "exemplo-moderado", "idade": 32, "puerperio_semanas": 4},
+        "key": "rastreio_mama",
+        "nome": "Rastreio de cancer de mama (depoimento)",
+        "descricao": (
+            "Depoimento real de paciente sobre experiencia com "
+            "rastreio e diagnostico mamario."
+        ),
+        "video_path": "data/examples/consultas/rastreio_mama/video.mp4",
+        "audio_path": "data/examples/consultas/rastreio_mama/audio.wav",
+        "patient_metadata": {"id": "exemplo-rastreio-mama"},
         "nivel_esperado": "moderate",
     },
     {
-        "key": "caso_critico_cirurgia",
-        "nome": "Caso critico (cirurgia em andamento)",
-        "descricao": "Laparoscopia com ansiedade pre-procedimento.",
-        "video_path": "data/examples/caso_critico_cirurgia/video.mp4",
-        "audio_path": "data/examples/caso_critico_cirurgia/audio.wav",
-        "patient_metadata": {"id": "exemplo-critico-cirurgia", "idade": 38},
-        "nivel_esperado": "critical",
+        "key": "dermatologica",
+        "nome": "Consulta dermatologica com ansiedade",
+        "descricao": (
+            "Consulta dermatologica com queixa de manchas faciais "
+            "e componente emocional acentuado."
+        ),
+        "video_path": "data/examples/consultas/dermatologica/video.mp4",
+        "audio_path": "data/examples/consultas/dermatologica/audio.wav",
+        "patient_metadata": {"id": "exemplo-dermatologica"},
+        "nivel_esperado": "moderate",
     },
     {
-        "key": "caso_critico_consulta",
-        "nome": "Caso critico (hemorragia em gestante de termo)",
-        "descricao": "Gestante 36 semanas com sangramento intenso e PA elevada.",
-        "video_path": None,
-        "audio_path": "data/examples/caso_critico_consulta/audio.wav",
-        "patient_metadata": {"id": "exemplo-critico-consulta", "idade": 36, "semanas": 36},
+        "key": "rotina",
+        "nome": "Cirurgia laparoscopica de rotina",
+        "descricao": (
+            "Procedimento laparoscopico em andamento sem "
+            "intercorrencia visivel."
+        ),
+        "video_path": "data/examples/cirurgias/rotina/video.mp4",
+        "audio_path": None,
+        "patient_metadata": {"id": "exemplo-cirurgia-rotina"},
+        "nivel_esperado": "normal",
+    },
+    {
+        "key": "sangramento",
+        "nome": "Sangramento intraoperatorio",
+        "descricao": (
+            "Procedimento laparoscopico com sangramento "
+            "intraoperatorio em foco operatorio."
+        ),
+        "video_path": "data/examples/cirurgias/sangramento/video.mp4",
+        "audio_path": None,
+        "patient_metadata": {"id": "exemplo-sangramento"},
         "nivel_esperado": "critical",
     },
 ]
 
 # Pastas do esquema antigo que devem ser removidas para nao confundir o app.
-PASTAS_OBSOLETAS = ["caso_critico"]
+PASTAS_OBSOLETAS = [
+    "caso_critico", "caso_normal", "caso_moderado",
+    "caso_critico_cirurgia", "caso_critico_consulta",
+    "consulta_normal", "consulta_moderado", "consulta_critica",
+    "cirurgia_normal", "cirurgia_sangramento",
+]
 
 
 def _rodar(script: str, extra: list[str]) -> int:
@@ -88,9 +129,15 @@ def _rodar(script: str, extra: list[str]) -> int:
     return proc.returncode
 
 
+def _pasta_caso(caso_key: str) -> Path:
+    """Resolve a pasta absoluta do caso aplicando a categoria correta."""
+    categoria = CATEGORIA_POR_CASO[caso_key]
+    return EXAMPLES_DIR / categoria / caso_key
+
+
 def _ler_contexto(caso_key: str) -> str | None:
-    """Le `data/examples/<caso>/context.txt` se existir e nao for vazio."""
-    path = EXAMPLES_DIR / caso_key / "context.txt"
+    """Le `data/examples/<categoria>/<caso>/context.txt` se existir e nao for vazio."""
+    path = _pasta_caso(caso_key) / "context.txt"
     if not path.exists():
         return None
     texto = path.read_text(encoding="utf-8").strip()

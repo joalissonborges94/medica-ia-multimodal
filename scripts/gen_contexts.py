@@ -35,37 +35,63 @@ logger = logging.getLogger("gen_contexts")
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
 
-# Cada caso define o perfil clinico que o modelo deve respeitar.
+# Mapeia caso -> categoria (subpasta em data/examples/). Casos de
+# consulta com paciente ficam em `consultas/`; videos cirurgicos em
+# `cirurgias/`.
+CATEGORIA_POR_CASO: dict[str, str] = {
+    "prenatal":      "consultas",
+    "rastreio_mama": "consultas",
+    "dermatologica": "consultas",
+    "rotina":        "cirurgias",
+    "sangramento":   "cirurgias",
+}
+
+
+def _pasta_caso(caso: str) -> Path:
+    """Resolve a pasta absoluta do caso aplicando a categoria correta."""
+    return EXAMPLES_DIR / CATEGORIA_POR_CASO[caso] / caso
+
+# Cada caso define o perfil clinico que o modelo deve respeitar, alinhado
+# ao conteudo real do video correspondente.
 CASES: dict[str, dict[str, str]] = {
-    "caso_normal": {
+    "prenatal": {
         "nivel": "normal",
         "perfil": (
-            "Gestante de 28 anos, 28 semanas de gestacao, consulta de rotina "
-            "de pre-natal. Sem queixas, pressao normal, exames anteriores OK."
+            "Consulta clinica de rotina de saude da mulher. Paciente adulta "
+            "comparece para acompanhamento, refere ausencia de queixas no "
+            "momento. Conversa fluente, sem desconforto agudo."
         ),
     },
-    "caso_moderado": {
+    "rastreio_mama": {
         "nivel": "moderate",
         "perfil": (
-            "Puerpera de 32 anos, 4 semanas pos-parto. Queixa de anedonia, "
-            "choro frequente, dificuldade de vinculo com o bebe, sono "
-            "fragmentado. Suspeita de depressao pos-parto."
+            "Paciente do sexo feminino relata em depoimento sua experiencia "
+            "com rastreio e diagnostico de alteracao mamaria. Tom emocional "
+            "presente. Importancia de retorno e acompanhamento medico."
         ),
     },
-    "caso_critico_cirurgia": {
-        "nivel": "critical",
+    "dermatologica": {
+        "nivel": "moderate",
         "perfil": (
-            "Paciente de 38 anos em cirurgia laparoscopica em andamento "
-            "(colecistectomia). Equipe relata ansiedade pre-procedimento alta. "
-            "Pressao limitrofe, frequencia cardiaca elevada."
+            "Consulta dermatologica de saude da mulher. Paciente com queixa "
+            "de manchas faciais hiperpigmentadas, em tratamento topico, "
+            "componente emocional de apreensao ao discutir as lesoes."
         ),
     },
-    "caso_critico_consulta": {
+    "rotina": {
+        "nivel": "normal",
+        "perfil": (
+            "Procedimento laparoscopico ginecologico em andamento, sem "
+            "intercorrencias visiveis. Visualizacao da cavidade abdominal "
+            "e instrumentos cirurgicos em etapa rotineira."
+        ),
+    },
+    "sangramento": {
         "nivel": "critical",
         "perfil": (
-            "Gestante de 36 anos, 36 semanas de gestacao. Chegou ao "
-            "pronto-socorro com hemorragia vaginal intensa, dor abdominal "
-            "severa, PA 150x100 mmHg. Suspeita de descolamento prematuro."
+            "Procedimento laparoscopico ginecologico com sangramento "
+            "intraoperatorio em foco operatorio. Necessario monitoramento "
+            "continuo e provavel intervencao hemostatica imediata."
         ),
     },
 }
@@ -107,7 +133,7 @@ def _gerar_contexto(client: AzureOpenAIClient, caso: str, config: dict[str, str]
 
 def _salvar(caso: str, texto: str) -> Path:
     """Persiste o contexto em `data/examples/<caso>/context.txt`."""
-    destino = EXAMPLES_DIR / caso / "context.txt"
+    destino = _pasta_caso(caso) / "context.txt"
     destino.parent.mkdir(parents=True, exist_ok=True)
     destino.write_text(texto + "\n", encoding="utf-8")
     return destino
@@ -135,7 +161,7 @@ def main(argv: list[str] | None = None) -> int:
     sucesso = 0
     falha = 0
     for caso, config in CASES.items():
-        destino = EXAMPLES_DIR / caso / "context.txt"
+        destino = _pasta_caso(caso) / "context.txt"
         if destino.exists() and destino.stat().st_size > 0 and not args.force:
             logger.info("[skip] %s ja existe (%d bytes)",
                         destino.relative_to(PROJECT_ROOT), destino.stat().st_size)
@@ -150,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
             falha += 1
             continue
         _salvar(caso, texto)
-        tamanho_bytes = (EXAMPLES_DIR / caso / "context.txt").stat().st_size
+        tamanho_bytes = (_pasta_caso(caso) / "context.txt").stat().st_size
         logger.info("[OK] %s/context.txt (%d bytes)", caso, tamanho_bytes)
         sucesso += 1
 

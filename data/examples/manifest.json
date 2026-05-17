@@ -1,53 +1,57 @@
 {
   "casos": [
     {
-      "nome": "Caso normal (consulta de rotina)",
-      "descricao": "Gestante 28 semanas em consulta de rotina, sem queixas.",
-      "video_path": "data/examples/caso_normal/video.mp4",
-      "audio_path": "data/examples/caso_normal/audio.wav",
-      "context_text": "Paciente do sexo feminino, 28 anos, com 28 semanas de gestação. Comparece para consulta de pré-natal de rotina. Refere ausência de queixas clínicas no momento. Pressão arterial aferida em 120/75 mmHg, frequência cardíaca 78 bpm. Exames laboratoriais anteriores dentro dos parâmetros normais. História obstétrica sem intercorrências relevantes. Não há sinais de trabalho de parto prematuro ou complicações associadas. Conduta mantida com acompanhamento regular.",
+      "nome": "Pre-natal de rotina",
+      "descricao": "Consulta clinica simulada de pre-natal de rotina, paciente sem queixas relevantes.",
+      "video_path": "data/examples/consultas/prenatal/video.mp4",
+      "audio_path": "data/examples/consultas/prenatal/audio.wav",
+      "context_text": "Consulta clinica de rotina em ambiente ambulatorial de saude da mulher. Paciente adulta comparece para acompanhamento de rotina. Refere ausencia de queixas clinicas no momento. Sinais vitais dentro dos parametros esperados. Conversa fluente, postura corporal relaxada, sem sinais de desconforto agudo. Conduta de manutencao do acompanhamento conforme protocolo de pre-natal de baixo risco.",
       "patient_metadata": {
-        "id": "exemplo-normal",
-        "idade": 28,
-        "semanas": 28
+        "id": "exemplo-prenatal"
       },
       "nivel_esperado": "normal"
     },
     {
-      "nome": "Caso moderado (depressao pos-parto)",
-      "descricao": "Puerpera 4 semanas com anedonia e queixa afetiva.",
-      "video_path": null,
-      "audio_path": "data/examples/caso_moderado/audio.wav",
-      "context_text": "Paciente do sexo feminino, 32 anos, no quarto semana do puerpério. Queixa principal de anedonia e episódios frequentes de choro. Relata dificuldade na formação do vínculo afetivo com o recém-nascido. Sono fragmentado com despertares frequentes durante a noite. Pressão arterial dentro dos limites normais, sem sinais de febre ou taquicardia. História obstétrica recente sem complicações no parto. Nega uso de medicações psiquiátricas prévias. Suspeita clínica de depressão pós-parto moderada.",
+      "nome": "Rastreio de cancer de mama (depoimento)",
+      "descricao": "Depoimento real de paciente sobre experiencia com rastreio e diagnostico mamario.",
+      "video_path": "data/examples/consultas/rastreio_mama/video.mp4",
+      "audio_path": "data/examples/consultas/rastreio_mama/audio.wav",
+      "context_text": "Paciente do sexo feminino em depoimento espontaneo sobre sua experiencia com rastreio e diagnostico de alteracao mamaria. Relata trajetoria do exame de imagem, impacto emocional do resultado e importancia do acompanhamento medico continuado. Voz com tom emocional perceptivel, postura levemente retraida. Caso ilustrativo da importancia do rastreio precoce de cancer de mama. Referencia clinica: INCA, Deteccao Precoce do Cancer de Mama.",
       "patient_metadata": {
-        "id": "exemplo-moderado",
-        "idade": 32,
-        "puerperio_semanas": 4
+        "id": "exemplo-rastreio-mama"
       },
       "nivel_esperado": "moderate"
     },
     {
-      "nome": "Caso critico (cirurgia em andamento)",
-      "descricao": "Laparoscopia com ansiedade pre-procedimento.",
-      "video_path": "data/examples/caso_critico_cirurgia/video.mp4",
-      "audio_path": "data/examples/caso_critico_cirurgia/audio.wav",
-      "context_text": "Paciente feminina, 38 anos, com 28 semanas de gestação. Queixa principal de dor abdominal intensa e náuseas persistentes. Apresenta pressão arterial limítrofe de 140/90 mmHg e frequência cardíaca elevada em 110 bpm. Histórico de hipertensão gestacional controlada e ansiedade pré-procedimento. Em cirurgia laparoscópica em andamento para colecistectomia. Equipe relata estado ansioso e agitação. Risco crítico devido instabilidade hemodinâmica e gestação avançada.",
+      "nome": "Consulta dermatologica com ansiedade",
+      "descricao": "Consulta dermatologica com queixa de manchas faciais e componente emocional acentuado.",
+      "video_path": "data/examples/consultas/dermatologica/video.mp4",
+      "audio_path": "data/examples/consultas/dermatologica/audio.wav",
+      "context_text": "Paciente do sexo feminino em consulta dermatologica de saude da mulher. Queixa principal de manchas hiperpigmentadas localizadas na regiao facial. Refere uso atual de cremes e pomadas topicas, com aderencia parcial ao tratamento. Investigacao em andamento com exames complementares ja prescritos pela equipe. Apresenta componente emocional acentuado durante a consulta, com sinais vocais sugestivos de apreensao e tensao ao discutir a evolucao das lesoes. Necessario acolhimento, esclarecimento sobre os exames previstos, reforco de adesao ao tratamento topico e consideracao de suporte psicologico se ansiedade persistente.",
       "patient_metadata": {
-        "id": "exemplo-critico-cirurgia",
-        "idade": 38
+        "id": "exemplo-dermatologica"
       },
-      "nivel_esperado": "critical"
+      "nivel_esperado": "moderate"
     },
     {
-      "nome": "Caso critico (hemorragia em gestante de termo)",
-      "descricao": "Gestante 36 semanas com sangramento intenso e PA elevada.",
-      "video_path": null,
-      "audio_path": "data/examples/caso_critico_consulta/audio.wav",
-      "context_text": "Paciente gestante, 36 anos, com 36 semanas de gestação. Apresenta hemorragia vaginal intensa e dor abdominal severa. Pressão arterial aferida em 150 por 100 mmHg. Frequência cardíaca elevada, indicando possível estado de choque. História prévia de hipertensão gestacional. Sem relato de trauma ou uso de medicações recentes. Quadro sugestivo de descolamento prematuro de placenta. Condição crítica com risco iminente para mãe e feto.",
+      "nome": "Cirurgia laparoscopica de rotina",
+      "descricao": "Procedimento laparoscopico em andamento sem intercorrencia visivel.",
+      "video_path": "data/examples/cirurgias/rotina/video.mp4",
+      "audio_path": null,
+      "context_text": "Procedimento cirurgico laparoscopico em andamento sem intercorrencias visiveis. Visualizacao da cavidade abdominal com instrumentos cirurgicos (grasper, eletrocauterio) em etapa rotineira do procedimento. Tecido sem sinais de sangramento ativo ou complicacao hemodinamica. Conduta de continuidade do procedimento conforme planejamento cirurgico.",
       "patient_metadata": {
-        "id": "exemplo-critico-consulta",
-        "idade": 36,
-        "semanas": 36
+        "id": "exemplo-cirurgia-rotina"
+      },
+      "nivel_esperado": "normal"
+    },
+    {
+      "nome": "Sangramento intraoperatorio",
+      "descricao": "Procedimento laparoscopico com sangramento intraoperatorio em foco operatorio.",
+      "video_path": "data/examples/cirurgias/sangramento/video.mp4",
+      "audio_path": null,
+      "context_text": "Procedimento cirurgico laparoscopico com sangramento intraoperatorio evidente no foco operatorio. Detectada presenca de sangue em quantidade significativa indicando provavel lesao vascular ou desfazimento de hemostasia. Necessario monitoramento hemodinamico continuo da paciente, intervencao hemostatica imediata (eletrocauterio, sutura, clipagem) e eventual conversao para laparotomia se sangramento nao controlavel por via laparoscopica. Risco critico de instabilidade hemodinamica.",
+      "patient_metadata": {
+        "id": "exemplo-sangramento"
       },
       "nivel_esperado": "critical"
     }

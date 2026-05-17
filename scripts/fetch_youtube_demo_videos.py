@@ -7,7 +7,7 @@ extrai o audio em PCM 16 kHz mono (formato esperado pelo Whisper) quando
 
 Uso:
     python scripts/fetch_youtube_demo_videos.py                  # todos os casos
-    python scripts/fetch_youtube_demo_videos.py --case caso_normal  # so 1
+    python scripts/fetch_youtube_demo_videos.py --case prenatal  # so 1
     python scripts/fetch_youtube_demo_videos.py --force          # refaz mesmo se existe
 
 Pre-requisitos:
@@ -125,8 +125,13 @@ def _extract_audio(video: Path, audio_out: Path) -> None:
 
 
 def process_case(case_name: str, cfg: dict, force: bool = False) -> None:
-    """Pipeline completo para um caso: download + trim + (opcional) audio."""
-    case_dir = EXAMPLES_DIR / case_name
+    """Pipeline completo para um caso: download + trim + (opcional) audio.
+
+    O caso vai pra `data/examples/<category>/<case_name>/` se a chave
+    `category` estiver no config, ou `data/examples/<case_name>/` se ausente.
+    """
+    category = cfg.get("category", "").strip()
+    case_dir = EXAMPLES_DIR / category / case_name if category else EXAMPLES_DIR / case_name
     video_out = case_dir / "video.mp4"
 
     if video_out.exists() and not force:
@@ -136,7 +141,11 @@ def process_case(case_name: str, cfg: dict, force: bool = False) -> None:
 
     url = cfg.get("url", "").strip()
     if not url:
-        raise ValueError(f"URL vazia para {case_name}. Preencher em demo_videos.yml.")
+        logger.info(
+            "[skip] %s sem URL (caso gerado por outro script, ex: build_cirurgia_demo_video.py)",
+            case_name,
+        )
+        return
 
     start = cfg.get("start", "00:00:00")
     duration = cfg.get("duration", 30)

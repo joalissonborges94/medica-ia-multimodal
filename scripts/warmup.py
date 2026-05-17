@@ -63,15 +63,16 @@ DATA_RAW = PROJECT_ROOT / "data" / "raw"
 DATA_PROCESSED = PROJECT_ROOT / "data" / "processed"
 CHROMA_DIR = DATA_PROCESSED / "chroma"
 EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
-# Casos reais gerados por seed_real_examples.py (videos CholecSeg8k + TTS Azure +
-# contextos GPT-4.1-mini). Cada caso tem pelo menos audio.wav e context.txt;
-# normal e critico-cirurgia tambem tem video.mp4.
-EXAMPLE_CASES = (
-    "caso_normal",
-    "caso_moderado",
-    "caso_critico_cirurgia",
-    "caso_critico_consulta",
-)
+# Casos reais gerados por seed_real_examples.py. Cada caso tem video.mp4 e
+# context.txt; consultas tambem tem audio.wav extraido do video.
+# Mapeia caso -> categoria (subpasta em data/examples/).
+EXAMPLE_CASES: dict[str, str] = {
+    "prenatal":      "consultas",
+    "rastreio_mama": "consultas",
+    "dermatologica": "consultas",
+    "rotina":        "cirurgias",
+    "sangramento":   "cirurgias",
+}
 
 
 # ---------------------------------------------------------------------
@@ -257,9 +258,12 @@ def check_real_examples() -> bool:
     manifest = EXAMPLES_DIR / "manifest.json"
     if not manifest.exists():
         return False
-    for caso in EXAMPLE_CASES:
-        pasta = EXAMPLES_DIR / caso
-        if not (pasta / "audio.wav").exists():
+    for caso, categoria in EXAMPLE_CASES.items():
+        pasta = EXAMPLES_DIR / categoria / caso
+        # Casos de cirurgia nao tem audio.wav (sem voz do paciente)
+        if categoria == "consultas" and not (pasta / "audio.wav").exists():
+            return False
+        if not (pasta / "video.mp4").exists():
             return False
         ctx = pasta / "context.txt"
         if not ctx.exists() or ctx.stat().st_size == 0:

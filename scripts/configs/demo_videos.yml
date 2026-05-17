@@ -1,36 +1,51 @@
-# Vídeos demo da aba Multimodal.
+# Videos demo da aba Multimodal.
 # Cada caso aponta para 1 URL do YouTube + segmento (start, duration).
 # - `extract_audio: true` extrai voz do paciente do proprio video (mais coerente).
 # - `extract_audio: false` mantem apenas o video; audio fica por gen_tts_scripts.py.
 #
-# Preencher as URLs apos buscar no YouTube (filtro Creative Commons).
 # Rodar: python scripts/fetch_youtube_demo_videos.py
+# Ajustar start/duration conforme o trecho mais relevante de cada video.
 
 cases:
-  caso_normal:
-    note: "Gestante 28 sem em consulta de pre-natal de rotina. Paciente calma, frontal."
-    url: ""  # TODO: preencher com URL CC
-    start: "00:00:00"
+  prenatal:
+    category: consultas
+    note: "Consulta clinica simulada (academica) de pre-natal de rotina. Paciente e medica em sala, mascaradas, sentadas frente a frente."
+    url: "https://www.youtube.com/watch?v=SitHXQF14BY"
+    start: "00:00:30"
     duration: 30
     extract_audio: true
 
-  caso_moderado:
-    note: "Puerpera 4 sem com sinais sutis de depressao pos-parto (afeto plano)."
-    url: ""  # TODO: preencher com URL CC
-    start: "00:00:00"
-    duration: 40
+  rastreio_mama:
+    category: consultas
+    note: "Depoimento real de paciente Maria Jose sobre rastreio de cancer de mama. Video original tem 37s: 0-4s musica abertura, 5-24s fala real, 24-37s musica encerramento. Cortar so a fala."
+    url: "https://www.youtube.com/watch?v=cFzfR1aI3d8"
+    start: "00:00:05"
+    duration: 19
     extract_audio: true
 
-  caso_critico_cirurgia:
-    note: "Histerectomia laparoscopica com complicacao (sangramento intraoperatorio)."
-    url: ""  # TODO: preencher com URL CC
-    start: "00:00:00"
-    duration: 25
-    extract_audio: false  # cirurgia, sem voz do paciente
-
-  caso_critico_consulta:
-    note: "Gestante 36 sem em emergencia por hemorragia, paciente apreensiva."
-    url: ""  # TODO: preencher com URL CC
-    start: "00:00:00"
+  dermatologica:
+    category: consultas
+    note: "Consulta clinica simulada (academica) Giovanna Schmidt. Paciente com queixa de manchas faciais, componente emocional acentuado."
+    url: "https://www.youtube.com/watch?v=mKfPJokF7xs"
+    start: "00:00:30"
     duration: 35
     extract_audio: true
+
+  rotina:
+    category: cirurgias
+    note: "Procedimento laparoscopico em andamento sem evento critico. Visualizacao da cavidade e instrumentos."
+    url: "https://www.youtube.com/shorts/4LQ-hVJ4qas"
+    start: "00:00:00"
+    duration: 25
+    extract_audio: false
+
+  # sangramento e gerado por scripts/build_cirurgia_demo_video.py
+  # (frames CSeg8k com classe Blood detectada pelo YOLO v1). Nao tem URL
+  # YouTube, mas e listado aqui pra documentacao do caso.
+  sangramento:
+    category: cirurgias
+    note: "Procedimento laparoscopico com sangramento intraoperatorio. Gerado local por build_cirurgia_demo_video.py filtrando frames com classe Blood do CholecSeg8k."
+    url: ""  # local-only, gerado por build_cirurgia_demo_video.py
+    start: "00:00:00"
+    duration: 0
+    extract_audio: false

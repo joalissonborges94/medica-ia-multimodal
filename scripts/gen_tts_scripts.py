@@ -34,45 +34,57 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
 VOICE = "pt-BR-FranciscaNeural"
 
+# Mapeia caso -> categoria (subpasta em data/examples/). Casos de
+# consulta com paciente ficam em `consultas/`; videos cirurgicos em
+# `cirurgias/`.
+CATEGORIA_POR_CASO: dict[str, str] = {
+    "prenatal":      "consultas",
+    "rastreio_mama": "consultas",
+    "dermatologica": "consultas",
+    "rotina":        "cirurgias",
+    "sangramento":   "cirurgias",
+}
+
+
+def _pasta_caso(caso: str) -> Path:
+    """Resolve a pasta absoluta do caso aplicando a categoria correta."""
+    return EXAMPLES_DIR / CATEGORIA_POR_CASO[caso] / caso
+
 # Cada caso define o SSML que sera enviado ao TTS. Estilos da voz Francisca
 # variam por regiao; mantemos um conjunto pequeno que costuma estar liberado
 # em brazilsouth. Se algum estilo for negado pelo RAI, basta remover o
 # atributo `style` do SSML correspondente.
+# SSML por caso de consulta (fallback se nao usar audio extraido do
+# video real). Cirurgias nao tem voz da paciente, entao nao tem entry
+# aqui (sao geradas apenas com video.mp4 sem audio).
 CASES: dict[str, dict[str, str]] = {
-    "caso_normal": {
+    "prenatal": {
         "style": "calm",
         "rate": "0%",
         "pitch": "0%",
         "text": (
-            "Doutora, minha consulta de hoje e so de rotina, esta tudo bem "
-            "com o bebe e comigo."
+            "Doutora, vim para minha consulta de rotina hoje. Esta tudo "
+            "bem, sem queixas. So queria fazer o acompanhamento."
         ),
     },
-    "caso_moderado": {
+    "rastreio_mama": {
         "style": "sad",
-        "rate": "-15%",
+        "rate": "-10%",
         "pitch": "-5%",
         "text": (
-            "Nao consigo me conectar com o bebe, choro o dia inteiro sem "
-            "motivo, nao durmo direito."
+            "Eu nunca imaginei que iria passar por isso. Quando vi o "
+            "resultado, foi um choque muito grande. Hoje eu sigo o "
+            "tratamento e quero alertar outras mulheres."
         ),
     },
-    "caso_critico_cirurgia": {
+    "dermatologica": {
         "style": "empathetic",
-        "rate": "+10%",
-        "pitch": "+5%",
+        "rate": "-5%",
+        "pitch": "0%",
         "text": (
-            "Estou muito preocupada, sinto que algo esta errado, meu "
-            "coracao nao para de acelerar."
-        ),
-    },
-    "caso_critico_consulta": {
-        "style": "terrified",
-        "rate": "+15%",
-        "pitch": "+10%",
-        "text": (
-            "Doutora, estou sangrando muito, a dor e insuportavel, preciso "
-            "de ajuda agora."
+            "Doutora, estou preocupada com essas manchas no rosto. Uso "
+            "os cremes que voce passou mas elas nao saem. Tem outros "
+            "exames que eu posso fazer?"
         ),
     },
 }
@@ -102,7 +114,7 @@ def _sintetizar(caso: str, config: dict[str, str], *, force: bool, key: str, reg
     """Sintetiza um caso via Azure Speech TTS. Retorna True em sucesso."""
     import azure.cognitiveservices.speech as speechsdk
 
-    destino = EXAMPLES_DIR / caso / "audio.wav"
+    destino = _pasta_caso(caso) / "audio.wav"
     if destino.exists() and not force:
         logger.info("[skip] %s ja existe (%d KB)",
                     destino.relative_to(PROJECT_ROOT),
