@@ -5,19 +5,22 @@ Recebe um caminho de video, amostra frames a uma taxa configuravel
 classificador de emocao facial e (quando configurado) Azure Video Indexer.
 A saida e uma lista de `VideoEvent` com tudo agregado por frame.
 
-Logica de gating por tipo de cena (ambos detector e emocao):
+Logica de gating por tipo de cena (3 pilares: detector, pose, emocao):
 
-| Cena         | YOLO (instrumentos) | Emocao facial |
-|--------------|---------------------|---------------|
-| SURGERY      | rodando             | pulado        |
-| CONSULTATION | pulado              | rodando       |
-| MIXED        | rodando             | rodando       |
-| UNKNOWN      | rodando             | rodando       |
+| Cena         | YOLO (instrumentos) | MediaPipe Pose | Emocao facial |
+|--------------|---------------------|----------------|---------------|
+| SURGERY      | rodando             | pulado         | pulado        |
+| CONSULTATION | pulado              | rodando        | rodando       |
+| MIXED        | rodando             | rodando        | rodando       |
+| UNKNOWN      | rodando             | rodando        | rodando       |
 
 Em CONSULTATION o YOLO custom (treinado em laparoscopia) gera falso
 positivo em objetos clinicos comuns como agulhas, seringas, otoscopios,
-classificando como Grasper/L-hook. Pular eleva precisao sem perder
-deteccoes reais (cenas reais de cirurgia caem em SURGERY ou MIXED).
+classificando como Grasper/L-hook. Em SURGERY o MediaPipe Pose detecta
+"landmarks" em tecido biologico e instrumentos (porque tenta encaixar
+um esqueleto humano), gerando classificacao postural espuria (ex:
+"retraida" no campo cirurgico). Pular em cada cena eleva precisao sem
+perder sinal real.
 
 Amostragem de emocao reduzida por padrao (`emotion_every_n_samples=3`):
 classificacao de emocao facial via GPT-vision tem latencia ~3s/frame.
@@ -154,6 +157,17 @@ class VideoPipeline:
                     "(evita falso positivo do YOLO laparoscopico)."
                 )
 
+            # MediaPipe Pose so faz sentido em cenas com corpo humano visivel.
+            # Em cirurgia laparoscopica o detector tenta encaixar esqueleto em
+            # tecido biologico e gera landmarks falsos, que viram classificacao
+            # postural espuria (ex: "retraida" no campo cirurgico).
+            run_pose = self.last_scene_type != SceneType.SURGERY
+            if not run_pose:
+                logger.info(
+                    "Cena SURGERY: estimacao de pose corporal ignorada "
+                    "(evita landmarks espurios em tecido biologico)."
+                )
+
             if progress is not None:
                 progress(
                     0.05,
@@ -175,7 +189,7 @@ class VideoPipeline:
 
                 timestamp_ms = int(round(frame_idx * 1000 / video_fps))
                 detections = self.detector.predict(frame) if run_detection else []
-                pose_landmarks = self.pose_estimator.estimate(frame)
+                pose_landmarks = self.pose_estimator.estimate(frame) if run_pose else []
 
                 # Emocao roda so a cada N amostras (default 3) pra reduzir
                 # latencia de chamada GPT-vision sem perder resolucao real

@@ -676,6 +676,47 @@ def test_video_pipeline_amostra_emocao_a_cada_n_frames(tmp_path):
 
 
 @pytest.mark.smoke
+def test_video_pipeline_pula_pose_em_cena_surgery(tmp_path):
+    """Cena SURGERY: PoseEstimator.estimate nao deve ser chamado.
+
+    Evita classificacao postural espuria em tecido biologico cirurgico
+    (MediaPipe tenta encaixar esqueleto em qualquer textura).
+    """
+    fake_video = tmp_path / "cirurgia.mp4"
+    fake_video.touch()
+
+    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.side_effect = [30.0, 2.0]
+    mock_cap.read.side_effect = [(True, fake_frame), (True, fake_frame), (False, None)]
+
+    mock_pose = MagicMock(spec=PoseEstimator)
+    mock_pose.estimate.return_value = []
+
+    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
+    mock_azure.analyze.return_value = None
+
+    import src.video.pipeline as pipeline_mod
+
+    with (
+        patch("cv2.VideoCapture", return_value=mock_cap),
+        patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.SURGERY),
+        patch("src.video.detector.BleedingDetector.predict", return_value=[]),
+    ):
+        p = VideoPipeline(
+            target_fps=30.0,
+            detector=MagicMock(spec=BleedingDetector, predict=MagicMock(return_value=[])),
+            pose_estimator=mock_pose,
+            emotion_classifier=MagicMock(classify=MagicMock(return_value=None)),
+            azure_client=mock_azure,
+        )
+        p.process(fake_video)
+
+    mock_pose.estimate.assert_not_called()
+
+
+@pytest.mark.smoke
 def test_classify_posture_retorna_indefinido_quando_landmarks_vazios():
     """Sem landmarks (lista vazia ou MediaPipe indisponivel) -> INDEFINIDO."""
     from src.video.pose import PostureCategory, classify_posture
