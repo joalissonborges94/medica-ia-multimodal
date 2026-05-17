@@ -2,7 +2,7 @@
 
 Sistema de monitoramento multimodal aplicado à saúde da mulher. Tech Challenge Fase 4 da pós-graduação Tech IADT.
 
-Combina análise de vídeo (YOLOv8 + MediaPipe + FER), áudio (faster-whisper + librosa + wav2vec2), RAG sobre diretrizes clínicas brasileiras (Chroma + bge-m3) e LLM (Azure OpenAI) para detectar anomalias e gerar relatórios clínicos com alertas categorizados.
+Combina análise de vídeo (YOLOv8 detector + YOLOv8 Pose + GPT-4o vision), áudio (faster-whisper + librosa + wav2vec2), RAG sobre diretrizes clínicas brasileiras (Chroma + bge-m3) e LLM (Azure OpenAI) para detectar anomalias e gerar relatórios clínicos com alertas categorizados.
 
 ## O Que Faz
 

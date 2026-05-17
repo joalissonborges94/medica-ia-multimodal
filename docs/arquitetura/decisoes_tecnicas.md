@@ -294,6 +294,36 @@ B. Adiar formalmente, marcar como `⏸️ Adiado` no roadmap
 
 ---
 
+## ADR-015: Substituicao de MediaPipe Pose por YOLOv8 Pose (multi-person)
+
+**Contexto:** `src/video/pose.py` usava `mediapipe.solutions.pose` para estimar landmarks corporais em cenas de consulta. Dois problemas identificados em producao:
+
+1. MediaPipe Pose detecta apenas **uma** pessoa por frame. Em consultas medico + paciente, o detector frequentemente capturava o medico (geralmente mais frontal/proximo da camera) em vez da paciente.
+2. No PyPI do Python 3.14 o pacote `mediapipe` vem sem o submodulo `solutions.pose`. A dependencia bloqueava o pipeline em ambientes 3.14 com erro de `AttributeError`.
+
+**Opcoes:**
+
+A. Manter MediaPipe Pose com pin de versao e restringir a Py 3.12
+B. Substituir por YOLOv8 Pose (Ultralytics), que ja e dependencia do projeto
+C. Implementar pose via Azure Vision (custo adicional por chamada)
+
+**Decisao:** Opcao B.
+
+**Justificativa:**
+- YOLOv8 Pose detecta multiplas pessoas simultaneamente. A pessoa principal (maior bbox) e selecionada como paciente, heuristica mais robusta que single-person.
+- 17 keypoints COCO cobrem todos os landmarks que `classify_posture` usa (nariz, ombros, quadris). Sem perda funcional em relacao aos 33 do MediaPipe.
+- Ultralytics ja estava instalado como dependencia do detector YOLO custom. Zero dependencia nova.
+- Funciona uniformemente em Py 3.12 e 3.14 sem condicional de versao.
+- Modelo `yolov8n-pose.pt` (~6 MB) e baixado automaticamente na primeira chamada, alinhado com o padrao de lazy-load ja adotado no projeto.
+
+**Consequencias:**
+- `classify_posture` continua inalterada: aceita lista de `PoseLandmark` com nomes COCO ou MediaPipe indistintamente.
+- Coordenadas normalizadas (0-1) mantidas, compativel com o resto do pipeline.
+- Reduz o numero de dependencias do projeto (mediapipe removido do `requirements.txt`).
+- `scene_classifier.py` ainda usa `mediapipe.solutions.face_detection` para detectar faces na heuristica de tipo de cena. Esse uso e mais leve (apenas face, sem pose) e permanece com lazy import e fallback gracioso quando mediapipe nao esta disponivel.
+
+---
+
 ## Como Adicionar Nova ADR
 
 1. Próximo número sequencial (ADR-011, etc.)
