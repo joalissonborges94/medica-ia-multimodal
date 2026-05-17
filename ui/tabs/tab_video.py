@@ -97,7 +97,7 @@ def render(video_pipeline: VideoPipeline) -> None:
             rows=1,
             height="auto",  # ajusta natural à proporção dos frames (sem scroll)
             object_fit="contain",
-            allow_preview=True,
+            allow_preview=False,
             show_share_button=False,
             show_download_button=False,
             elem_classes="compact-gallery",
