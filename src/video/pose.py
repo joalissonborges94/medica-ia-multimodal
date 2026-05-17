@@ -42,7 +42,9 @@ _LM_LEFT_HIP          = "left_hip"
 _LM_RIGHT_HIP         = "right_hip"
 
 # Visibilidade minima pra considerar landmark confiavel (MediaPipe range 0-1).
-_MIN_VISIBILITY: float = 0.5
+# 0.3 e permissivo o suficiente pra detectar paciente parcialmente oculta
+# (atras de mesa, parcialmente cortada pelo enquadramento) mantendo qualidade.
+_MIN_VISIBILITY: float = 0.3
 
 # Threshold de angulo (graus) entre eixo coluna (ombros->quadril) e vertical.
 # Postura ereta: tronco proximo da vertical (angulo pequeno).
@@ -118,13 +120,20 @@ def classify_posture(landmarks: list[PoseLandmark]) -> PostureCategory:
 
 
 class PoseEstimator:
-    """Estima landmarks corporais (33 pontos) a partir de frames de video."""
+    """Estima landmarks corporais (33 pontos) a partir de frames de video.
 
-    def __init__(self, min_detection_confidence: float = 0.5) -> None:
+    MediaPipe Pose tem limitacao conhecida: detecta apenas UMA pessoa por
+    frame (a mais proeminente). Em cenas com multiplas pessoas (ex: medico
+    + paciente), pode pegar a pessoa errada ou alternar entre frames.
+    """
+
+    def __init__(self, min_detection_confidence: float = 0.3) -> None:
         """Configura o estimador.
 
         Args:
             min_detection_confidence: confianca minima do detector de pose.
+                Default 0.3 e permissivo o suficiente pra detectar pacientes
+                parcialmente ocultas (atras de mesas, no enquadramento amplo).
         """
         self.min_detection_confidence: float = min_detection_confidence
         self._pose = None
