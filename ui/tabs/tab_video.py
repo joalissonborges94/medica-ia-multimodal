@@ -26,6 +26,7 @@ import gradio as gr
 from ui.components import (
     VIDEO_WINDOWS_HEADERS,
     build_detection_thumbnails,
+    build_pose_thumbnails,
     build_video_timeline_plot,
     emotion_source_label,
     empty_state,
@@ -102,6 +103,28 @@ def render(video_pipeline: VideoPipeline) -> None:
             show_download_button=False,
         )
 
+    pose_section = gr.Group(visible=False)
+    with pose_section:
+        gr.HTML(
+            section_title(
+                "Frames com pose",
+                "Top 4 frames com mais keypoints visiveis, ordenados temporalmente. "
+                "Bbox azul = pessoa principal; skeleton verde = esqueleto COCO; "
+                "pontos amarelos = keypoints (visibility >= 0.3).",
+            )
+        )
+        pose_thumb = gr.Gallery(
+            label="",
+            show_label=False,
+            columns=4,
+            rows=1,
+            height="auto",
+            object_fit="contain",
+            allow_preview=True,
+            show_share_button=False,
+            show_download_button=False,
+        )
+
     with gr.Group():
         gr.HTML(section_title("Timeline de eventos"))
         timeline_plot = gr.Plot(label="", show_label=False)
@@ -139,6 +162,8 @@ def render(video_pipeline: VideoPipeline) -> None:
             "",
             None,
             None,
+            None,
+            None,
             [],
             {"events": []},
         )
@@ -151,6 +176,8 @@ def render(video_pipeline: VideoPipeline) -> None:
             return (
                 empty_state("Video fora dos limites aceitos.", hint=validation.message),
                 "",
+                None,
+                None,
                 None,
                 None,
                 [],
@@ -171,6 +198,8 @@ def render(video_pipeline: VideoPipeline) -> None:
             return (
                 empty_state("Falha ao processar vıdeo.", hint=str(exc)),
                 "",
+                None,
+                None,
                 None,
                 None,
                 [],
@@ -295,6 +324,10 @@ def render(video_pipeline: VideoPipeline) -> None:
         thumbs = build_detection_thumbnails(video_path, events, max_thumbs=4)
         has_thumbs = bool(thumbs)
 
+        # --- Miniaturas de pose (skeleton + keypoints + bbox) ---
+        pose_thumbs = build_pose_thumbnails(video_path, events, max_thumbs=4)
+        has_pose_thumbs = bool(pose_thumbs)
+
         rows = video_events_to_windowed_rows(events, window_seconds=5.0)
         payload = {"events": [e.model_dump() for e in events[:50]]}
         timeline = build_video_timeline_plot(events)
@@ -303,6 +336,8 @@ def render(video_pipeline: VideoPipeline) -> None:
             kpis,
             gr.update(value=thumbs if has_thumbs else None),
             gr.update(visible=has_thumbs),
+            gr.update(value=pose_thumbs if has_pose_thumbs else None),
+            gr.update(visible=has_pose_thumbs),
             timeline,
             rows,
             payload,
@@ -320,6 +355,8 @@ def render(video_pipeline: VideoPipeline) -> None:
             kpis_html,
             detection_thumb,
             detection_section,
+            pose_thumb,
+            pose_section,
             timeline_plot,
             events_table,
             raw_json,
