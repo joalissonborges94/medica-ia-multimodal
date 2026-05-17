@@ -126,19 +126,59 @@ def test_default_stub_model_aponta_para_yolov8n():
 def test_pose_estimator_inicializa_lazy():
     estimator = PoseEstimator(min_detection_confidence=0.7)
     assert estimator.min_detection_confidence == 0.7
-    assert estimator._pose is None
+    assert estimator._model is None
+    assert estimator._load_attempted is False
 
 
 @pytest.mark.smoke
-def test_pose_estimator_retorna_lista_vazia_quando_nao_detecta(monkeypatch):
+def test_pose_estimator_retorna_lista_vazia_quando_nao_detecta():
+    """Modelo carregado mas YOLO Pose nao detecta ninguem -> lista vazia."""
     estimator = PoseEstimator()
-    fake_pose = MagicMock()
-    fake_pose.process.return_value = MagicMock(pose_landmarks=None)
-    estimator._pose = fake_pose
+    fake_result = MagicMock()
+    fake_result.keypoints = None
+    fake_result.boxes = MagicMock()
+    fake_result.boxes.data = []
+    fake_model = MagicMock()
+    fake_model.predict.return_value = [fake_result]
+    estimator._model = fake_model
     estimator._available = True
     estimator._load_attempted = True
     frame = np.zeros((10, 10, 3), dtype=np.uint8)
     assert estimator.estimate(frame) == []
+
+
+@pytest.mark.smoke
+def test_pose_estimator_retorna_pose_principal_em_cena_multipessoa():
+    """Com varias pessoas detectadas, retorna a de maior bbox."""
+    import torch
+
+    estimator = PoseEstimator()
+    # 2 pessoas: bbox 1 = 100x100 (pequena), bbox 2 = 300x300 (grande)
+    fake_boxes = MagicMock()
+    fake_boxes.xyxy = torch.tensor([[10, 10, 110, 110], [50, 50, 350, 350]])
+    fake_boxes.data = fake_boxes.xyxy
+    # Keypoints: pessoa 1 com nariz em (60, 60); pessoa 2 com nariz em (200, 200)
+    kp_p1 = [[60, 60, 0.9]] + [[0, 0, 0.1]] * 16  # 17 keypoints
+    kp_p2 = [[200, 200, 0.9]] + [[0, 0, 0.1]] * 16
+    fake_kps = MagicMock()
+    fake_kps.data = torch.tensor([kp_p1, kp_p2], dtype=torch.float32)
+
+    fake_result = MagicMock()
+    fake_result.keypoints = fake_kps
+    fake_result.boxes = fake_boxes
+    fake_model = MagicMock()
+    fake_model.predict.return_value = [fake_result]
+    estimator._model = fake_model
+    estimator._available = True
+    estimator._load_attempted = True
+
+    frame = np.zeros((500, 500, 3), dtype=np.uint8)
+    landmarks = estimator.estimate(frame)
+    # Pessoa 2 (maior bbox) deveria ser retornada -> nariz em (200, 200) normalizado
+    nose = next((lm for lm in landmarks if lm.name == "nose"), None)
+    assert nose is not None
+    assert nose.x == pytest.approx(200 / 500)
+    assert nose.y == pytest.approx(200 / 500)
 
 
 # ---------------------------------------------------------------------
