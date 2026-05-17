@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 #   cirurgia_rotina        sat=74.2 hue=41.3
 #   cirurgia_sangramento   sat=102.9 hue=121.2
 #   consulta_dermatologica sat=37.8 hue=47.5
-#   consulta_prenatal      sat=53.6 hue=67.1
+#   consulta_clinica_geral sat=53.6 hue=67.1
 # Saturacao discrimina limpo (cirurgias 74-103, consultas 38-54).
 # Hue varia demais entre cirurgias (compress do MP4 muda o canal de cor)
 # pra ser confiavel sozinho. Usamos saturacao como sinal primario.

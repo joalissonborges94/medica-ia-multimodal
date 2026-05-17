@@ -39,11 +39,13 @@ EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
 # consulta com paciente ficam em `consultas/`; videos cirurgicos em
 # `cirurgias/`.
 CATEGORIA_POR_CASO: dict[str, str] = {
-    "prenatal":      "consultas",
-    "rastreio_mama": "consultas",
-    "dermatologica": "consultas",
-    "rotina":        "cirurgias",
-    "sangramento":   "cirurgias",
+    "consulta_clinica_geral": "consultas",
+    "rastreio_mama":          "consultas",
+    "dermatologica":          "consultas",
+    "prenatal_acolhimento":   "consultas",
+    "prenatal_protocolo":     "consultas",
+    "rotina":                 "cirurgias",
+    "sangramento":            "cirurgias",
 }
 
 
@@ -54,12 +56,15 @@ def _pasta_caso(caso: str) -> Path:
 # Cada caso define o perfil clinico que o modelo deve respeitar, alinhado
 # ao conteudo real do video correspondente.
 CASES: dict[str, dict[str, str]] = {
-    "prenatal": {
+    "consulta_clinica_geral": {
         "nivel": "normal",
         "perfil": (
-            "Consulta clinica de rotina de saude da mulher. Paciente adulta "
-            "comparece para acompanhamento, refere ausencia de queixas no "
-            "momento. Conversa fluente, sem desconforto agudo."
+            "Primeira consulta clinica de avaliacao geral. Paciente adulta "
+            "refere dor toracica iniciada ha algumas horas, com sensacao de "
+            "mal estar e alteracao de pressao arterial em aferimento "
+            "domiciliar. Anamnese inicial em curso, sinais vitais sendo "
+            "coletados. Conversa fluente, postura geral tranquila apesar do "
+            "desconforto."
         ),
     },
     "rastreio_mama": {
@@ -76,6 +81,28 @@ CASES: dict[str, dict[str, str]] = {
             "Consulta dermatologica de saude da mulher. Paciente com queixa "
             "de manchas faciais hiperpigmentadas, em tratamento topico, "
             "componente emocional de apreensao ao discutir as lesoes."
+        ),
+    },
+    "prenatal_acolhimento": {
+        "nivel": "moderate",
+        "perfil": (
+            "Primeira consulta gestacional em atencao basica, conduzida pela "
+            "equipe de enfermagem. Trecho de acolhimento ao resultado positivo: "
+            "gestacao nao planejada, paciente jovem expressa ansiedade situacional "
+            "e duvidas sobre como comunicar a noticia ao parceiro e a familia. "
+            "Enfermeiro acolhe, oferece suporte e introduz o fluxo de "
+            "acompanhamento multiprofissional."
+        ),
+    },
+    "prenatal_protocolo": {
+        "nivel": "normal",
+        "perfil": (
+            "Primeira consulta gestacional em atencao basica, conduzida pela "
+            "equipe de enfermagem. Trecho de protocolo clinico: enfermeiro "
+            "explica plano de acompanhamento (pelo menos nove consultas, equipe "
+            "multiprofissional) e bateria de exames laboratoriais previstos "
+            "(sorologia, HIV, hepatite B, tipagem sanguinea por papel filtro). "
+            "Anamnese investiga comorbidades, nenhuma referida."
         ),
     },
     "rotina": {
@@ -97,7 +124,7 @@ CASES: dict[str, dict[str, str]] = {
 }
 
 SYSTEM_PROMPT = (
-    "Voce e um redator clinico que escreve resumos de prontuario obstetrico "
+    "Voce e um redator clinico que escreve resumos de prontuario "
     "em portugues do Brasil para apresentacoes academicas. Use linguagem "
     "tecnica concisa. NUNCA invente nomes proprios, datas absolutas, hospitais "
     "ou identificadores. Nao use emoji. Nao use travessao (em-dash ou en-dash). "
@@ -106,8 +133,8 @@ SYSTEM_PROMPT = (
 
 USER_TEMPLATE = (
     "Escreva um contexto clinico realista para o caso abaixo, em 5 a 8 linhas "
-    "curtas (uma frase por linha). Cubra: idade, semanas de gestacao ou "
-    "puerperio, queixa principal, sinais vitais relevantes, historico breve. "
+    "curtas (uma frase por linha). Cubra: idade, queixa principal, sinais "
+    "vitais relevantes, historico breve e conduta esperada. "
     "Mantenha tom compativel com nivel de risco '{nivel}'. Nao inclua "
     "cabecalhos, listas ou markdown: apenas texto corrido em linhas separadas.\n\n"
     "Perfil base: {perfil}"

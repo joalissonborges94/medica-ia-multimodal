@@ -38,11 +38,13 @@ VOICE = "pt-BR-FranciscaNeural"
 # consulta com paciente ficam em `consultas/`; videos cirurgicos em
 # `cirurgias/`.
 CATEGORIA_POR_CASO: dict[str, str] = {
-    "prenatal":      "consultas",
-    "rastreio_mama": "consultas",
-    "dermatologica": "consultas",
-    "rotina":        "cirurgias",
-    "sangramento":   "cirurgias",
+    "consulta_clinica_geral": "consultas",
+    "rastreio_mama":          "consultas",
+    "dermatologica":          "consultas",
+    "prenatal_acolhimento":   "consultas",
+    "prenatal_protocolo":     "consultas",
+    "rotina":                 "cirurgias",
+    "sangramento":            "cirurgias",
 }
 
 
@@ -58,13 +60,14 @@ def _pasta_caso(caso: str) -> Path:
 # video real). Cirurgias nao tem voz da paciente, entao nao tem entry
 # aqui (sao geradas apenas com video.mp4 sem audio).
 CASES: dict[str, dict[str, str]] = {
-    "prenatal": {
+    "consulta_clinica_geral": {
         "style": "calm",
         "rate": "0%",
         "pitch": "0%",
         "text": (
-            "Doutora, vim para minha consulta de rotina hoje. Esta tudo "
-            "bem, sem queixas. So queria fazer o acompanhamento."
+            "Doutora, comecei a sentir uma dor no peito ha algumas horas, "
+            "junto com mal estar. Tambem percebi a pressao alterada em "
+            "casa. Vim aqui pra entender o que esta acontecendo."
         ),
     },
     "rastreio_mama": {

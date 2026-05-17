@@ -1,6 +1,0 @@
-Consulta clinica de rotina em ambiente ambulatorial de saude da mulher.
-Paciente adulta comparece para acompanhamento de rotina.
-Refere ausencia de queixas clinicas no momento.
-Sinais vitais dentro dos parametros esperados.
-Conversa fluente, postura corporal relaxada, sem sinais de desconforto agudo.
-Conduta de manutencao do acompanhamento conforme protocolo de pre-natal de baixo risco.

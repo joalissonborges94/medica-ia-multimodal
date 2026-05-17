@@ -7,9 +7,9 @@
 # Ajustar start/duration conforme o trecho mais relevante de cada video.
 
 cases:
-  prenatal:
+  consulta_clinica_geral:
     category: consultas
-    note: "Consulta clinica simulada (academica) de pre-natal de rotina. Paciente e medica em sala, mascaradas, sentadas frente a frente."
+    note: "Consulta clinica simulada (academica) de avaliacao clinica geral. Paciente refere dor toracica e alteracao de pressao arterial. Paciente e medica em sala, mascaradas, sentadas frente a frente."
     url: "https://www.youtube.com/watch?v=SitHXQF14BY"
     start: "00:00:30"
     duration: 30
@@ -30,6 +30,22 @@ cases:
     url: "https://www.youtube.com/watch?v=mKfPJokF7xs"
     start: "00:00:30"
     duration: 35
+    extract_audio: true
+
+  prenatal_acolhimento:
+    category: consultas
+    note: "Primeira consulta gestacional (simulacao academica). Trecho de acolhimento emocional: paciente recebe resultado positivo, expressa ansiedade e duvidas sobre como contar ao parceiro, contexto socioemocional. Exercita pilares de emocao (vocal e facial) e linguagem corporal."
+    url: "https://www.youtube.com/watch?v=rzKnvhod8tU"
+    start: "00:02:35"
+    duration: 60
+    extract_audio: true
+
+  prenatal_protocolo:
+    category: consultas
+    note: "Primeira consulta gestacional (simulacao academica). Trecho de protocolo clinico: enfermeiro explica plano de acompanhamento (9 consultas, equipe multiprofissional) e sequencia de exames (sorologia, HIV, hepatite B, tipagem sanguinea por papel filtro). Exercita Whisper em terminologia clinica e recuperacao RAG."
+    url: "https://www.youtube.com/watch?v=rzKnvhod8tU"
+    start: "00:06:50"
+    duration: 60
     extract_audio: true
 
   rotina:

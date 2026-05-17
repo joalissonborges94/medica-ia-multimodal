@@ -394,13 +394,13 @@ Cada cenário foi rodado fim a fim pela UI Gradio. Os artefatos (vídeo, áudio,
 
 ### 8.1 Consulta Normal
 
-Consulta clínica de rotina de saúde da mulher, paciente sem queixas relevantes. Material: vídeo de consulta simulada (academica) em PT-BR.
+Primeira consulta clínica de avaliação geral, paciente refere dor torácica e alteração de pressão arterial. Material: vídeo de consulta simulada (acadêmica) em PT-BR.
 
 | Modalidade | Entrada | Saída resumida |
 |---|---|---|
-| Vídeo | `data/examples/consultas/prenatal/video.mp4` | <!-- TODO --> |
-| Áudio | `data/examples/consultas/prenatal/audio.wav` (extraído do vídeo) | <!-- TODO --> |
-| Texto | Contexto clínico de pré-natal de rotina | <!-- TODO --> |
+| Vídeo | `data/examples/consultas/consulta_clinica_geral/video.mp4` | <!-- TODO --> |
+| Áudio | `data/examples/consultas/consulta_clinica_geral/audio.wav` (extraído do vídeo) | <!-- TODO --> |
+| Texto | Contexto clínico de avaliação geral com queixa torácica | <!-- TODO --> |
 | Nível final | `normal` esperado | <!-- TODO --> |
 
 <!-- TODO: print da aba Multimodal com relatório clínico gerado -->

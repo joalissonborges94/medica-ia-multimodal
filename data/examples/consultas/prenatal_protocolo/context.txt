@@ -1,0 +1,6 @@
+Primeira consulta gestacional em unidade basica de saude, conduzida pela equipe de enfermagem (simulacao academica).
+Trecho de protocolo clinico: enfermeiro explica o plano de acompanhamento da gestante, com previsao de pelo menos nove consultas ate o parto e atendimento multiprofissional (enfermagem, nutricao, psicologia).
+Detalhamento da bateria de exames laboratoriais previstos: sorologia (HIV, hepatite B, sifilis), tipagem sanguinea por papel filtro, exames complementares.
+Anamnese inclui investigacao de comorbidades (diabetes, hipertensao), nenhuma referida pela paciente.
+Postura corporal tranquila, paciente atenta as orientacoes.
+Conduta esperada: preenchimento da caderneta da gestante, coleta de dados vitais, encaminhamentos laboratoriais.

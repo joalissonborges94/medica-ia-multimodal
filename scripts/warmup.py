@@ -67,11 +67,13 @@ EXAMPLES_DIR = PROJECT_ROOT / "data" / "examples"
 # context.txt; consultas tambem tem audio.wav extraido do video.
 # Mapeia caso -> categoria (subpasta em data/examples/).
 EXAMPLE_CASES: dict[str, str] = {
-    "prenatal":      "consultas",
-    "rastreio_mama": "consultas",
-    "dermatologica": "consultas",
-    "rotina":        "cirurgias",
-    "sangramento":   "cirurgias",
+    "consulta_clinica_geral": "consultas",
+    "rastreio_mama":          "consultas",
+    "dermatologica":          "consultas",
+    "prenatal_acolhimento":   "consultas",
+    "prenatal_protocolo":     "consultas",
+    "rotina":                 "cirurgias",
+    "sangramento":            "cirurgias",
 }
 
 

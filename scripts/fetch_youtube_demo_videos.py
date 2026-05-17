@@ -7,7 +7,7 @@ extrai o audio em PCM 16 kHz mono (formato esperado pelo Whisper) quando
 
 Uso:
     python scripts/fetch_youtube_demo_videos.py                  # todos os casos
-    python scripts/fetch_youtube_demo_videos.py --case prenatal  # so 1
+    python scripts/fetch_youtube_demo_videos.py --case consulta_clinica_geral  # so 1
     python scripts/fetch_youtube_demo_videos.py --force          # refaz mesmo se existe
 
 Pre-requisitos:

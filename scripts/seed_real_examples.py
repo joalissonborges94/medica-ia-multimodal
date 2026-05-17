@@ -41,25 +41,27 @@ SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 # `cirurgias/`. Nomes descrevem o conteudo do video (nao a severidade
 # esperada, que e atribuida pelo pipeline em tempo de execucao).
 CATEGORIA_POR_CASO: dict[str, str] = {
-    "prenatal":       "consultas",
-    "rastreio_mama":  "consultas",
-    "dermatologica":  "consultas",
-    "rotina":         "cirurgias",
-    "sangramento":    "cirurgias",
+    "consulta_clinica_geral": "consultas",
+    "rastreio_mama":          "consultas",
+    "dermatologica":          "consultas",
+    "prenatal_acolhimento":   "consultas",
+    "prenatal_protocolo":     "consultas",
+    "rotina":                 "cirurgias",
+    "sangramento":            "cirurgias",
 }
 
 # Esquema do manifest. Paths sao relativos a raiz do projeto.
 CASOS: list[dict] = [
     {
-        "key": "prenatal",
-        "nome": "Pre-natal de rotina",
+        "key": "consulta_clinica_geral",
+        "nome": "Consulta clinica geral - queixa toracica",
         "descricao": (
-            "Consulta clinica simulada de pre-natal de rotina, "
-            "paciente sem queixas relevantes."
+            "Primeira consulta clinica de avaliacao geral, paciente "
+            "refere dor toracica e alteracao de pressao arterial."
         ),
-        "video_path": "data/examples/consultas/prenatal/video.mp4",
-        "audio_path": "data/examples/consultas/prenatal/audio.wav",
-        "patient_metadata": {"id": "exemplo-prenatal"},
+        "video_path": "data/examples/consultas/consulta_clinica_geral/video.mp4",
+        "audio_path": "data/examples/consultas/consulta_clinica_geral/audio.wav",
+        "patient_metadata": {"id": "exemplo-consulta-clinica-geral"},
         "nivel_esperado": "normal",
     },
     {
@@ -87,6 +89,32 @@ CASOS: list[dict] = [
         "audio_path": "data/examples/consultas/dermatologica/audio.wav",
         "patient_metadata": {"id": "exemplo-dermatologica"},
         "nivel_esperado": "moderate",
+    },
+    {
+        "key": "prenatal_acolhimento",
+        "nome": "Pre-natal - acolhimento emocional",
+        "descricao": (
+            "Primeira consulta gestacional, trecho de acolhimento "
+            "ao resultado positivo. Paciente expressa ansiedade e "
+            "duvidas sobre como contar ao parceiro."
+        ),
+        "video_path": "data/examples/consultas/prenatal_acolhimento/video.mp4",
+        "audio_path": "data/examples/consultas/prenatal_acolhimento/audio.wav",
+        "patient_metadata": {"id": "exemplo-prenatal-acolhimento"},
+        "nivel_esperado": "moderate",
+    },
+    {
+        "key": "prenatal_protocolo",
+        "nome": "Pre-natal - protocolo clinico",
+        "descricao": (
+            "Primeira consulta gestacional, trecho de protocolo. "
+            "Enfermeiro explica plano de acompanhamento e exames "
+            "(sorologia, HIV, hepatite B, tipagem sanguinea)."
+        ),
+        "video_path": "data/examples/consultas/prenatal_protocolo/video.mp4",
+        "audio_path": "data/examples/consultas/prenatal_protocolo/audio.wav",
+        "patient_metadata": {"id": "exemplo-prenatal-protocolo"},
+        "nivel_esperado": "normal",
     },
     {
         "key": "rotina",
