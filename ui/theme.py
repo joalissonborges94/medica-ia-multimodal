@@ -342,13 +342,16 @@ gradio-app > .wrap {{
 }}
 
 /* ----------------------------------------------------------------------
-   Tabela da aba Audit: colapsar espaco reservado pra grow dinamico
-   quando ja se sabe o numero de linhas atual (interactive=False).
-   Gradio Dataframe reserva ~3-4 linhas vazias por baixo "pra crescer".
-   `height: auto` + `max-height` controla via CSS.
+   Tabelas readonly (aba Audit, aba Video etc.): colapsar espaco
+   reservado pra grow dinamico quando ja se sabe o numero de linhas
+   atual (interactive=False). Gradio Dataframe reserva ~3-4 linhas
+   vazias por baixo "pra crescer". `height: auto` + `max-height` controla
+   via CSS. Aplicar `elem_classes="compact-table"` no `gr.Dataframe`.
    ---------------------------------------------------------------------- */
 .gradio-container .audit-table .table-wrap,
-.gradio-container .audit-table .svelte-virtual-table-viewport {{
+.gradio-container .audit-table .svelte-virtual-table-viewport,
+.gradio-container .compact-table .table-wrap,
+.gradio-container .compact-table .svelte-virtual-table-viewport {{
     height: auto !important;
     max-height: 520px;
 }}

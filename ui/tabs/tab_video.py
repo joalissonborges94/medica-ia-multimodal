@@ -113,6 +113,7 @@ def render(video_pipeline: VideoPipeline) -> None:
             wrap=True,
             interactive=False,
             value=[],
+            elem_classes="compact-table",  # colapsa espaco "pra crescer" do Gradio
         )
 
     with gr.Accordion("JSON bruto (50 primeiros eventos)", open=False):
