@@ -49,6 +49,11 @@ models/*
 # Pesos custom treinados via notebooks/train_yolo_colab.ipynb (~6 MB, vale commitar).
 !models/yolov8n_surgical.pt
 
+# Pesos pre-treinados YOLO baixados automaticamente pela Ultralytics
+# na primeira inicializacao (~6 MB cada). Nao commitar.
+yolov8n-pose.pt
+yolov8n.pt
+
 data/raw/*
 !data/raw/.gitkeep
 data/processed/*
