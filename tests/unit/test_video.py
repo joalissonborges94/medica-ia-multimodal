@@ -242,9 +242,9 @@ def test_classify_scene_type_retorna_consulta_quando_ha_faces(tmp_path, monkeypa
 
     # Mock cv2.VideoCapture para retornar frames sinteticos
     fake_frame = np.zeros((100, 100, 3), dtype=np.uint8)
-    # Cor de pele clara/rosada (BGR ~170,200,230): hue na borda mas
-    # saturacao ~66 (< _SURGERY_SAT_MIN=80), entao nao classifica como hue cirurgico
-    fake_frame[:] = [170, 200, 230]
+    # Cor pele dessaturada (BGR ~200,215,225): sat ~28 (< _SURGERY_SAT_MIN=65),
+    # nao classifica como cor cirurgica (saturacao baixa de ambiente clinico)
+    fake_frame[:] = [200, 215, 225]
 
     mock_cap = MagicMock()
     mock_cap.isOpened.return_value = True

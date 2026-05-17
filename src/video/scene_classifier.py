@@ -24,27 +24,23 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------
-# Faixas de matiz HSV (0-180 no OpenCV, escala [0, 179])
+# Heuristica de cor (HSV) pra distinguir cirurgia de consulta
 # -----------------------------------------------------------------------
-# Cirurgia laparoscopica: tecido biologico iluminado por luz fria endoscopica.
-# Predominam tons vermelhos e rosados escuros.  Hue em [0..15] e [165..179].
-_SURGERY_HUE_LOW_MIN: int = 0
-_SURGERY_HUE_LOW_MAX: int = 15
-_SURGERY_HUE_HIGH_MIN: int = 165
-_SURGERY_HUE_HIGH_MAX: int = 179
-
-# Consulta: pele humana, paredes claras, roupas variadas. Hue mais difuso.
-# Valores tipicos de pele: [0..25], mas o ambiente todo e variado.
-# Usamos saturacao para separar: campo cirurgico tem saturacao alta;
-# consulta tem mix com areas dessaturadas (paredes, roupas neutras).
-_CONSULTATION_SAT_MAX: float = 120.0   # saturacao media abaixo disso indica consulta
-_SURGERY_SAT_MIN: float = 80.0         # campo cirurgico costuma ter sat alta
+# Investigacao empirica nos 4 videos de demo (out/2025):
+#   cirurgia_rotina        sat=74.2 hue=41.3
+#   cirurgia_sangramento   sat=102.9 hue=121.2
+#   consulta_dermatologica sat=37.8 hue=47.5
+#   consulta_prenatal      sat=53.6 hue=67.1
+# Saturacao discrimina limpo (cirurgias 74-103, consultas 38-54).
+# Hue varia demais entre cirurgias (compress do MP4 muda o canal de cor)
+# pra ser confiavel sozinho. Usamos saturacao como sinal primario.
+_SURGERY_SAT_MIN: float = 65.0   # threshold entre consulta (max 54) e cirurgia (min 74)
 
 # -----------------------------------------------------------------------
 # Limiares de decisao
 # -----------------------------------------------------------------------
 _FACE_MAJORITY_RATIO: float = 0.5   # >= 50 % dos frames com face -> consulta candidata
-_SURGERY_HUE_RATIO: float = 0.4     # >= 40 % dos frames com hue tipico -> cirurgia candidata
+_SURGERY_SAT_RATIO: float = 0.4     # >= 40 % dos frames saturados -> cirurgia candidata
 
 
 class SceneType(StrEnum):
@@ -98,7 +94,7 @@ def classify_scene_type(
 
         indices = _sample_indices(total_frames, num_samples)
         face_hits: int = 0
-        surgery_hue_hits: int = 0
+        surgery_sat_hits: int = 0
         valid_frames: int = 0
 
         for idx in indices:
@@ -111,8 +107,8 @@ def classify_scene_type(
             if _has_face(frame, face_detector):
                 face_hits += 1
 
-            if _is_surgery_hue(frame):
-                surgery_hue_hits += 1
+            if _is_surgery_color(frame):
+                surgery_sat_hits += 1
 
     finally:
         cap.release()
@@ -122,10 +118,10 @@ def classify_scene_type(
         return SceneType.UNKNOWN
 
     face_ratio = face_hits / valid_frames
-    surgery_ratio = surgery_hue_hits / valid_frames
+    surgery_ratio = surgery_sat_hits / valid_frames
 
     logger.debug(
-        "SceneClassifier %s: valid=%d face_ratio=%.2f surgery_hue_ratio=%.2f",
+        "SceneClassifier %s: valid=%d face_ratio=%.2f surgery_sat_ratio=%.2f",
         video_path.name,
         valid_frames,
         face_ratio,
@@ -184,28 +180,23 @@ def _has_face(frame: np.ndarray, detector) -> bool:
     return bool(result.detections)
 
 
-def _is_surgery_hue(frame: np.ndarray) -> bool:
+def _is_surgery_color(frame: np.ndarray) -> bool:
     """Retorna True se a assinatura HSV do frame e tipica de cirurgia laparoscopica.
 
-    Criterios:
-    - Matiz medio na faixa vermelho-rosado escuro ([0..15] ou [165..179] no OpenCV).
-    - Saturacao media acima de `_SURGERY_SAT_MIN` (campo cirurgico e saturado).
+    Criterio: saturacao media acima de `_SURGERY_SAT_MIN`. Campo cirurgico
+    laparoscopico tem cores saturadas (tecido biologico iluminado por luz
+    cirurgica) vs consulta clinica indoor onde paredes brancas e roupas
+    neutras dessaturam a cena.
+
+    Hue nao e usado: cirurgias com encoding MP4 diferentes podem ter shift
+    no canal de cor (rotina=amarelo, sangramento=ciano apos compressao),
+    tornando hue nao confiavel sozinho.
     """
     import cv2
 
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    hue = hsv[:, :, 0].astype(np.float32)
     sat = hsv[:, :, 1].astype(np.float32)
-
-    mean_hue = float(np.mean(hue))
-    mean_sat = float(np.mean(sat))
-
-    hue_in_low = _SURGERY_HUE_LOW_MIN <= mean_hue <= _SURGERY_HUE_LOW_MAX
-    hue_in_high = _SURGERY_HUE_HIGH_MIN <= mean_hue <= _SURGERY_HUE_HIGH_MAX
-    hue_ok = hue_in_low or hue_in_high
-    sat_ok = mean_sat >= _SURGERY_SAT_MIN
-
-    return hue_ok and sat_ok
+    return float(np.mean(sat)) >= _SURGERY_SAT_MIN
 
 
 def _decide(face_ratio: float, surgery_ratio: float) -> SceneType:
@@ -222,12 +213,17 @@ def _decide(face_ratio: float, surgery_ratio: float) -> SceneType:
        positivo do YOLO laparoscopico em cenas de consulta.
     """
     has_faces = face_ratio >= _FACE_MAJORITY_RATIO
-    is_surgery_hue = surgery_ratio >= _SURGERY_HUE_RATIO
+    is_surgery_color = surgery_ratio >= _SURGERY_SAT_RATIO
 
-    if has_faces and not is_surgery_hue:
+    if has_faces and not is_surgery_color:
         return SceneType.CONSULTATION
-    if not has_faces and is_surgery_hue:
+    if not has_faces and is_surgery_color:
         return SceneType.SURGERY
-    if has_faces and is_surgery_hue:
+    if has_faces and is_surgery_color:
         return SceneType.MIXED
+    # Sem faces detectadas: pelo sinal de cor decide.
+    # Saturacao alta sem face -> cirurgia (laparoscopia sem rosto na cena).
+    # Saturacao baixa sem face -> consulta (face nao detectada, ex: mascara).
+    if is_surgery_color:
+        return SceneType.SURGERY
     return SceneType.CONSULTATION
