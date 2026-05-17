@@ -341,7 +341,7 @@ class PoseEstimator:
         return all_poses
 
     def close(self) -> None:
-        """Libera os recursos do modelo (no-op pra YOLO via Ultralytics)."""
-        # Ultralytics gerencia memoria internamente; nao precisa close
-        # explicito. Mantemos o metodo pra compat com codigo existente.
-        self._model = None
+        """No-op. Mantido por compatibilidade com a interface anterior (MediaPipe)."""
+        # Ultralytics gerencia memoria internamente. Manter o modelo
+        # carregado entre chamadas evita recarregar pesos a cada video
+        # (e era a causa de pose retornar vazio na 2a execucao).
