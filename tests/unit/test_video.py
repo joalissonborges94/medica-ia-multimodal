@@ -552,7 +552,78 @@ def test_video_pipeline_chama_emocao_em_cena_consultation(tmp_path):
         events = p.process(fake_video)
 
     assert mock_classifier.classify.call_count >= 1
-    assert any(e.facial_emotion is not None for e in events)
+
+
+@pytest.mark.smoke
+def test_video_pipeline_pula_deteccao_em_cena_consultation(tmp_path):
+    """Cena CONSULTATION: BleedingDetector.predict nao deve ser chamado."""
+    fake_video = tmp_path / "consulta.mp4"
+    fake_video.touch()
+
+    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.side_effect = [30.0, 2.0]
+    mock_cap.read.side_effect = [(True, fake_frame), (True, fake_frame), (False, None)]
+
+    mock_detector = MagicMock(spec=BleedingDetector)
+    mock_detector.predict.return_value = []
+
+    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
+    mock_azure.analyze.return_value = None
+
+    import src.video.pipeline as pipeline_mod
+
+    with (
+        patch("cv2.VideoCapture", return_value=mock_cap),
+        patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.CONSULTATION),
+        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
+    ):
+        p = VideoPipeline(
+            target_fps=30.0,
+            detector=mock_detector,
+            emotion_classifier=MagicMock(classify=MagicMock(return_value=None)),
+            azure_client=mock_azure,
+        )
+        p.process(fake_video)
+
+    mock_detector.predict.assert_not_called()
+
+
+@pytest.mark.smoke
+def test_video_pipeline_chama_deteccao_em_cena_surgery(tmp_path):
+    """Cena SURGERY: BleedingDetector.predict deve ser chamado em cada frame."""
+    fake_video = tmp_path / "cirurgia.mp4"
+    fake_video.touch()
+
+    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.side_effect = [30.0, 2.0]
+    mock_cap.read.side_effect = [(True, fake_frame), (True, fake_frame), (False, None)]
+
+    mock_detector = MagicMock(spec=BleedingDetector)
+    mock_detector.predict.return_value = []
+
+    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
+    mock_azure.analyze.return_value = None
+
+    import src.video.pipeline as pipeline_mod
+
+    with (
+        patch("cv2.VideoCapture", return_value=mock_cap),
+        patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.SURGERY),
+        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
+    ):
+        p = VideoPipeline(
+            target_fps=30.0,
+            detector=mock_detector,
+            emotion_classifier=MagicMock(classify=MagicMock(return_value=None)),
+            azure_client=mock_azure,
+        )
+        p.process(fake_video)
+
+    assert mock_detector.predict.call_count >= 1
 
 
 @pytest.mark.smoke

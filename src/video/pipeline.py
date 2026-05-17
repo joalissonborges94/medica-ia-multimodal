@@ -5,12 +5,19 @@ Recebe um caminho de video, amostra frames a uma taxa configuravel
 classificador de emocao facial e (quando configurado) Azure Video Indexer.
 A saida e uma lista de `VideoEvent` com tudo agregado por frame.
 
-Logica de emocao facial por tipo de cena:
-- SURGERY: analise de emocao facial e ignorada (nao ha rosto visivel
-  de forma relevante no campo cirurgico laparoscopico).
-- CONSULTATION / MIXED / UNKNOWN: emocao facial e classificada pelo
-  backend selecionado em `get_facial_emotion_classifier()` (GPT-4o vision
-  quando configurado, FER local como fallback).
+Logica de gating por tipo de cena (ambos detector e emocao):
+
+| Cena         | YOLO (instrumentos) | Emocao facial |
+|--------------|---------------------|---------------|
+| SURGERY      | rodando             | pulado        |
+| CONSULTATION | pulado              | rodando       |
+| MIXED        | rodando             | rodando       |
+| UNKNOWN      | rodando             | rodando       |
+
+Em CONSULTATION o YOLO custom (treinado em laparoscopia) gera falso
+positivo em objetos clinicos comuns como agulhas, seringas, otoscopios,
+classificando como Grasper/L-hook. Pular eleva precisao sem perder
+deteccoes reais (cenas reais de cirurgia caem em SURGERY ou MIXED).
 """
 
 from __future__ import annotations
@@ -107,6 +114,17 @@ class VideoPipeline:
                     "Cena SURGERY: classificacao de emocao facial ignorada."
                 )
 
+            # Deteccao YOLO so faz sentido em cenas cirurgicas. Em consulta,
+            # o modelo (treinado em laparoscopia) gera falso positivo em
+            # objetos comuns de exame fisico (agulhas, seringas, otoscopios)
+            # classificando como Grasper/L-hook.
+            run_detection = self.last_scene_type != SceneType.CONSULTATION
+            if not run_detection:
+                logger.info(
+                    "Cena CONSULTATION: deteccao de instrumentos ignorada "
+                    "(evita falso positivo do YOLO laparoscopico)."
+                )
+
             azure_metadata = self.azure_client.analyze(video_path)
 
             events: list[VideoEvent] = []
@@ -120,7 +138,7 @@ class VideoPipeline:
                     continue
 
                 timestamp_ms = int(round(frame_idx * 1000 / video_fps))
-                detections = self.detector.predict(frame)
+                detections = self.detector.predict(frame) if run_detection else []
                 pose_landmarks = self.pose_estimator.estimate(frame)
                 facial_emotion = (
                     self.emotion_classifier.classify(frame) if run_emotion else None

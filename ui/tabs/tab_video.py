@@ -85,6 +85,7 @@ def render(process_video: VideoProcessor) -> None:
             wrap=True,
             interactive=False,
             value=[],
+            max_height=420,  # evita espaco vazio quando ha poucos eventos
         )
 
     with gr.Accordion("JSON bruto (50 primeiros eventos)", open=False):
