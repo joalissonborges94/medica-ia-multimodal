@@ -393,9 +393,11 @@ Consulta clínica de rotina de saúde da mulher, paciente sem queixas relevantes
 
 Depoimento real de paciente sobre rastreio e diagnóstico de alteração mamária. Voz com tom emocional perceptível.
 
+**Caso audio-only.** O vídeo original apresenta agulhas e outros instrumentos de exame que o YOLO custom classifica erroneamente como procedimento cirúrgico em curso (falso positivo `rule_surgical_instrument_presence`). Como o sinal clinicamente relevante deste caso está na voz (tom emocional, transcrição da experiência da paciente), o vídeo foi descartado da execução e apenas o áudio é processado. Esse caso ilustra uma decisão consciente de filtrar modalidades quando o conteúdo visual gera mais ruído que sinal.
+
 | Modalidade | Entrada | Saída resumida |
 |---|---|---|
-| Vídeo | `data/examples/consultas/rastreio_mama/video.mp4` | <!-- TODO --> |
+| Vídeo | descartado (falso positivo do YOLO no conteúdo do exame) | n/a |
 | Áudio | `data/examples/consultas/rastreio_mama/audio.wav` | <!-- TODO --> |
 | Texto | Contexto sobre rastreio precoce de câncer de mama (alinhado com PDF INCA no RAG) | <!-- TODO --> |
 | Nível final | `moderate` esperado | <!-- TODO --> |

@@ -17,11 +17,12 @@ cases:
 
   rastreio_mama:
     category: consultas
-    note: "Depoimento real de paciente Maria Jose sobre rastreio de cancer de mama. Video original tem 37s: 0-4s musica abertura, 5-24s fala real, 24-37s musica encerramento. Cortar so a fala."
+    note: "Depoimento real de paciente Maria Jose sobre rastreio de cancer de mama. Video original tem 37s: 0-4s musica abertura, 5-24s fala real, 24-37s musica encerramento. Caso usado como audio-only: video apresenta agulhas/instrumentos de exame que geram falso positivo no YOLO; o signal relevante esta no audio (tom emocional + transcricao). Apos extracao do audio.wav, o video.mp4 e deletado."
     url: "https://www.youtube.com/watch?v=cFzfR1aI3d8"
     start: "00:00:05"
     duration: 19
     extract_audio: true
+    discard_video_after_extract: true
 
   dermatologica:
     category: consultas

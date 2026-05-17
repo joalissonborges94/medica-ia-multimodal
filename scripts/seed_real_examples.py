@@ -67,9 +67,11 @@ CASOS: list[dict] = [
         "nome": "Rastreio de cancer de mama (depoimento)",
         "descricao": (
             "Depoimento real de paciente sobre experiencia com "
-            "rastreio e diagnostico mamario."
+            "rastreio e diagnostico mamario. Audio-only: video "
+            "apresenta agulhas/instrumentos de exame que geram "
+            "falso positivo no YOLO."
         ),
-        "video_path": "data/examples/consultas/rastreio_mama/video.mp4",
+        "video_path": None,
         "audio_path": "data/examples/consultas/rastreio_mama/audio.wav",
         "patient_metadata": {"id": "exemplo-rastreio-mama"},
         "nivel_esperado": "moderate",

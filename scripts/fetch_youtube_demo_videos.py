@@ -150,6 +150,7 @@ def process_case(case_name: str, cfg: dict, force: bool = False) -> None:
     start = cfg.get("start", "00:00:00")
     duration = cfg.get("duration", 30)
     extract_audio = cfg.get("extract_audio", False)
+    discard_video = cfg.get("discard_video_after_extract", False)
 
     case_dir.mkdir(parents=True, exist_ok=True)
     tmp_full = case_dir / "_tmp_full.mp4"
@@ -174,6 +175,11 @@ def process_case(case_name: str, cfg: dict, force: bool = False) -> None:
     finally:
         if tmp_full.exists():
             tmp_full.unlink()
+
+    if discard_video and video_out.exists():
+        video_out.unlink()
+        logger.info("[%s] video.mp4 descartado (audio-only por config)", case_name)
+        return
 
     size_mb = video_out.stat().st_size / (1024 * 1024)
     logger.info(

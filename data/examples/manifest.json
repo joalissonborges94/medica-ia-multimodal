@@ -13,8 +13,8 @@
     },
     {
       "nome": "Rastreio de cancer de mama (depoimento)",
-      "descricao": "Depoimento real de paciente sobre experiencia com rastreio e diagnostico mamario.",
-      "video_path": "data/examples/consultas/rastreio_mama/video.mp4",
+      "descricao": "Depoimento real de paciente sobre experiencia com rastreio e diagnostico mamario. Audio-only: o video apresenta agulhas e outros instrumentos de exame que o YOLO classifica erroneamente como procedimento cirurgico em curso, gerando falso positivo. Pipeline usa so a voz, que carrega o signal relevante (tom emocional, transcricao).",
+      "video_path": null,
       "audio_path": "data/examples/consultas/rastreio_mama/audio.wav",
       "context_text": "Paciente do sexo feminino em depoimento espontaneo sobre sua experiencia com rastreio e diagnostico de alteracao mamaria. Relata trajetoria do exame de imagem, impacto emocional do resultado e importancia do acompanhamento medico continuado. Voz com tom emocional perceptivel, postura levemente retraida. Caso ilustrativo da importancia do rastreio precoce de cancer de mama. Referencia clinica: INCA, Deteccao Precoce do Cancer de Mama.",
       "patient_metadata": {
