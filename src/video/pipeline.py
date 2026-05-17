@@ -18,11 +18,19 @@ Em CONSULTATION o YOLO custom (treinado em laparoscopia) gera falso
 positivo em objetos clinicos comuns como agulhas, seringas, otoscopios,
 classificando como Grasper/L-hook. Pular eleva precisao sem perder
 deteccoes reais (cenas reais de cirurgia caem em SURGERY ou MIXED).
+
+Amostragem de emocao reduzida por padrao (`emotion_every_n_samples=3`):
+classificacao de emocao facial via GPT-vision tem latencia ~3s/frame.
+Como paciente em consulta clinica raramente muda emocao em <3s,
+amostrar 1 a cada 3 frames reduz tempo total em 3x sem perder
+resolucao temporal relevante. Frames sem analise de emocao continuam
+no resultado com `facial_emotion=None`.
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 import cv2
@@ -36,6 +44,8 @@ from src.video.types import VideoEvent
 
 logger = logging.getLogger(__name__)
 
+ProgressCallback = Callable[[float, str], None]
+
 
 class VideoPipeline:
     """Orquestra todos os modulos de analise de video frame a frame."""
@@ -43,6 +53,7 @@ class VideoPipeline:
     def __init__(
         self,
         target_fps: float = 1.0,
+        emotion_every_n_samples: int = 3,
         detector: BleedingDetector | None = None,
         pose_estimator: PoseEstimator | None = None,
         emotion_classifier: FacialEmotionClassifierProtocol | None = None,
@@ -53,6 +64,10 @@ class VideoPipeline:
         Args:
             target_fps: quantos frames por segundo amostrar do video.
                 Default 1 fps mantem custo baixo para videos longos.
+            emotion_every_n_samples: roda classificacao de emocao a cada N
+                frames amostrados (default 3). Reduz latencia GPT-vision em
+                3x sem perder resolucao real em consultas clinicas. Use 1
+                pra rodar em todos os frames amostrados.
             detector: instancia opcional de `BleedingDetector`.
             pose_estimator: instancia opcional de `PoseEstimator`.
             emotion_classifier: instancia opcional de classificador de emocao
@@ -61,6 +76,7 @@ class VideoPipeline:
             azure_client: instancia opcional de `AzureVideoIndexerClient`.
         """
         self.target_fps: float = target_fps
+        self.emotion_every_n_samples: int = max(1, emotion_every_n_samples)
         self.detector: BleedingDetector = detector or BleedingDetector()
         self.pose_estimator: PoseEstimator = pose_estimator or PoseEstimator()
         self.emotion_classifier: FacialEmotionClassifierProtocol = (
@@ -70,11 +86,18 @@ class VideoPipeline:
         # Preenchido apos cada chamada a `process()`.
         self.last_scene_type: SceneType = SceneType.UNKNOWN
 
-    def process(self, video_path: Path) -> list[VideoEvent]:
+    def process(
+        self,
+        video_path: Path,
+        progress: ProgressCallback | None = None,
+    ) -> list[VideoEvent]:
         """Processa um video e retorna a lista de `VideoEvent`.
 
         Args:
             video_path: caminho do arquivo de video.
+            progress: callback opcional `(frac, desc)` com `frac` em [0, 1]
+                e `desc` string curta. Util pra integrar com `gr.Progress`
+                ou outros indicadores de UI. Default `None` (sem reportes).
 
         Returns:
             Lista de eventos, um por frame amostrado.
@@ -93,14 +116,20 @@ class VideoPipeline:
 
         try:
             video_fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+            total_video_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) or 1
             sampling_step = max(1, int(round(video_fps / self.target_fps)))
+            expected_samples = max(1, total_video_frames // sampling_step)
             logger.info(
-                "Processando %s: video_fps=%.2f, target_fps=%.2f, step=%d",
+                "Processando %s: video_fps=%.2f, target_fps=%.2f, step=%d, samples~%d",
                 video_path,
                 video_fps,
                 self.target_fps,
                 sampling_step,
+                expected_samples,
             )
+
+            if progress is not None:
+                progress(0.02, "Detectando tipo de cena...")
 
             self.last_scene_type = classify_scene_type(video_path)
             logger.info("Tipo de cena identificado: %s", self.last_scene_type.value)
@@ -125,10 +154,17 @@ class VideoPipeline:
                     "(evita falso positivo do YOLO laparoscopico)."
                 )
 
+            if progress is not None:
+                progress(
+                    0.05,
+                    f"Cena: {self.last_scene_type.value}. Iniciando processamento...",
+                )
+
             azure_metadata = self.azure_client.analyze(video_path)
 
             events: list[VideoEvent] = []
             frame_idx = 0
+            sample_idx = 0
             while True:
                 ret, frame = cap.read()
                 if not ret:
@@ -140,8 +176,16 @@ class VideoPipeline:
                 timestamp_ms = int(round(frame_idx * 1000 / video_fps))
                 detections = self.detector.predict(frame) if run_detection else []
                 pose_landmarks = self.pose_estimator.estimate(frame)
+
+                # Emocao roda so a cada N amostras (default 3) pra reduzir
+                # latencia de chamada GPT-vision sem perder resolucao real
+                should_classify_emotion = (
+                    run_emotion and sample_idx % self.emotion_every_n_samples == 0
+                )
                 facial_emotion = (
-                    self.emotion_classifier.classify(frame) if run_emotion else None
+                    self.emotion_classifier.classify(frame)
+                    if should_classify_emotion
+                    else None
                 )
 
                 events.append(
@@ -154,7 +198,21 @@ class VideoPipeline:
                         azure_metadata=azure_metadata,
                     )
                 )
+
+                if progress is not None and sample_idx % 2 == 0:
+                    frac = 0.05 + 0.92 * min(
+                        1.0, (sample_idx + 1) / max(1, expected_samples)
+                    )
+                    progress(
+                        frac,
+                        f"Frame {sample_idx + 1}/{expected_samples}",
+                    )
+
                 frame_idx += 1
+                sample_idx += 1
+
+            if progress is not None:
+                progress(1.0, "Concluido.")
 
             logger.info("Processamento concluido: %d eventos", len(events))
             return events

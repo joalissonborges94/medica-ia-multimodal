@@ -118,7 +118,10 @@ def render(video_pipeline: VideoPipeline) -> None:
     with gr.Accordion("JSON bruto (50 primeiros eventos)", open=False):
         raw_json = gr.JSON(value={"events": []})
 
-    def _on_analyze(video_path: str | None):
+    def _on_analyze(
+        video_path: str | None,
+        progress=gr.Progress(),  # noqa: B008  # pattern idiomatico do Gradio
+    ):
         empty_result = (
             empty_state(
                 "Faca upload de um vıdeo antes de analisar.",
@@ -145,8 +148,15 @@ def render(video_pipeline: VideoPipeline) -> None:
                 {"events": []},
             )
 
+        # Adapter: gr.Progress espera `progress(frac, desc=...)`;
+        # VideoPipeline.process chama `cb(frac, desc)` posicional.
+        def _progress_cb(frac: float, desc: str) -> None:
+            progress(frac, desc=desc)
+
         try:
-            events = video_pipeline.process(Path(video_path))
+            events = video_pipeline.process(
+                Path(video_path), progress=_progress_cb,
+            )
         except (FileNotFoundError, RuntimeError, ValueError) as exc:
             logger.warning("Falha ao processar vıdeo na UI: %s", exc)
             return (
@@ -265,7 +275,9 @@ def render(video_pipeline: VideoPipeline) -> None:
             events_table,
             raw_json,
         ],
-        show_progress="full",
+        # show_progress="minimal" pra deixar gr.Progress do callback aparecer
+        # com texto detalhado em vez do spinner generico do "full"
+        show_progress="minimal",
     ).then(
         fn=lambda: gr.update(interactive=True, value="Analisar vıdeo"),
         outputs=analyze_btn,
