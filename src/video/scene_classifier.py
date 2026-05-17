@@ -158,7 +158,8 @@ def _load_face_detector():
         face_detection = mp.solutions.face_detection
         detector = face_detection.FaceDetection(
             model_selection=0,  # modelo 0 = curta distancia, mais leve
-            min_detection_confidence=0.5,
+            min_detection_confidence=0.3,  # mais permissivo pra detectar
+            # face com mascara (so olhos+sobrancelha visiveis)
         )
         logger.debug("SceneClassifier: MediaPipe Face Detection carregado.")
         return detector
@@ -213,7 +214,12 @@ def _decide(face_ratio: float, surgery_ratio: float) -> SceneType:
     Regras (em ordem de prioridade):
     1. Maioria de frames com face E saturacao moderada (nao cirurgia) -> consulta.
     2. Poucos frames com face E hue tipico de cirurgia -> cirurgia.
-    3. Caso contrario -> misto.
+    3. Faces + paleta cirurgica (ex: cirurgiao em campo) -> misto.
+    4. Sem faces nem paleta cirurgica -> consulta (fallback). Cenas com
+       paciente mascarado (EPI) fazem o detector perder o rosto, e na
+       ausencia de assinatura cirurgica e mais provavel que seja consulta
+       clinica do que cirurgia. Default mais conservador, evita falso
+       positivo do YOLO laparoscopico em cenas de consulta.
     """
     has_faces = face_ratio >= _FACE_MAJORITY_RATIO
     is_surgery_hue = surgery_ratio >= _SURGERY_HUE_RATIO
@@ -223,7 +229,5 @@ def _decide(face_ratio: float, surgery_ratio: float) -> SceneType:
     if not has_faces and is_surgery_hue:
         return SceneType.SURGERY
     if has_faces and is_surgery_hue:
-        # Rosto presente mas paleta cirurgica (ex: cirurgiao em campo) -> misto
         return SceneType.MIXED
-    # Sem faces e sem paleta cirurgica clara -> misto (video ambiguo)
-    return SceneType.MIXED
+    return SceneType.CONSULTATION

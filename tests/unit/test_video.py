@@ -332,9 +332,14 @@ def test_classify_scene_type_retorna_unknown_quando_mediapipe_ausente(tmp_path):
 
 
 @pytest.mark.smoke
-def test_decide_retorna_misto_quando_ambos_sinais_ausentes():
-    """Sem face e sem hue cirurgico -> MIXED (video ambiguo)."""
-    assert _decide(face_ratio=0.0, surgery_ratio=0.0) == SceneType.MIXED
+def test_decide_retorna_consulta_quando_ambos_sinais_ausentes():
+    """Sem face e sem hue cirurgico -> CONSULTATION (fallback conservador).
+
+    Cenas com paciente mascarado (EPI) fazem MediaPipe perder o rosto.
+    Na ausencia de assinatura cirurgica, e mais provavel ser consulta
+    do que cirurgia laparoscopica.
+    """
+    assert _decide(face_ratio=0.0, surgery_ratio=0.0) == SceneType.CONSULTATION
 
 
 @pytest.mark.smoke
