@@ -249,17 +249,13 @@ TRIGGERS_TABLE_HEADERS: list[str] = ["Regra", "Nivel", "Origem", "Mensagem"]
 
 
 def video_events_to_rows(events: list[VideoEvent], max_rows: int = 30) -> list[list[str]]:
-    """Resume eventos de vıdeo em linhas tabulares.
+    """Resume eventos de vıdeo em linhas tabulares (1 linha por frame).
+
+    Util pra inspeção granular. Use `video_events_to_windowed_rows` para
+    agregar em janelas temporais (melhor pra demos longas).
 
     Para cada frame mostra: indice, timestamp em segundos, numero de
     deteccoes, classes detectadas (concatenadas) e emocao facial (se houver).
-
-    Args:
-        events: lista vinda do pipeline de video.
-        max_rows: limite de linhas para nao saturar a UI.
-
-    Returns:
-        Lista de listas no formato `gr.Dataframe`.
     """
     rows: list[list[str]] = []
     for event in events[:max_rows]:
@@ -281,12 +277,121 @@ def video_events_to_rows(events: list[VideoEvent], max_rows: int = 30) -> list[l
     return rows
 
 
+def video_events_to_windowed_rows(
+    events: list[VideoEvent],
+    window_seconds: float = 5.0,
+) -> list[list[str]]:
+    """Agrega eventos em janelas temporais pra demos longas.
+
+    Para cada janela retorna: range de tempo, n frames, n deteccoes,
+    classes predominantes (com confianca media), emocao predominante,
+    postura predominante. Vazio quando nenhum frame caiu na janela.
+
+    Args:
+        events: lista do pipeline.process().
+        window_seconds: duracao de cada janela em segundos (default 5).
+
+    Returns:
+        Lista de listas no formato `gr.Dataframe` com 7 colunas (ver
+        `VIDEO_EVENTS_HEADERS`).
+    """
+    from collections import Counter, defaultdict
+
+    from src.video.pose import PostureCategory, classify_posture
+
+    if not events:
+        return []
+
+    window_ms = int(window_seconds * 1000)
+    buckets: dict[int, list[VideoEvent]] = defaultdict(list)
+    for event in events:
+        bucket_key = event.timestamp_ms // window_ms
+        buckets[bucket_key].append(event)
+
+    rows: list[list[str]] = []
+    for key in sorted(buckets):
+        bucket = buckets[key]
+        start_s = key * window_seconds
+        end_s = (key + 1) * window_seconds - 1
+        n_frames = len(bucket)
+        total_dets = sum(len(e.detections) for e in bucket)
+
+        # Classes com confianca media por classe
+        class_confs: dict[str, list[float]] = defaultdict(list)
+        for e in bucket:
+            for d in e.detections:
+                class_confs[d.class_name].append(d.confidence)
+        if class_confs:
+            classes_str = ", ".join(
+                f"{name} ({sum(confs) / len(confs):.0%})"
+                for name, confs in sorted(class_confs.items())
+            )
+        else:
+            classes_str = "-"
+
+        # Emocao predominante (moda)
+        emotion_labels = [
+            e.facial_emotion.label_pt for e in bucket if e.facial_emotion is not None
+        ]
+        if emotion_labels:
+            label, count = Counter(emotion_labels).most_common(1)[0]
+            avg_conf = sum(
+                e.facial_emotion.confidence for e in bucket
+                if e.facial_emotion is not None and e.facial_emotion.label_pt == label
+            ) / count
+            emotion_str = f"{label} ({avg_conf:.0%})"
+        else:
+            emotion_str = "-"
+
+        # Postura predominante (heuristica sobre os landmarks)
+        posture_counts: Counter[PostureCategory] = Counter()
+        for e in bucket:
+            if e.pose_landmarks:
+                cat = classify_posture(e.pose_landmarks)
+                if cat != PostureCategory.INDEFINIDO:
+                    posture_counts[cat] += 1
+        if posture_counts:
+            top = posture_counts.most_common()
+            if len(top) == 1 or top[0][1] >= n_frames * 0.7:
+                posture_str = f"{top[0][0].value} ({top[0][1]}/{n_frames})"
+            else:
+                # Mistura: mostra 1a e 2a
+                posture_str = (
+                    f"{top[0][0].value} ({top[0][1]}/{n_frames}), "
+                    f"{top[1][0].value} ({top[1][1]}/{n_frames})"
+                )
+        else:
+            posture_str = "-"
+
+        rows.append(
+            [
+                f"{start_s:.0f}-{end_s:.0f}s",
+                f"{n_frames}",
+                str(total_dets),
+                classes_str,
+                emotion_str,
+                posture_str,
+            ]
+        )
+    return rows
+
+
 VIDEO_EVENTS_HEADERS: list[str] = [
     "Frame",
     "Tempo",
     "Deteccoes",
     "Classes",
     "Emocao facial",
+]
+
+
+VIDEO_WINDOWS_HEADERS: list[str] = [
+    "Janela",
+    "Frames",
+    "Deteccoes",
+    "Classes",
+    "Emocao predominante",
+    "Postura predominante",
 ]
 
 

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING
 import gradio as gr
 
 from ui.components import (
-    VIDEO_EVENTS_HEADERS,
+    VIDEO_WINDOWS_HEADERS,
     build_detection_thumbnails,
     build_video_timeline_plot,
     emotion_source_label,
@@ -35,7 +35,7 @@ from ui.components import (
     risk_badge,
     scene_type_badge,
     section_title,
-    video_events_to_rows,
+    video_events_to_windowed_rows,
 )
 from ui.limits import validate_video
 
@@ -109,14 +109,15 @@ def render(video_pipeline: VideoPipeline) -> None:
     with gr.Group():
         gr.HTML(
             section_title(
-                "Eventos por frame",
-                "Cada linha e um frame amostrado. Classes e emocoes ficam em branco "
-                "quando o frame nao acionou nenhuma deteccao.",
+                "Eventos por janela",
+                "Resumo agregado em janelas de 5s: deteccoes acumuladas, classes "
+                "com confianca media, emocao e postura predominantes. JSON bruto "
+                "abaixo tem os eventos cru por frame.",
             )
         )
         events_table = gr.Dataframe(
-            headers=VIDEO_EVENTS_HEADERS,
-            datatype=["str"] * len(VIDEO_EVENTS_HEADERS),
+            headers=VIDEO_WINDOWS_HEADERS,
+            datatype=["str"] * len(VIDEO_WINDOWS_HEADERS),
             wrap=True,
             interactive=False,
             value=[],
@@ -288,7 +289,7 @@ def render(video_pipeline: VideoPipeline) -> None:
         thumbs = build_detection_thumbnails(video_path, events, max_thumbs=4)
         has_thumbs = bool(thumbs)
 
-        rows = video_events_to_rows(events)
+        rows = video_events_to_windowed_rows(events, window_seconds=5.0)
         payload = {"events": [e.model_dump() for e in events[:50]]}
         timeline = build_video_timeline_plot(events)
         return (
