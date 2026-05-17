@@ -16,6 +16,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -185,13 +186,30 @@ def build_app(orchestrator: Orchestrator | None = None) -> gr.Blocks:
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Le os argumentos de linha de comando."""
+    """Le os argumentos de linha de comando.
+
+    Defaults respeitam env vars GRADIO_SERVER_NAME e GRADIO_SERVER_PORT
+    quando setadas (Dockerfile usa 0.0.0.0 pra expor a aplicacao fora
+    do container). CLI args ainda sobrescrevem se passados explicitamente.
+    """
+    default_server_name = os.environ.get("GRADIO_SERVER_NAME", "127.0.0.1")
+    default_server_port = int(os.environ.get("GRADIO_SERVER_PORT", "7860"))
+
     parser = argparse.ArgumentParser(description="Entrypoint Gradio do medica-ia-multimodal")
     parser.add_argument("--share", action="store_true", help="Cria URL publico via Gradio")
     parser.add_argument(
-        "--server-name", default="127.0.0.1", help="Host para servir (default 127.0.0.1)"
+        "--server-name",
+        default=default_server_name,
+        help=f"Host para servir (default {default_server_name}, "
+        "respeita env GRADIO_SERVER_NAME)",
     )
-    parser.add_argument("--server-port", type=int, default=7860, help="Porta TCP (default 7860)")
+    parser.add_argument(
+        "--server-port",
+        type=int,
+        default=default_server_port,
+        help=f"Porta TCP (default {default_server_port}, "
+        "respeita env GRADIO_SERVER_PORT)",
+    )
     return parser.parse_args(argv)
 
 
