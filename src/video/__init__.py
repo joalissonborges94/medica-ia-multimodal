@@ -9,7 +9,7 @@ from src.video.emotion import (
     get_facial_emotion_classifier,
 )
 from src.video.pipeline import VideoPipeline
-from src.video.pose import PoseEstimator
+from src.video.pose import PoseEstimator, PostureCategory, classify_posture
 from src.video.scene_classifier import SceneType, classify_scene_type
 from src.video.types import (
     BoundingBox,
@@ -30,9 +30,11 @@ __all__ = [
     "FacialEmotionDetector",
     "PoseEstimator",
     "PoseLandmark",
+    "PostureCategory",
     "SceneType",
     "VideoEvent",
     "VideoPipeline",
+    "classify_posture",
     "classify_scene_type",
     "ensure_yolo_weights",
     "get_facial_emotion_classifier",

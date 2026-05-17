@@ -177,10 +177,26 @@ def render(video_pipeline: VideoPipeline) -> None:
             )
 
         # --- Metricas brutas ---
+        from collections import Counter
+
+        from src.video.pose import PostureCategory, classify_posture
+
         total_detections = sum(len(e.detections) for e in events)
         emotions_with_face = sum(1 for e in events if e.facial_emotion is not None)
         pose_frames = sum(1 for e in events if e.pose_landmarks)
         classes_set = {d.class_name for e in events for d in e.detections}
+
+        # Classifica postura por frame e agrega categoria predominante
+        posture_counts: Counter[PostureCategory] = Counter()
+        for e in events:
+            if e.pose_landmarks:
+                posture_counts[classify_posture(e.pose_landmarks)] += 1
+        # Remove INDEFINIDO da contagem pra escolher categoria valida
+        valid_postures = {k: v for k, v in posture_counts.items()
+                          if k != PostureCategory.INDEFINIDO}
+        dominant_posture = (
+            max(valid_postures, key=valid_postures.get) if valid_postures else None
+        )
 
         # --- Disponibilidade do MediaPipe (Py 3.14 vem com pacote reduzido) ---
         pose_available = getattr(video_pipeline.pose_estimator, "_available", True)
@@ -220,34 +236,51 @@ def render(video_pipeline: VideoPipeline) -> None:
             "</div>"
         )
 
-        # --- KPIs adaptados pra explicar skips ---
-        detections_hint = (
-            "pulado (cena consulta)" if scene_is_consultation else "total no video"
-        )
-        emotions_hint = (
-            "pulado (cena cirurgia)" if scene_is_surgery
-            else f"{emotions_with_face}/{len(events)} com face"
-        )
-        emotions_value = "n/a" if scene_is_surgery else str(emotions_with_face)
+        # --- KPIs adaptados com hints especificos por cena ---
+        if scene_is_consultation:
+            detections_value = "0"
+            detections_hint = "n/a: detector laparoscopico nao aplica"
+            classes_value = "0"
+            classes_hint = "sem instrumentos cirurgicos esperados"
+        else:
+            detections_value = str(total_detections)
+            detections_hint = f"{total_detections} bbox em {len(events)} frames"
+            classes_value = str(len(classes_set))
+            classes_hint = (
+                ", ".join(sorted(classes_set))
+                if classes_set else "nenhuma classe acima do threshold"
+            )
+
+        if scene_is_surgery:
+            emotions_value = "n/a"
+            emotions_hint = "rosto nao visivel em campo cirurgico"
+        else:
+            emotions_value = str(emotions_with_face)
+            emotions_hint = f"{emotions_with_face} de {len(events)} frames com face"
+
+        if not pose_available:
+            posture_value = "n/a"
+            posture_hint = "MediaPipe Pose indisponivel (rodar via Docker/Py 3.12)"
+        elif scene_is_surgery:
+            posture_value = "n/a"
+            posture_hint = "corpo nao visivel em campo cirurgico"
+        elif dominant_posture is not None:
+            posture_value = dominant_posture.value
+            posture_hint = (
+                f"{pose_frames} de {len(events)} frames; "
+                f"categoria predominante via heuristica"
+            )
+        else:
+            posture_value = "0"
+            posture_hint = f"0 de {len(events)} frames com pose detectada"
+
         kpis = kpi_grid(
             [
-                kpi_tile("Frames", str(len(events)), hint="amostrados"),
-                kpi_tile("Deteccoes", str(total_detections), hint=detections_hint),
+                kpi_tile("Frames", str(len(events)), hint="amostrados pelo pipeline"),
+                kpi_tile("Deteccoes", detections_value, hint=detections_hint),
                 kpi_tile("Emocoes", emotions_value, hint=emotions_hint),
-                kpi_tile(
-                    "Postura",
-                    f"{pose_frames}/{len(events)}" if pose_available else "n/a",
-                    hint=(
-                        "frames com pose detectada"
-                        if pose_available
-                        else "indisponivel (rodar via Docker/Py 3.12)"
-                    ),
-                ),
-                kpi_tile(
-                    "Classes",
-                    str(len(classes_set)),
-                    hint=", ".join(sorted(classes_set)) if classes_set else "nenhuma",
-                ),
+                kpi_tile("Postura", posture_value, hint=posture_hint),
+                kpi_tile("Classes", classes_value, hint=classes_hint),
             ]
         )
 

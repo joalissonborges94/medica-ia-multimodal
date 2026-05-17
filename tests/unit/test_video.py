@@ -670,6 +670,35 @@ def test_video_pipeline_amostra_emocao_a_cada_n_frames(tmp_path):
     assert mock_classifier.classify.call_count == 2
 
 
+# ---------------------------------------------------------------------
+# Postura: classify_posture
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.smoke
+def test_classify_posture_retorna_indefinido_quando_landmarks_vazios():
+    """Sem landmarks (lista vazia ou MediaPipe indisponivel) -> INDEFINIDO."""
+    from src.video.pose import PostureCategory, classify_posture
+
+    assert classify_posture([]) == PostureCategory.INDEFINIDO
+
+
+@pytest.mark.smoke
+def test_classify_posture_retorna_ereta_quando_tronco_vertical():
+    """Tronco proximo da vertical (ombros acima do quadril alinhados) -> ERETA."""
+    from src.video.pose import PostureCategory, classify_posture
+
+    # Coluna vertical: ombros em y=0.3, quadril em y=0.6, x mesmo
+    landmarks = [
+        PoseLandmark(name="nose", x=0.5, y=0.2, z=0.0, visibility=0.9),
+        PoseLandmark(name="left_shoulder", x=0.45, y=0.3, z=0.0, visibility=0.9),
+        PoseLandmark(name="right_shoulder", x=0.55, y=0.3, z=0.0, visibility=0.9),
+        PoseLandmark(name="left_hip", x=0.45, y=0.6, z=0.0, visibility=0.9),
+        PoseLandmark(name="right_hip", x=0.55, y=0.6, z=0.0, visibility=0.9),
+    ]
+    assert classify_posture(landmarks) == PostureCategory.ERETA
+
+
 @pytest.mark.smoke
 def test_facial_emotion_detector_classify_retorna_none_quando_sem_faces(monkeypatch):
     """FacialEmotionDetector.classify deve retornar None quando detect retorna []."""
