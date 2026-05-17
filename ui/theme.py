@@ -351,6 +351,22 @@ gradio-app > .wrap {{
 }}
 
 /* ----------------------------------------------------------------------
+   Input card da aba Video: quando o video e removido, o card encolhe
+   mas a coluna do lado (Resumo, com KPIs) mantem a altura. Sem flex
+   column o botao Analisar fica flutuando no meio. Marcamos o card com
+   `elem_classes="input-card"` e empurramos o botao pra base via
+   `margin-top: auto`.
+   ---------------------------------------------------------------------- */
+.gradio-container .input-card {{
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}}
+.gradio-container .input-card > button {{
+    margin-top: auto;
+}}
+
+/* ----------------------------------------------------------------------
    Galleries com altura natural: gr.Gallery reserva slots quadrados por
    default, o que cria barras pretas em cima/baixo quando os frames sao
    16:9. Aplicando `elem_classes="compact-gallery"` o slot encolhe pra

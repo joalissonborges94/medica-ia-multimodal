@@ -57,7 +57,7 @@ def render(video_pipeline: VideoPipeline) -> None:
 
     with gr.Row(equal_height=True):
         with gr.Column(scale=1):
-            with gr.Group():
+            with gr.Group(elem_classes="input-card"):
                 gr.HTML(
                     section_title(
                         "Entrada",
@@ -323,5 +323,34 @@ def render(video_pipeline: VideoPipeline) -> None:
     ).then(
         fn=lambda: gr.update(interactive=True, value="Analisar vıdeo"),
         outputs=analyze_btn,
+        queue=False,
+    )
+
+    def _on_clear():
+        """Reseta todos os outputs pro estado inicial quando o video e removido."""
+        return (
+            empty_state(
+                "Nenhum vıdeo analisado ainda.",
+                hint="Faca upload e clique em Analisar para gerar o resumo.",
+            ),
+            "",
+            gr.update(value=None),
+            gr.update(visible=False),
+            None,
+            [],
+            {"events": []},
+        )
+
+    video_input.clear(
+        fn=_on_clear,
+        outputs=[
+            status_html,
+            kpis_html,
+            detection_thumb,
+            detection_section,
+            timeline_plot,
+            events_table,
+            raw_json,
+        ],
         queue=False,
     )
