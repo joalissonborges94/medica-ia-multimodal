@@ -25,7 +25,7 @@ import gradio as gr
 
 from ui.components import (
     VIDEO_EVENTS_HEADERS,
-    build_detection_thumbnail,
+    build_detection_thumbnails,
     build_video_timeline_plot,
     emotion_source_label,
     empty_state,
@@ -84,15 +84,19 @@ def render(video_pipeline: VideoPipeline) -> None:
     with detection_section:
         gr.HTML(
             section_title(
-                "Frame com deteccoes",
-                "Frame de maior densidade de deteccoes com bboxes sobrepostas.",
+                "Frames com deteccoes",
+                "Top 4 frames com mais deteccoes, ordenados temporalmente. "
+                "Bboxes coloridas por classe (grasper=verde, l_hook=magenta, "
+                "blood=vermelho).",
             )
         )
-        detection_thumb = gr.Image(
+        detection_thumb = gr.Gallery(
             label="",
             show_label=False,
-            interactive=False,
-            height=360,
+            columns=4,
+            height=220,
+            object_fit="contain",
+            allow_preview=True,
         )
 
     with gr.Group():
@@ -244,8 +248,9 @@ def render(video_pipeline: VideoPipeline) -> None:
             ]
         )
 
-        # --- Miniatura com bboxes (None se nao houver deteccao) ---
-        thumb = build_detection_thumbnail(video_path, events)
+        # --- Miniaturas com bboxes (lista vazia se nao houver deteccao) ---
+        thumbs = build_detection_thumbnails(video_path, events, max_thumbs=4)
+        has_thumbs = bool(thumbs)
 
         rows = video_events_to_rows(events)
         payload = {"events": [e.model_dump() for e in events[:50]]}
@@ -253,8 +258,8 @@ def render(video_pipeline: VideoPipeline) -> None:
         return (
             status_block,
             kpis,
-            gr.update(value=thumb, visible=thumb is not None),
-            gr.update(visible=thumb is not None),
+            gr.update(value=thumbs if has_thumbs else None),
+            gr.update(visible=has_thumbs),
             timeline,
             rows,
             payload,

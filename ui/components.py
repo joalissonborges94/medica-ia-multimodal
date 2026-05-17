@@ -116,62 +116,81 @@ def scene_type_badge(scene_type_value: str) -> str:
     return f'<span style="{style}">{html.escape(label)}</span>'
 
 
-def build_detection_thumbnail(video_path: str, events: list):
-    """Pega o frame com mais deteccoes e desenha bboxes sobrepostas.
+_DETECTION_PALETTE_BGR: dict[str, tuple[int, int, int]] = {
+    "grasper":               (0, 255, 0),     # verde
+    "l_hook_electrocautery": (255, 0, 255),   # magenta
+    "blood":                 (0, 0, 255),     # vermelho
+}
+_DETECTION_DEFAULT_COLOR_BGR: tuple[int, int, int] = (255, 255, 0)  # ciano
 
-    Util pra mostrar visualmente o que o detector YOLO viu. Retorna `None`
-    se nao houver deteccoes em nenhum frame ou se a leitura do video falhar.
 
-    Args:
-        video_path: caminho absoluto do arquivo de video.
-        events: lista de `VideoEvent` (do pipeline.process()).
+def _render_detection_overlay(frame, detections):
+    """Desenha bboxes + labels sobre um frame BGR (modifica in-place)."""
+    import cv2
 
-    Returns:
-        Frame numpy RGB com bboxes desenhadas, ou `None`. Tipo de retorno
-        nao anotado para evitar import top-level de `numpy` (lazy).
-    """
-    import cv2  # local import: opcional na superficie publica do modulo
-
-    events_with_dets = [(e.frame_index, e) for e in events if e.detections]
-    if not events_with_dets:
-        return None
-
-    best_event = max(events_with_dets, key=lambda x: len(x[1].detections))[1]
-
-    cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        return None
-    cap.set(cv2.CAP_PROP_POS_FRAMES, best_event.frame_index)
-    ret, frame = cap.read()
-    cap.release()
-    if not ret:
-        return None
-
-    # Cores por classe (BGR) - distinto pra cada uma das 3 classes do v1
-    palette = {
-        "grasper":               (0, 255, 0),     # verde
-        "l_hook_electrocautery": (255, 0, 255),   # magenta
-        "blood":                 (0, 0, 255),     # vermelho
-    }
-    default_color = (255, 255, 0)  # ciano
-
-    for det in best_event.detections:
+    for det in detections:
         x1, y1 = int(det.bbox.x1), int(det.bbox.y1)
         x2, y2 = int(det.bbox.x2), int(det.bbox.y2)
-        color = palette.get(det.class_name, default_color)
+        color = _DETECTION_PALETTE_BGR.get(det.class_name, _DETECTION_DEFAULT_COLOR_BGR)
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
         label = f"{det.class_name} {det.confidence:.0%}"
-        # Fundo escuro pro texto ficar legivel
         (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-        cv2.rectangle(
-            frame, (x1, y1 - th - 6), (x1 + tw + 4, y1), color, -1
-        )
+        cv2.rectangle(frame, (x1, y1 - th - 6), (x1 + tw + 4, y1), color, -1)
         cv2.putText(
             frame, label, (x1 + 2, y1 - 4),
             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA,
         )
 
-    return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+def build_detection_thumbnails(
+    video_path: str, events: list, max_thumbs: int = 4,
+):
+    """Pega os top N frames com mais deteccoes e desenha bboxes sobrepostas.
+
+    Util pra mostrar visualmente o que o detector YOLO viu em um grid.
+    Retorna lista vazia se nao houver deteccoes em nenhum frame.
+
+    Args:
+        video_path: caminho absoluto do arquivo de video.
+        events: lista de `VideoEvent` (do pipeline.process()).
+        max_thumbs: numero maximo de frames a retornar (default 4 = grid 2x2).
+
+    Returns:
+        Lista de frames numpy RGB com bboxes desenhadas, ordenados
+        temporalmente pelo frame_index. Vazia se nao ha deteccoes ou se
+        a leitura do video falhar.
+    """
+    import cv2
+
+    events_with_dets = [e for e in events if e.detections]
+    if not events_with_dets:
+        return []
+
+    # Top N por numero de deteccoes, depois reordena temporalmente
+    top_events = sorted(
+        events_with_dets,
+        key=lambda e: len(e.detections),
+        reverse=True,
+    )[:max_thumbs]
+    top_events.sort(key=lambda e: e.frame_index)
+
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        return []
+
+    thumbnails = []
+    try:
+        for event in top_events:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, event.frame_index)
+            ret, frame = cap.read()
+            if not ret:
+                continue
+            _render_detection_overlay(frame, event.detections)
+            thumbnails.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    finally:
+        cap.release()
+
+    return thumbnails
 
 
 def emotion_source_label(classifier_class_name: str) -> str:
