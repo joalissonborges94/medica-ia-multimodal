@@ -48,7 +48,7 @@ def render(process_audio: AudioProcessor) -> None:
 
     with gr.Row(equal_height=True):
         with gr.Column(scale=1):
-            with gr.Group():
+            with gr.Group(elem_classes="input-card"):
                 gr.HTML(
                     section_title(
                         "Entrada",
