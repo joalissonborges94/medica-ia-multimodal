@@ -20,6 +20,7 @@ Lista consolidada de modelos pré-treinados, datasets e outras fontes de dados u
 | faster-whisper small | github/SYSTRAN/faster-whisper | Transcrição local | Multilíngue, suporta PT-BR |
 | Azure Speech | Azure Cognitive Services | Transcrição cloud | Toggle via env var |
 | wav2vec2 emotion | superb/wav2vec2-base | Classificação de emoção | Pré-treinado em RAVDESS |
+| Azure OpenAI GPT-4o-audio | Azure AI Foundry (`gpt-audio-mini`) | Emoção vocal multimodal substituindo wav2vec2 | Deployment próprio. Recebe audio + prompt textual e retorna JSON com emoção classificada. Substitui wav2vec2 enviesado para angry/sad em PT-BR |
 
 ### Texto e LLM
 
@@ -40,7 +41,8 @@ Lista consolidada de modelos pré-treinados, datasets e outras fontes de dados u
 
 | Dataset | Fonte | Uso | Observação |
 |---|---|---|---|
-| **CholecSeg8k** | Hugging Face (`minwoosun/CholecSeg8k`), Hong et al., arXiv 2012.12463, CC BY-NC-SA 4.0 | Treino YOLO custom para instrumentos cirúrgicos | 8080 frames, 3.1 GB; classes alvo `Grasper` + `L-hook Electrocautery`; splits 5656/1616/808. ADR-012 |
+| **CholecSeg8k** | Hugging Face (`minwoosun/CholecSeg8k`), Hong et al., arXiv 2012.12453, CC BY-NC-SA 4.0 | Treino YOLO custom para instrumentos cirúrgicos | 8080 frames, 3.1 GB; classes alvo `Grasper` + `L-hook Electrocautery`; splits 5656/1616/808. ADR-012 |
+| **CholecTrack20** | Synapse [syn53182642](https://www.synapse.org/Synapse:syn53182642/wiki/628404), Nwoye et al. (2023), DUA + accesskey CAMMA | Treino YOLO custom v2 com 7 classes de instrumento | ~35k frames anotados @ 1fps de 20 videos de colecistectomia laparoscopica; splits oficiais 10 train / 2 val / 8 test (~17k/3k/14k frames); classes alvo: grasper, bipolar, hook, scissors, clipper, irrigator, specimen_bag. ADR-012 |
 
 ### Datasets de demonstração
 
@@ -101,7 +103,7 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 
 ## Licenças e Considerações Legais
 
-- CholecSeg8k: licença CC BY-NC-SA 4.0. Uso académico/demo permitido, citar Hong et al. (arXiv 2012.12463)
+- CholecSeg8k: licença CC BY-NC-SA 4.0. Uso académico/demo permitido, citar Hong et al. (arXiv 2012.12453)
 - CORAA-SER: verificar termos da Hugging Face (`alefiury/CORAA-SER`) antes de redistribuir
 - PDFs do MS, FEBRASGO e INCA são públicos para uso educacional
 - Áudios gerados por TTS Azure têm uso comercial permitido
