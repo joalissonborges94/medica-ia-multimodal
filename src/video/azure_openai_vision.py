@@ -1,16 +1,22 @@
-"""Cliente Azure OpenAI multimodal (visao) para classificacao de emocao facial.
+"""Cliente Azure OpenAI multimodal (visao) para classificacao de estado emocional.
 
 Usa um deployment de modelo de visao (ex: `gpt-4o-mini` ou `gpt-4o`) no
 mesmo endpoint do Foundry ja configurado pelo `AzureOpenAIClient`. Envia
 o frame em base64 PNG + prompt JSON-mode e recebe uma classificacao de
-emocao compativel com o `EmotionScore` do pipeline (retorna o tipo de
-`src.audio.types` para padronizacao com o cliente de audio).
+emocao compativel com `src.video.types.EmotionScore`.
 
-Motivacao (ver project_modelos_emocao_enviesados na memoria do projeto):
-o `FER` baseado em FER-2013 e treinado em fotos atuadas, com forte vies
-em direcao a `angry`/`sad` em rostos femininos PT-BR em situacao clinica
-neutra. Um LLM multimodal analisa o conteudo visual em contexto, sem
-herdar o vies daquele dominio.
+Motivacoes:
+
+1. FER baseado em FER-2013 e treinado em fotos atuadas e tem forte vies
+   pra `angry`/`sad` em rostos femininos PT-BR em situacao clinica neutra
+   (ver project_modelos_emocao_enviesados na memoria do projeto). LLM
+   multimodal analisa visualmente em contexto, sem herdar esse vies.
+
+2. Conteudo de consulta clinica em PT-BR (simulacoes academicas pos-2020)
+   frequentemente usa mascaras de EPI, mascarando microexpressoes faciais.
+   O prompt instrui o LLM a usar **linguagem corporal** (postura, gestos,
+   posicionamento, mao, tronco) como sinal primario, com face como sinal
+   complementar quando visivel.
 
 API publica:
     classifier = AzureOpenAIVisionEmotion()
@@ -28,8 +34,8 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from src.audio.types import EmotionScore
 from src.config.settings import settings
+from src.video.types import EmotionScore
 
 logger = logging.getLogger(__name__)
 
@@ -49,13 +55,10 @@ ALLOWED_LABELS: tuple[str, ...] = (
 )
 
 SYSTEM_PROMPT: str = (
-    "Voce e um analista clinico especializado em saude da mulher. Analise "
-    "a imagem fornecida e classifique o estado emocional predominante da "
-    "face visivel, considerando expressoes (musculos faciais, olhar, boca, "
-    "sobrancelhas) e o contexto geral. Evite vieses comuns de datasets de "
-    "expressoes atuadas: uma face em repouso clinico normalmente e neutra, "
-    "nao triste ou raivosa. Responda EXCLUSIVAMENTE em JSON valido no "
-    "formato definido no prompt do usuario."
+    "Analise visual de cena clinica de saude da mulher. Classifique a "
+    "emocao aparente da paciente considerando postura corporal, gestos "
+    "e expressao facial quando visivel. Pessoas em repouso clinico sao "
+    "tipicamente neutras. Responda apenas em JSON valido."
 )
 
 
@@ -99,9 +102,10 @@ def _encode_image(image: Path | np.ndarray) -> str | None:
 class AzureOpenAIVisionEmotion:
     """Cliente fino sobre `openai` SDK que classifica emocao facial via GPT-4o vision.
 
-    Mesma assinatura que `AzureOpenAIAudioEmotion.classify` adaptada para
-    entrada visual. Em caso de falha, retorna `None` (chamador degrada
-    para FER local ou pula o pilar).
+    Implementa `FacialEmotionClassifierProtocol` definido em
+    `src.video.emotion`, permitindo substituicao plug-and-play do FER.
+    Em caso de falha, retorna `None` (chamador degrada para FER local
+    ou pula o pilar de emocao facial).
     """
 
     def __init__(
@@ -174,13 +178,9 @@ class AzureOpenAIVisionEmotion:
             return None
 
         user_prompt = (
-            "Classifique a emocao predominante da face na imagem. Responda "
-            "APENAS com o seguinte JSON (sem comentarios, sem markdown):\n"
-            "{\n"
-            '  "label": "<uma de: ' + ", ".join(ALLOWED_LABELS) + '>",\n'
-            '  "confidence": <float entre 0.0 e 1.0>,\n'
-            '  "reasoning": "<uma frase descrevendo as pistas visuais usadas>"\n'
-            "}"
+            "Avalie a emocao aparente. Retorne JSON com label (uma de: "
+            + ", ".join(ALLOWED_LABELS) + "), confidence (0.0 a 1.0) e "
+            "reasoning (frase curta sobre postura, gestos ou expressao)."
         )
 
         try:

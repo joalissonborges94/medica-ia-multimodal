@@ -1,29 +1,45 @@
-"""Detector de emocao facial baseado em FER (justinshenk/fer).
+"""Detector de emocao facial.
 
-FER exige `Pillow` legado (nao builda em Python 3.14). O Dockerfile fixa
-`python:3.12-slim` onde a instalacao funciona normalmente. Em ambiente
-de desenvolvimento com Python 3.14 o detector faz fallback gracioso e
-retorna lista vazia, sem quebrar o pipeline. Trocar por modelo HuggingFace
-como evolucao futura caso desejado.
+Oferece dois backends:
 
-Como alternativa cloud sem vies de FER-2013 (que tende a rotular faces
-femininas em repouso como `angry`/`sad`), existe `AzureOpenAIVisionEmotion`
-em `src/video/azure_openai_vision.py`. Ele usa um deployment GPT-4o vision
-(ex: `gpt-4o-mini`) no Foundry e segue a mesma estrategia adotada para
-audio com `AzureOpenAIAudioEmotion`. A integracao plug-and-play (analoga
-a `get_emotion_classifier()` em `src/audio/emotion.py`) sera feita quando
-o deployment de visao for provisionado.
+- `FacialEmotionDetector` (FER local): usa `justinshenk/fer`. Exige
+  `Pillow` legado (nao builda em Python 3.14). Em ambiente sem suporte,
+  faz fallback gracioso e retorna lista vazia.
+
+- `AzureOpenAIVisionEmotion` (cloud): usa GPT-4o vision no Azure AI
+  Foundry, sem o vies de FER-2013 (que rotula faces femininas em repouso
+  como `angry`/`sad`). Ativado quando
+  `AZURE_OPENAI_VISION_DEPLOYMENT` esta preenchido no `.env`.
+
+A funcao `get_facial_emotion_classifier()` seleciona automaticamente o
+backend disponivel, seguindo o mesmo padrao de
+`get_emotion_classifier()` em `src/audio/emotion.py`.
 """
 
 from __future__ import annotations
 
 import logging
+from typing import Protocol
 
 import numpy as np
 
+from src.config.settings import settings
 from src.video.types import BoundingBox, EmotionScore
 
 logger = logging.getLogger(__name__)
+
+
+class FacialEmotionClassifierProtocol(Protocol):
+    """Interface comum para classificadores de emocao facial.
+
+    Tanto `FacialEmotionDetector` (FER local) quanto
+    `AzureOpenAIVisionEmotion` (cloud) implementam essa assinatura,
+    permitindo trocas plug-and-play no `VideoPipeline`.
+    """
+
+    def classify(self, image: object) -> EmotionScore | None:
+        """Classifica a emocao predominante. Retorna `None` em fallback."""
+        ...
 
 
 class FacialEmotionDetector:
@@ -82,6 +98,22 @@ class FacialEmotionDetector:
             scores.append(_parse_fer_entry(entry))
         return scores
 
+    def classify(self, image: np.ndarray) -> EmotionScore | None:
+        """Implementa `FacialEmotionClassifierProtocol`: retorna a primeira face detectada.
+
+        Wrapper sobre `detect()` para compatibilidade de interface com
+        `AzureOpenAIVisionEmotion`. Retorna `None` quando nenhuma face
+        e encontrada ou o FER nao esta disponivel.
+
+        Args:
+            image: frame BGR (HxWx3).
+
+        Returns:
+            `EmotionScore` da primeira face ou `None`.
+        """
+        scores = self.detect(image)
+        return scores[0] if scores else None
+
 
 def _parse_fer_entry(entry: dict) -> EmotionScore:
     """Converte dicionario do FER em `EmotionScore`."""
@@ -100,3 +132,30 @@ def _parse_fer_entry(entry: dict) -> EmotionScore:
         confidence=float(confidence),
         scores={k: float(v) for k, v in emotions.items()},
     )
+
+
+def get_facial_emotion_classifier() -> FacialEmotionClassifierProtocol:
+    """Seleciona o classificador de emocao facial conforme `.env`.
+
+    Quando `AZURE_OPENAI_VISION_DEPLOYMENT` esta preenchido E o cliente
+    Azure consegue inicializar, retorna `AzureOpenAIVisionEmotion`
+    (multimodal cloud, sem vies de FER-2013). Caso contrario, cai para
+    `FacialEmotionDetector` (FER local).
+
+    A decisao acontece no momento da chamada, lazy.
+    """
+    if settings.azure_openai_vision_deployment:
+        from src.video.azure_openai_vision import AzureOpenAIVisionEmotion
+
+        cloud = AzureOpenAIVisionEmotion()
+        if cloud.is_configured:
+            logger.info(
+                "Usando AzureOpenAIVisionEmotion (deployment=%s)",
+                cloud.deployment,
+            )
+            return cloud
+        logger.warning(
+            "AZURE_OPENAI_VISION_DEPLOYMENT preenchido mas Azure OpenAI nao "
+            "configurado completamente; caindo no FER local."
+        )
+    return FacialEmotionDetector()

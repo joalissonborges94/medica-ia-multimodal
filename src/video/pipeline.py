@@ -4,6 +4,13 @@ Recebe um caminho de video, amostra frames a uma taxa configuravel
 (`target_fps`) e roda em cada frame: detector YOLO, MediaPipe Pose,
 classificador de emocao facial e (quando configurado) Azure Video Indexer.
 A saida e uma lista de `VideoEvent` com tudo agregado por frame.
+
+Logica de emocao facial por tipo de cena:
+- SURGERY: analise de emocao facial e ignorada (nao ha rosto visivel
+  de forma relevante no campo cirurgico laparoscopico).
+- CONSULTATION / MIXED / UNKNOWN: emocao facial e classificada pelo
+  backend selecionado em `get_facial_emotion_classifier()` (GPT-4o vision
+  quando configurado, FER local como fallback).
 """
 
 from __future__ import annotations
@@ -15,7 +22,7 @@ import cv2
 
 from src.video.azure_video import AzureVideoIndexerClient
 from src.video.detector import BleedingDetector
-from src.video.emotion import FacialEmotionDetector
+from src.video.emotion import FacialEmotionClassifierProtocol, get_facial_emotion_classifier
 from src.video.pose import PoseEstimator
 from src.video.scene_classifier import SceneType, classify_scene_type
 from src.video.types import VideoEvent
@@ -31,7 +38,7 @@ class VideoPipeline:
         target_fps: float = 1.0,
         detector: BleedingDetector | None = None,
         pose_estimator: PoseEstimator | None = None,
-        emotion_detector: FacialEmotionDetector | None = None,
+        emotion_classifier: FacialEmotionClassifierProtocol | None = None,
         azure_client: AzureVideoIndexerClient | None = None,
     ) -> None:
         """Configura o pipeline.
@@ -41,13 +48,17 @@ class VideoPipeline:
                 Default 1 fps mantem custo baixo para videos longos.
             detector: instancia opcional de `BleedingDetector`.
             pose_estimator: instancia opcional de `PoseEstimator`.
-            emotion_detector: instancia opcional de `FacialEmotionDetector`.
+            emotion_classifier: instancia opcional de classificador de emocao
+                facial. Default usa `get_facial_emotion_classifier()` que
+                seleciona GPT-4o vision (quando configurado) ou FER local.
             azure_client: instancia opcional de `AzureVideoIndexerClient`.
         """
         self.target_fps: float = target_fps
         self.detector: BleedingDetector = detector or BleedingDetector()
         self.pose_estimator: PoseEstimator = pose_estimator or PoseEstimator()
-        self.emotion_detector: FacialEmotionDetector = emotion_detector or FacialEmotionDetector()
+        self.emotion_classifier: FacialEmotionClassifierProtocol = (
+            emotion_classifier or get_facial_emotion_classifier()
+        )
         self.azure_client: AzureVideoIndexerClient = azure_client or AzureVideoIndexerClient()
         # Preenchido apos cada chamada a `process()`.
         self.last_scene_type: SceneType = SceneType.UNKNOWN
@@ -87,6 +98,15 @@ class VideoPipeline:
             self.last_scene_type = classify_scene_type(video_path)
             logger.info("Tipo de cena identificado: %s", self.last_scene_type.value)
 
+            # Emocao facial so faz sentido em cenas com rosto visivel.
+            # Em cirurgia laparoscopica o campo cirurgico nao expoe faces,
+            # entao pular GPT-vision evita custo e ruido desnecessarios.
+            run_emotion = self.last_scene_type != SceneType.SURGERY
+            if not run_emotion:
+                logger.info(
+                    "Cena SURGERY: classificacao de emocao facial ignorada."
+                )
+
             azure_metadata = self.azure_client.analyze(video_path)
 
             events: list[VideoEvent] = []
@@ -102,8 +122,9 @@ class VideoPipeline:
                 timestamp_ms = int(round(frame_idx * 1000 / video_fps))
                 detections = self.detector.predict(frame)
                 pose_landmarks = self.pose_estimator.estimate(frame)
-                emotions = self.emotion_detector.detect(frame)
-                facial_emotion = emotions[0] if emotions else None
+                facial_emotion = (
+                    self.emotion_classifier.classify(frame) if run_emotion else None
+                )
 
                 events.append(
                     VideoEvent(
