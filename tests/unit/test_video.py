@@ -549,7 +549,7 @@ def test_video_pipeline_chama_emocao_em_cena_consultation(tmp_path):
             emotion_classifier=mock_classifier,
             azure_client=mock_azure,
         )
-        events = p.process(fake_video)
+        p.process(fake_video)
 
     assert mock_classifier.classify.call_count >= 1
 

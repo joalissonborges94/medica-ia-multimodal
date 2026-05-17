@@ -1,44 +1,57 @@
 """Aba "Vıdeo" da UI Gradio.
 
-Permite upload de um vıdeo, dispara o `VideoPipeline` e mostra os eventos
-gerados (deteccoes YOLO, emocao facial, contagem de frames). O pipeline e
-fornecido via callback para que o `app.py` possa injetar uma instancia
-compartilhada e fazer lazy-load dos modelos.
+Permite upload de um vıdeo, dispara o `VideoPipeline` e mostra:
+
+- Resumo (badge de risco + tipo de cena detectado + fonte do classifier de emocao)
+- KPIs (frames, deteccoes, emocoes, classes, postura)
+- Miniatura do frame com bboxes desenhadas (evidencia visual do que o YOLO viu)
+- Timeline de eventos
+- Eventos por frame em tabela
+- JSON bruto colapsado
+
+Recebe o `VideoPipeline` direto (em vez de so um callable) pra acessar:
+- `pipeline.process(path)` para os eventos
+- `pipeline.last_scene_type` para o badge de cena
+- `pipeline.emotion_classifier` para identificar fonte (Azure ou FER local)
 """
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import gradio as gr
 
 from ui.components import (
     VIDEO_EVENTS_HEADERS,
+    build_detection_thumbnail,
     build_video_timeline_plot,
+    emotion_source_label,
     empty_state,
     kpi_grid,
     kpi_tile,
     progress_breadcrumb,
     risk_badge,
+    scene_type_badge,
     section_title,
     video_events_to_rows,
 )
 from ui.limits import validate_video
 
+if TYPE_CHECKING:
+    from src.video.pipeline import VideoPipeline
+
 logger = logging.getLogger(__name__)
 
-VideoProcessor = Callable[[Path], "list"]
 
-
-def render(process_video: VideoProcessor) -> None:
+def render(video_pipeline: VideoPipeline) -> None:
     """Constroi a aba de vıdeo dentro do contexto atual de `gr.Blocks`.
 
     Args:
-        process_video: callable que recebe o path do vıdeo e devolve uma
-            `list[VideoEvent]`. Tipicamente `lambda p: orchestrator
-            .video_pipeline.process(p)`. Permite injetar mocks em testes.
+        video_pipeline: instancia compartilhada de `VideoPipeline` (do
+            orquestrador). Permite acesso a metadata pos-execucao
+            (last_scene_type, emotion_classifier) para enriquecer o Resumo.
     """
     gr.HTML(progress_breadcrumb(1))
 
@@ -48,9 +61,9 @@ def render(process_video: VideoProcessor) -> None:
                 gr.HTML(
                     section_title(
                         "Entrada",
-                        "Faca upload de um vıdeo curto (mp4/mov) para extrair "
-                        "eventos por frame: deteccoes YOLO, landmarks de pose e "
-                        "emocao facial.",
+                        "Faca upload de um vıdeo curto (mp4/mov, recomendado <60s) "
+                        "para extrair eventos por frame: deteccoes YOLO, landmarks "
+                        "de pose e estado emocional via linguagem corporal.",
                     )
                 )
                 video_input = gr.Video(label="Vıdeo de entrada", sources=["upload"])
@@ -66,6 +79,22 @@ def render(process_video: VideoProcessor) -> None:
                     )
                 )
                 kpis_html = gr.HTML(value="")
+
+    with gr.Group():
+        gr.HTML(
+            section_title(
+                "Frame com deteccoes",
+                "Frame de maior densidade de deteccoes com bboxes sobrepostas. "
+                "Vazio quando nao ha deteccoes (cena nao cirurgica ou nenhum "
+                "instrumento detectado).",
+            )
+        )
+        detection_thumb = gr.Image(
+            label="",
+            show_label=False,
+            interactive=False,
+            height=360,
+        )
 
     with gr.Group():
         gr.HTML(section_title("Timeline de eventos"))
@@ -85,24 +114,26 @@ def render(process_video: VideoProcessor) -> None:
             wrap=True,
             interactive=False,
             value=[],
-            max_height=420,  # evita espaco vazio quando ha poucos eventos
+            max_height=420,
         )
 
     with gr.Accordion("JSON bruto (50 primeiros eventos)", open=False):
         raw_json = gr.JSON(value={"events": []})
 
     def _on_analyze(video_path: str | None):
+        empty_result = (
+            empty_state(
+                "Faca upload de um vıdeo antes de analisar.",
+                hint="O arquivo precisa ser mp4 ou mov.",
+            ),
+            "",
+            None,
+            None,
+            [],
+            {"events": []},
+        )
         if not video_path:
-            return (
-                empty_state(
-                    "Faca upload de um vıdeo antes de analisar.",
-                    hint="O arquivo precisa ser mp4 ou mov.",
-                ),
-                "",
-                None,
-                [],
-                {"events": []},
-            )
+            return empty_result
 
         validation = validate_video(Path(video_path))
         if not validation.ok:
@@ -111,38 +142,81 @@ def render(process_video: VideoProcessor) -> None:
                 empty_state("Video fora dos limites aceitos.", hint=validation.message),
                 "",
                 None,
+                None,
                 [],
                 {"events": []},
             )
 
         try:
-            events = process_video(Path(video_path))
+            events = video_pipeline.process(Path(video_path))
         except (FileNotFoundError, RuntimeError, ValueError) as exc:
             logger.warning("Falha ao processar vıdeo na UI: %s", exc)
             return (
                 empty_state("Falha ao processar vıdeo.", hint=str(exc)),
                 "",
                 None,
+                None,
                 [],
                 {"events": []},
             )
 
+        # --- Metricas brutas ---
         total_detections = sum(len(e.detections) for e in events)
-        emotions = sum(1 for e in events if e.facial_emotion is not None)
+        emotions_with_face = sum(1 for e in events if e.facial_emotion is not None)
+        pose_frames = sum(1 for e in events if e.pose_landmarks)
         classes_set = {d.class_name for e in events for d in e.detections}
-        level = "critical" if "bleeding" in classes_set else "normal"
-        status_block = (
-            f'<div style="display: flex; align-items: center; gap: 12px;">'
-            f"{risk_badge(level)}"
-            f'<span style="color: var(--body-text-color); font-size: 13px;">'
-            f"Heuristica desta aba (ver aba Multimodal para classificacao completa)."
-            f"</span></div>"
+
+        # --- Estado da cena + decisoes do pipeline ---
+        scene_type = getattr(video_pipeline, "last_scene_type", None)
+        scene_value = scene_type.value if scene_type else "desconhecido"
+        scene_is_consultation = scene_value == "consulta"
+        scene_is_surgery = scene_value == "cirurgia"
+
+        # --- Fonte da emocao (Azure GPT-vision ou FER local) ---
+        emotion_classifier = getattr(video_pipeline, "emotion_classifier", None)
+        emotion_src_name = (
+            type(emotion_classifier).__name__ if emotion_classifier else "indefinido"
         )
+        emotion_src_pretty = emotion_source_label(emotion_src_name)
+
+        # --- Nivel de risco heuristico da aba (so critical se blood detectado) ---
+        level = "critical" if "bleeding" in classes_set or "blood" in classes_set else "normal"
+
+        # --- Status block ---
+        status_block = (
+            '<div style="display: flex; flex-direction: column; gap: 10px;">'
+            '<div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">'
+            f"{risk_badge(level)}"
+            f"{scene_type_badge(scene_value)}"
+            f'<span style="color: var(--body-text-color); font-size: 12px; opacity: 0.85;">'
+            f"Emocao via: <strong>{emotion_src_pretty}</strong>"
+            "</span>"
+            "</div>"
+            '<span style="color: var(--body-text-color); font-size: 12px; opacity: 0.7;">'
+            "Heuristica da aba; a classificacao final esta em Multimodal."
+            "</span>"
+            "</div>"
+        )
+
+        # --- KPIs adaptados pra explicar skips ---
+        detections_hint = (
+            "pulado (cena consulta)" if scene_is_consultation else "total no video"
+        )
+        emotions_hint = (
+            "pulado (cena cirurgia)" if scene_is_surgery
+            else f"{emotions_with_face}/{len(events)} com face"
+        )
+        emotions_value = "n/a" if scene_is_surgery else str(emotions_with_face)
         kpis = kpi_grid(
             [
                 kpi_tile("Frames", str(len(events)), hint="amostrados"),
-                kpi_tile("Deteccoes", str(total_detections), hint="total no video"),
-                kpi_tile("Emocoes", str(emotions), hint="frames com face"),
+                kpi_tile("Deteccoes", str(total_detections), hint=detections_hint),
+                kpi_tile("Emocoes", emotions_value, hint=emotions_hint),
+                kpi_tile(
+                    "Postura",
+                    f"{pose_frames}/{len(events)}",
+                    hint="frames com pose detectada",
+                ),
                 kpi_tile(
                     "Classes",
                     str(len(classes_set)),
@@ -150,10 +224,14 @@ def render(process_video: VideoProcessor) -> None:
                 ),
             ]
         )
+
+        # --- Miniatura com bboxes (None se nao houver deteccao) ---
+        thumb = build_detection_thumbnail(video_path, events)
+
         rows = video_events_to_rows(events)
         payload = {"events": [e.model_dump() for e in events[:50]]}
         timeline = build_video_timeline_plot(events)
-        return status_block, kpis, timeline, rows, payload
+        return status_block, kpis, thumb, timeline, rows, payload
 
     analyze_btn.click(
         fn=lambda: gr.update(interactive=False, value="Analisando..."),
@@ -162,7 +240,7 @@ def render(process_video: VideoProcessor) -> None:
     ).then(
         fn=_on_analyze,
         inputs=[video_input],
-        outputs=[status_html, kpis_html, timeline_plot, events_table, raw_json],
+        outputs=[status_html, kpis_html, detection_thumb, timeline_plot, events_table, raw_json],
         show_progress="full",
     ).then(
         fn=lambda: gr.update(interactive=True, value="Analisar vıdeo"),

@@ -31,7 +31,6 @@ from ui.theme import get_custom_css, get_theme
 if TYPE_CHECKING:
     from src.audio.types import AudioAnalysis
     from src.orchestrator import CaseOutput
-    from src.video.types import VideoEvent
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +122,6 @@ def build_app(orchestrator: Orchestrator | None = None) -> gr.Blocks:
     """
     orch = orchestrator or _build_orchestrator()
 
-    def _process_video(path: Path) -> list[VideoEvent]:
-        return orch.video_pipeline.process(path)
-
     def _process_audio(path: Path) -> AudioAnalysis:
         return orch.audio_pipeline.process(path)
 
@@ -155,7 +151,7 @@ def build_app(orchestrator: Orchestrator | None = None) -> gr.Blocks:
 
         with gr.Tabs():
             with gr.TabItem("Vıdeo"):
-                tab_video.render(process_video=_process_video)
+                tab_video.render(video_pipeline=orch.video_pipeline)
             with gr.TabItem("Audio"):
                 tab_audio.render(process_audio=_process_audio)
             with gr.TabItem("Multimodal"):

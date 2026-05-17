@@ -88,6 +88,107 @@ def risk_badge(level: RiskLevel | str) -> str:
     return f'<span class="{css_class}">{html.escape(label)}</span>'
 
 
+SCENE_TYPE_LABELS: dict[str, tuple[str, str]] = {
+    "cirurgia":      ("Cirurgia",    "#ef4444"),  # vermelho
+    "consulta":      ("Consulta",    "#3b82f6"),  # azul
+    "misto":         ("Misto",       "#a855f7"),  # roxo
+    "desconhecido":  ("Indefinido",  "#64748b"),  # cinza
+}
+
+
+def scene_type_badge(scene_type_value: str) -> str:
+    """Badge colorida pra `SceneType`.
+
+    Args:
+        scene_type_value: string do enum (`"cirurgia"`, `"consulta"`, etc.).
+
+    Returns:
+        `<span style="...">Rotulo</span>` pronto pra `gr.HTML`.
+    """
+    label, color = SCENE_TYPE_LABELS.get(
+        scene_type_value, ("Indefinido", "#64748b")
+    )
+    style = (
+        f"background-color: {color}22; color: {color}; padding: 3px 10px; "
+        "border-radius: 4px; font-size: 11px; font-weight: 600; "
+        f"border: 1px solid {color}55;"
+    )
+    return f'<span style="{style}">{html.escape(label)}</span>'
+
+
+def build_detection_thumbnail(video_path: str, events: list):
+    """Pega o frame com mais deteccoes e desenha bboxes sobrepostas.
+
+    Util pra mostrar visualmente o que o detector YOLO viu. Retorna `None`
+    se nao houver deteccoes em nenhum frame ou se a leitura do video falhar.
+
+    Args:
+        video_path: caminho absoluto do arquivo de video.
+        events: lista de `VideoEvent` (do pipeline.process()).
+
+    Returns:
+        Frame numpy RGB com bboxes desenhadas, ou `None`. Tipo de retorno
+        nao anotado para evitar import top-level de `numpy` (lazy).
+    """
+    import cv2  # local import: opcional na superficie publica do modulo
+
+    events_with_dets = [(e.frame_index, e) for e in events if e.detections]
+    if not events_with_dets:
+        return None
+
+    best_event = max(events_with_dets, key=lambda x: len(x[1].detections))[1]
+
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        return None
+    cap.set(cv2.CAP_PROP_POS_FRAMES, best_event.frame_index)
+    ret, frame = cap.read()
+    cap.release()
+    if not ret:
+        return None
+
+    # Cores por classe (BGR) - distinto pra cada uma das 3 classes do v1
+    palette = {
+        "grasper":               (0, 255, 0),     # verde
+        "l_hook_electrocautery": (255, 0, 255),   # magenta
+        "blood":                 (0, 0, 255),     # vermelho
+    }
+    default_color = (255, 255, 0)  # ciano
+
+    for det in best_event.detections:
+        x1, y1 = int(det.bbox.x1), int(det.bbox.y1)
+        x2, y2 = int(det.bbox.x2), int(det.bbox.y2)
+        color = palette.get(det.class_name, default_color)
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        label = f"{det.class_name} {det.confidence:.0%}"
+        # Fundo escuro pro texto ficar legivel
+        (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        cv2.rectangle(
+            frame, (x1, y1 - th - 6), (x1 + tw + 4, y1), color, -1
+        )
+        cv2.putText(
+            frame, label, (x1 + 2, y1 - 4),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA,
+        )
+
+    return cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+
+def emotion_source_label(classifier_class_name: str) -> str:
+    """Mapeia nome da classe do classifier de emocao para rotulo amigavel.
+
+    Args:
+        classifier_class_name: ex: `"AzureOpenAIVisionEmotion"`, `"FacialEmotionDetector"`.
+
+    Returns:
+        String pt-BR pra exibir na UI.
+    """
+    return {
+        "AzureOpenAIVisionEmotion": "Azure GPT-vision",
+        "FacialEmotionDetector":    "FER local",
+    }.get(classifier_class_name, classifier_class_name)
+
+
 def risk_badge_inline(level: RiskLevel | str) -> str:
     """Versao com estilo inline para contextos onde o CSS global nao se aplica.
 
