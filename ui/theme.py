@@ -283,12 +283,6 @@ gradio-app > .wrap {{
     border: 1px solid {BORDER};
     border-radius: 12px;
     padding: 16px 18px;
-    transition: border-color 0.15s ease, transform 0.15s ease;
-}}
-
-.kpi-tile:hover {{
-    border-color: {PRIMARY_SUBTLE};
-    transform: translateY(-1px);
 }}
 
 .kpi-tile .kpi-label {{
@@ -604,6 +598,143 @@ gradio-app .theme-toggle-wrap {{
     padding: 6px 16px !important;
     height: auto !important;
     min-height: 32px !important;
+}}
+
+/* ----------------------------------------------------------------------
+   Neutralizacao de hover em elementos NAO clicaveis.
+
+   Contexto: o tema Soft do Gradio aplica hover (mudanca de border-color,
+   box-shadow, translate) em quase todos os blocos (gr.Group, gr.Dataframe,
+   gr.HTML, accordions, gallery thumbnails). Esse feedback so faz sentido
+   em elementos clicaveis (botoes, uploads, links, items de gallery com
+   preview). Para o resto, o hover gera ruido visual sem afordancia real.
+
+   Elementos com hover preservado:
+   - button (todos os tipos: primary, secondary, small, tab-nav)
+   - gr.Video / gr.Audio (areas de upload)
+   - links (a)
+   - itens de gallery quando allow_preview=True (clicavel pra ampliar)
+
+   Elementos sem hover (regras abaixo):
+   - gr.Group / .block (cards de Entrada, Resumo, secoes)
+   - gr.HTML, gr.Markdown, gr.JSON, gr.Plot, gr.Image (saidas readonly)
+   - gr.Dataframe interactive=False (.audit-table, .compact-table)
+   - gr.Gallery thumbnails quando allow_preview=False (.compact-gallery)
+   - kpi-tile, kpi-grid, section-title, badges, status pill, breadcrumb
+   - .content-box (wrapper de markdown estilo input readonly)
+   - accordion ja fechado (so o header dispara abertura)
+   ---------------------------------------------------------------------- */
+
+/* Blocos genericos (gr.Group, gr.Column wrappers, gr.HTML, gr.Markdown,
+   gr.JSON, gr.Plot, gr.Image): zera transition/transform/box-shadow no
+   hover, preservando a borda 1px de base do tema. */
+.gradio-container .block:not(.gr-button):hover,
+.gradio-container .form:not(.gr-button):hover,
+.gradio-container .gr-group:hover,
+.gradio-container .gr-box:hover,
+.gradio-container .panel:hover {{
+    border-color: var(--block-border-color, {BORDER}) !important;
+    box-shadow: none !important;
+    transform: none !important;
+    background-color: var(--block-background-fill, {BG_SURFACE});
+}}
+
+/* Markdown, HTML, JSON, Plot, Image readonly: blocos de saida puros */
+.gradio-container .prose:hover,
+.gradio-container .md:hover,
+.gradio-container .html-container:hover,
+.gradio-container .json-holder:hover,
+.gradio-container .plot-container:hover,
+.gradio-container .image-container:hover,
+.gradio-container .image-frame:hover {{
+    border-color: var(--block-border-color, {BORDER}) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}}
+
+/* Dataframes readonly (interactive=False): celulas, linhas e wrapper
+   nao devem reagir ao hover. Usamos as classes ja aplicadas em tab_video
+   (compact-table) e tab_audit (audit-table). */
+.gradio-container .audit-table:hover,
+.gradio-container .compact-table:hover,
+.gradio-container .audit-table .table-wrap:hover,
+.gradio-container .compact-table .table-wrap:hover {{
+    border-color: var(--block-border-color, {BORDER}) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}}
+
+.gradio-container .audit-table table tr:hover,
+.gradio-container .compact-table table tr:hover,
+.gradio-container .audit-table table td:hover,
+.gradio-container .compact-table table td:hover,
+.gradio-container .audit-table table th:hover,
+.gradio-container .compact-table table th:hover {{
+    background-color: transparent !important;
+    cursor: default !important;
+}}
+
+/* Gallery com allow_preview=False (compact-gallery): miniaturas sao
+   apenas evidencia visual, nao clicaveis. Zera hover do thumbnail-item
+   e do wrapper externo. */
+.gradio-container .compact-gallery:hover,
+.gradio-container .compact-gallery .grid-wrap:hover,
+.gradio-container .compact-gallery .grid-container:hover {{
+    border-color: var(--block-border-color, {BORDER}) !important;
+    box-shadow: none !important;
+}}
+
+.gradio-container .compact-gallery .thumbnail-item,
+.gradio-container .compact-gallery button.thumbnail-item {{
+    cursor: default !important;
+    transition: none !important;
+}}
+
+.gradio-container .compact-gallery .thumbnail-item:hover,
+.gradio-container .compact-gallery button.thumbnail-item:hover {{
+    border-color: transparent !important;
+    box-shadow: none !important;
+    transform: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    background-color: transparent !important;
+}}
+
+/* Badges, KPI grid wrapper, section title, status pill, breadcrumb:
+   elementos puramente decorativos via gr.HTML. */
+.gradio-container .kpi-grid:hover,
+.gradio-container .section-title:hover,
+.gradio-container .section-subtitle:hover,
+.gradio-container .alert-normal:hover,
+.gradio-container .alert-moderate:hover,
+.gradio-container .alert-critical:hover,
+.gradio-container .status-pill:hover,
+.gradio-container .breadcrumb:hover,
+.gradio-container .breadcrumb .step:hover,
+.gradio-container .empty-state:hover,
+.gradio-container .content-box:hover {{
+    border-color: inherit;
+    box-shadow: none !important;
+    transform: none !important;
+    cursor: default;
+}}
+
+/* Accordions: o header continua clicavel (abre/fecha), mas o corpo
+   nao deve responder ao hover. O Gradio aplica hover no wrapper inteiro;
+   limitamos cursor a default fora do botao do header. */
+.gradio-container .accordion:hover {{
+    border-color: var(--block-border-color, {BORDER}) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}}
+
+/* Labels dos blocos (rotulo "Audit ID", "Limite", etc.) sao texto puro,
+   nao devem mudar ao passar o mouse. */
+.gradio-container .block label:hover,
+.gradio-container span[data-testid="block-label"]:hover {{
+    background-color: var(--block-label-background-fill, {BG_ELEVATED}) !important;
+    color: var(--block-label-text-color, {TEXT_SECONDARY}) !important;
+    cursor: default;
 }}
 
 /* ----------------------------------------------------------------------
