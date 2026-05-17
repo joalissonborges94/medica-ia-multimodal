@@ -176,6 +176,7 @@ def render(
         audio_path: str | None,
         text_context: str,
         paciente: str,
+        progress=gr.Progress(),  # noqa: B008  # pattern idiomatico do Gradio
     ):
         if not video_path and not audio_path and not (text_context or "").strip():
             return (
@@ -213,12 +214,16 @@ def render(
                     "", "", "", [], "", "", "",
                 )
 
+        def _progress_cb(frac: float, desc: str) -> None:
+            progress(frac, desc=desc)
+
         try:
             output = run_case(
                 video_path=Path(video_path) if video_path else None,
                 audio_path=Path(audio_path) if audio_path else None,
                 text_context=text_context.strip() or None,
                 patient_metadata={"id": paciente.strip()} if paciente.strip() else {},
+                progress=_progress_cb,
             )
         except (FileNotFoundError, RuntimeError, ValueError) as exc:
             logger.warning("Falha ao processar caso multimodal na UI: %s", exc)
@@ -311,7 +316,9 @@ def render(
             report_md,
             rag_md,
         ],
-        show_progress="full",
+        # show_progress="minimal" deixa gr.Progress do _on_run aparecer
+        # com texto descritivo ("Processando video..." etc.)
+        show_progress="minimal",
     ).then(
         fn=lambda: gr.update(interactive=True, value="Processar caso"),
         outputs=run_btn,

@@ -95,11 +95,16 @@ def run_case_with(
     audio_path: Path | None,
     text_context: str | None,
     patient_metadata: dict,
+    progress=None,
 ) -> CaseOutput:
     """Wrapper testavel de `Orchestrator.process_case`.
 
     Existe como funcao top-level (em vez de closure dentro de `build_app`)
     para que testes de integracao possam exercer o mesmo caminho da UI.
+
+    Args:
+        progress: callable opcional `(frac, desc)` repassado pro orquestrador
+            (geralmente `gr.Progress()` da UI Gradio).
     """
     case = CaseInput(
         video_path=video_path,
@@ -107,7 +112,7 @@ def run_case_with(
         text_context=text_context,
         patient_metadata=patient_metadata,
     )
-    return orchestrator.process_case(case)
+    return orchestrator.process_case(case, progress=progress)
 
 
 def build_app(orchestrator: Orchestrator | None = None) -> gr.Blocks:
@@ -131,6 +136,7 @@ def build_app(orchestrator: Orchestrator | None = None) -> gr.Blocks:
         audio_path: Path | None,
         text_context: str | None,
         patient_metadata: dict,
+        progress=None,
     ) -> CaseOutput:
         return run_case_with(
             orch,
@@ -138,6 +144,7 @@ def build_app(orchestrator: Orchestrator | None = None) -> gr.Blocks:
             audio_path=audio_path,
             text_context=text_context,
             patient_metadata=patient_metadata,
+            progress=progress,
         )
 
     auditor = orch.auditor or AuditLogger()

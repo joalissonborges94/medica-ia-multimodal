@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -42,6 +43,8 @@ if TYPE_CHECKING:
     from src.alert import Dispatcher
 
 logger = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[float, str], None]
 
 DEFAULT_RAG_TOP_K: int = 4
 MAX_QUERY_CHARS: int = 400
@@ -115,11 +118,18 @@ class Orchestrator:
         )
         self.rag_top_k: int = rag_top_k
 
-    def process_case(self, case: CaseInput) -> CaseOutput:
+    def process_case(
+        self,
+        case: CaseInput,
+        progress: ProgressCallback | None = None,
+    ) -> CaseOutput:
         """Pipeline completo para um caso multimodal.
 
         Args:
             case: entrada com paths e contexto opcional.
+            progress: callback opcional `(frac, desc)` com `frac` em [0, 1]
+                e `desc` string curta. Util pra integrar com `gr.Progress`
+                na UI Gradio. Default `None` (sem reportes).
 
         Returns:
             `CaseOutput` com todas as analises, relatorio, alerta e id de audit.
@@ -127,18 +137,29 @@ class Orchestrator:
         case_id = self._new_case_id()
         logger.info("Iniciando caso %s", case_id)
 
+        if progress is not None:
+            progress(0.05, "Processando video...")
         video_events = self._run_video(case.video_path)
         scene_type: SceneType | None = (
             self.video_pipeline.last_scene_type
             if case.video_path is not None and video_events is not None
             else None
         )
+
+        if progress is not None:
+            progress(0.45, "Processando audio...")
         audio_analysis = self._run_audio(case.audio_path)
 
+        if progress is not None:
+            progress(0.65, "Detectando anomalia...")
         anomaly = self.classifier.classify(video_events=video_events, audio_analysis=audio_analysis)
 
+        if progress is not None:
+            progress(0.70, "Recuperando diretrizes (RAG)...")
         rag_context = self._retrieve_context(case, audio_analysis, anomaly)
 
+        if progress is not None:
+            progress(0.80, "Gerando relatorio com LLM...")
         report_markdown = generate_report(
             anomaly=anomaly,
             audio_analysis=audio_analysis,
@@ -149,6 +170,8 @@ class Orchestrator:
             llm_client=self.llm_client,
         )
 
+        if progress is not None:
+            progress(0.95, "Registrando auditoria...")
         alert = build_alert(case_id=case_id, anomaly=anomaly)
         dispatch_alert(alert, self.alert_dispatchers)
 
