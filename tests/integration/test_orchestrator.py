@@ -72,8 +72,10 @@ def _video_events(*, instrument: int = 0, total: int = 5) -> list[VideoEvent]:
 
 
 def _mock_video_pipeline(events: list[VideoEvent]) -> MagicMock:
+    from src.video.scene_classifier import SceneType
     pipeline = MagicMock()
     pipeline.process.return_value = events
+    pipeline.last_scene_type = SceneType.UNKNOWN
     return pipeline
 
 

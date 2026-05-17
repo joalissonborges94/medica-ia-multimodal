@@ -206,7 +206,7 @@ Camadas:
 
 Níveis possíveis: `normal`, `moderate`, `critical`.
 
-**Inconsistência multimodal como achado clínico:** o system prompt do `src/report.py` instrui explicitamente o LLM a destacar casos em que o texto e a voz divergem (ex.: paciente verbaliza "estou bem" mas tom é monótono e expressão facial mostra distress). Esse padrão é típico de depressão pós-parto velada e justifica o investimento em pipeline multimodal versus análise text-only.
+**Inconsistência multimodal como achado clínico:** o system prompt do `src/report.py` instrui explicitamente o LLM a destacar casos em que o texto e a voz divergem (ex.: paciente verbaliza "estou bem" mas tom é monótono e expressão facial mostra distress). Esse padrão de incongruência entre canais é clinicamente relevante em situações de minimização de sintomas emocionais e justifica o investimento em pipeline multimodal versus análise text-only.
 
 ### 4.6 Orquestrador e Auditoria
 
@@ -248,7 +248,7 @@ UI Gradio Blocks em `app.py` com quatro abas: **Vídeo**, **Áudio**, **Multimod
 
 | Dataset | Fonte | Uso | Licença |
 |---|---|---|---|
-| CholecSeg8k | HF `minwoosun/CholecSeg8k`, Hong et al. (arXiv 2012.12463) | Treino YOLO custom | CC BY-NC-SA 4.0 |
+| CholecSeg8k | HF `minwoosun/CholecSeg8k`, Hong et al. (arXiv 2012.12453) | Treino YOLO custom | CC BY-NC-SA 4.0 |
 | CORAA-SER | HF `alefiury/CORAA-SER` | Validação cruzada wav2vec2 em PT-BR espontâneo | Termos HF |
 | AVOS Open Surgery | research.bidmc.org | Referência comparativa em demo | Pesquisa |
 | Geeky Medics (YouTube CC) | YouTube | Consulta clínica simulada para demo | CC |
@@ -290,7 +290,7 @@ Após pesquisa empírica em Roboflow Universe, Kaggle, Hugging Face, PhysioNet, 
 | CholecInstanceSeg | Mesmo domínio do CholecSeg8k, mas 5x mais dados (41.9k frames) e 7 classes de instrumento (Grasper, Bipolar, Hook, Clipper, Scissors, Irrigator, Snare), licença Apache 2.0. Requer retreino completo a partir de instance segmentation |
 | **CholecSeg8k** | 3.1 GB, anônimo via HF, classes adequadas, licença CC BY-NC-SA 4.0 |
 
-A decisão foi pivotar para CholecSeg8k (Hong et al., arXiv 2012.12463): 8080 frames anotados de colecistectomia laparoscópica, contendo `Grasper` e `L-hook Electrocautery`, instrumentos idênticos aos usados em cirurgia ginecológica laparoscópica. A transferência de domínio é justificada clinicamente pela técnica (mesmo trocarte, mesma pinça, mesmo eletrocautério).
+A decisão foi pivotar para CholecSeg8k (Hong et al., arXiv 2012.12453): 8080 frames anotados de colecistectomia laparoscópica, contendo `Grasper` e `L-hook Electrocautery`, instrumentos idênticos aos usados em cirurgia ginecológica laparoscópica. A transferência de domínio é justificada clinicamente pela técnica (mesmo trocarte, mesma pinça, mesmo eletrocautério).
 
 Os candidatos AutoLaparo-T3 e CholecInstanceSeg foram identificados como tecnicamente superiores ao CholecSeg8k para o caso de uso (o primeiro pela aderência ao domínio ginecológico, o segundo pela escala e amplitude taxonômica). Não foram integrados na entrega por restrições de janela do projeto: o link de acesso ao AutoLaparo não funcionou e o CholecInstanceSeg exigiria recomeçar o ciclo de conversão, treino e validação, o que iria além do escopo deste módulo.
 
@@ -376,29 +376,29 @@ A validação empírica dessa transferência (rodar `best.pt` em vídeo ginecol�
 
 Cada cenário foi rodado fim a fim pela UI Gradio. Os artefatos (vídeo, áudio, prints) estão em `data/examples/` e nos prints abaixo.
 
-### 8.1 Caso Normal
+### 8.1 Consulta Normal
 
-<!-- TODO: descrição do caso (consulta de rotina, sem sinais de alarme) -->
+Consulta clínica de rotina de saúde da mulher, paciente sem queixas relevantes. Material: vídeo de consulta simulada (academica) em PT-BR.
 
 | Modalidade | Entrada | Saída resumida |
 |---|---|---|
-| Vídeo | <!-- TODO --> | <!-- TODO --> |
-| Áudio | <!-- TODO --> | <!-- TODO --> |
-| Texto | <!-- TODO --> | <!-- TODO --> |
-| Nível final | `normal` | <!-- TODO --> |
+| Vídeo | `data/examples/consultas/prenatal/video.mp4` | <!-- TODO --> |
+| Áudio | `data/examples/consultas/prenatal/audio.wav` (extraído do vídeo) | <!-- TODO --> |
+| Texto | Contexto clínico de pré-natal de rotina | <!-- TODO --> |
+| Nível final | `normal` esperado | <!-- TODO --> |
 
 <!-- TODO: print da aba Multimodal com relatório clínico gerado -->
 
-### 8.2 Caso Moderado
+### 8.2 Consulta Moderada (Depoimento de paciente)
 
-<!-- TODO: descrição do caso (ex.: ansiedade detectada na voz + frases-chave de queixa, sem critérios críticos) -->
+Depoimento real de paciente sobre rastreio e diagnóstico de alteração mamária. Voz com tom emocional perceptível.
 
 | Modalidade | Entrada | Saída resumida |
 |---|---|---|
-| Vídeo | <!-- TODO --> | <!-- TODO --> |
-| Áudio | <!-- TODO --> | <!-- TODO --> |
-| Texto | <!-- TODO --> | <!-- TODO --> |
-| Nível final | `moderate` | <!-- TODO --> |
+| Vídeo | `data/examples/consultas/rastreio_mama/video.mp4` | <!-- TODO --> |
+| Áudio | `data/examples/consultas/rastreio_mama/audio.wav` | <!-- TODO --> |
+| Texto | Contexto sobre rastreio precoce de câncer de mama (alinhado com PDF INCA no RAG) | <!-- TODO --> |
+| Nível final | `moderate` esperado | <!-- TODO --> |
 
 Triggers acionados:
 
@@ -406,31 +406,44 @@ Triggers acionados:
 
 <!-- TODO: print da aba Multimodal -->
 
-### 8.3 Caso Crítico (Cirurgia Laparoscópica)
+### 8.3 Consulta Crítica (Dermatológica com ansiedade)
 
-Cenário de procedimento cirúrgico ginecológico em curso, com detecção persistente de `Grasper` e `L-hook Electrocautery`.
-
-| Modalidade | Entrada | Saída resumida |
-|---|---|---|
-| Vídeo | Frame de teste do CholecSeg8k <!-- TODO: identificar exatamente o exemplo usado --> | Bounding boxes em Grasper e L-hook |
-| Áudio | <!-- TODO: áudio sintetizado pelo TTS Azure com diálogo de equipe cirúrgica --> | <!-- TODO --> |
-| Texto | <!-- TODO --> | <!-- TODO --> |
-| Nível final | <!-- TODO: confirmar nível agregado --> | <!-- TODO --> |
-
-<!-- TODO: print da aba Vídeo com bounding boxes + print da aba Multimodal com relatório -->
-
-### 8.4 Caso Crítico (Consulta)
-
-<!-- TODO: descrição do caso (ex.: relato verbal de sofrimento agudo + emoção `terrified` no TTS + frases-chave acionando trigger crítico) -->
+Consulta dermatológica com queixa de manchas faciais e componente emocional acentuado. Caso útil para demonstrar **detecção de inconsistência multimodal**: voz com sinais de medo/tensão (`vocal_distress`, `vocal_strain`) enquanto a fala minimiza sofrimento ("não estou desesperada").
 
 | Modalidade | Entrada | Saída resumida |
 |---|---|---|
-| Vídeo | <!-- TODO --> | <!-- TODO --> |
-| Áudio | <!-- TODO: TTS Azure voz Francisca estilo `terrified` --> | <!-- TODO --> |
-| Texto | <!-- TODO --> | <!-- TODO --> |
-| Nível final | `critical` | <!-- TODO --> |
+| Vídeo | `data/examples/consultas/dermatologica/video.mp4` | <!-- TODO --> |
+| Áudio | `data/examples/consultas/dermatologica/audio.wav` | <!-- TODO --> |
+| Texto | Contexto de dermatologia + ansiedade | <!-- TODO --> |
+| Nível final | `moderate` esperado (pipeline corretamente não escalou para `critical` pois conteúdo real não é emergência) | <!-- TODO --> |
 
-<!-- TODO: print da aba Multimodal com alerta crítico -->
+<!-- TODO: print da aba Multimodal -->
+
+### 8.4 Cirurgia Normal (Laparoscopia sem intercorrência)
+
+Procedimento laparoscópico em andamento, sem evento crítico visível. Demonstra que o pipeline diferencia cirurgia rotineira (`normal`) de cirurgia com complicação (próxima seção).
+
+| Modalidade | Entrada | Saída resumida |
+|---|---|---|
+| Vídeo | `data/examples/cirurgias/rotina/video.mp4` | <!-- TODO: detecção de `Grasper` e `L-hook` esperada --> |
+| Áudio | n/a (cirurgia sem voz do paciente) | n/a |
+| Texto | Contexto de procedimento sem complicação | <!-- TODO --> |
+| Nível final | `normal` esperado | <!-- TODO --> |
+
+<!-- TODO: print da aba Vídeo com bounding boxes + print da aba Multimodal -->
+
+### 8.5 Cirurgia Crítica (Sangramento intraoperatório)
+
+Procedimento laparoscópico com sangramento em foco operatório. Vídeo gerado por `scripts/build_cirurgia_demo_video.py` filtrando frames do CholecSeg8k onde o YOLO custom v1 detectou a classe `blood` com confiança > 95%.
+
+| Modalidade | Entrada | Saída resumida |
+|---|---|---|
+| Vídeo | `data/examples/cirurgias/sangramento/video.mp4` (30 frames @ 5 fps, ~6s) | <!-- TODO: detecção persistente de `blood` esperada, dispara trigger crítico --> |
+| Áudio | n/a (cirurgia sem voz do paciente) | n/a |
+| Texto | Contexto de hemorragia intraoperatória + necessidade de hemostasia | <!-- TODO --> |
+| Nível final | `critical` esperado (trigger `rule_bleeding_detected`) | <!-- TODO --> |
+
+<!-- TODO: print da aba Vídeo com bounding boxes de `blood` + print da aba Multimodal com alerta crítico -->
 
 ---
 

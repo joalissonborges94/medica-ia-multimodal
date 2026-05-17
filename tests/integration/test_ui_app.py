@@ -94,8 +94,10 @@ def _orchestrator(
     events: list[VideoEvent] | None,
     db_path: Path,
 ) -> Orchestrator:
+    from src.video.scene_classifier import SceneType
     video_pipeline = MagicMock()
     video_pipeline.process.return_value = events or []
+    video_pipeline.last_scene_type = SceneType.UNKNOWN
     audio_pipeline = MagicMock()
     audio_pipeline.process.return_value = audio or _audio()
 
@@ -226,14 +228,14 @@ def test_run_case_so_audio_persiste_no_audit_log(tmp_path: Path):
 
 
 @pytest.mark.integration
-def test_load_examples_carrega_3_casos():
-    """O manifest gerado por `scripts/seed_examples.py` deve produzir 3 linhas."""
+def test_load_examples_carrega_5_casos():
+    """O manifest gerado por `scripts/seed_real_examples.py` deve produzir 5 linhas."""
     from app import _load_examples
 
     rows = _load_examples()
-    # Pode ser 0 se o seed nao foi rodado, mas em CI/local apos seed tem 3
+    # Pode ser 0 se o seed nao foi rodado, mas em CI/local apos seed tem 5
     if rows:
-        assert len(rows) == 3
+        assert len(rows) == 5
         # Estrutura por linha: [video_path, audio_path, context_text, paciente_id]
         for row in rows:
             assert len(row) == 4

@@ -11,6 +11,7 @@ import pytest
 from pydantic import ValidationError
 
 from src.video import (
+    AzureOpenAIVisionEmotion,
     AzureVideoIndexerClient,
     BleedingDetector,
     BoundingBox,
@@ -24,6 +25,7 @@ from src.video import (
     VideoPipeline,
     classify_scene_type,
     ensure_yolo_weights,
+    get_facial_emotion_classifier,
 )
 from src.video.detector import DEFAULT_STUB_MODEL
 from src.video.scene_classifier import _decide, _sample_indices
@@ -204,7 +206,7 @@ def test_video_pipeline_falha_quando_arquivo_nao_existe(tmp_path):
     pipeline = VideoPipeline(
         detector=MagicMock(spec=BleedingDetector),
         pose_estimator=MagicMock(spec=PoseEstimator),
-        emotion_detector=MagicMock(spec=FacialEmotionDetector),
+        emotion_classifier=MagicMock(spec=FacialEmotionDetector),
         azure_client=MagicMock(spec=AzureVideoIndexerClient),
     )
     with pytest.raises(FileNotFoundError):
@@ -348,3 +350,226 @@ def test_sample_indices_distribui_uniformemente():
     assert len(indices) == 5
     assert indices[0] == 0
     assert all(0 <= i < 100 for i in indices)
+
+
+# ---------------------------------------------------------------------
+# AzureOpenAIVisionEmotion
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.smoke
+def test_azure_openai_vision_nao_configurado_quando_deployment_vazio(monkeypatch):
+    """Sem deployment preenchido, is_configured deve ser False."""
+    monkeypatch.setattr(
+        "src.video.azure_openai_vision.settings",
+        MagicMock(
+            azure_openai_key=MagicMock(get_secret_value=lambda: ""),
+            azure_openai_endpoint="",
+            azure_openai_vision_deployment="",
+        ),
+    )
+    classifier = AzureOpenAIVisionEmotion()
+    assert classifier.is_configured is False
+
+
+@pytest.mark.smoke
+def test_azure_openai_vision_classify_retorna_none_quando_nao_configurado():
+    """Sem credenciais, classify deve retornar None sem lancar excecao."""
+    classifier = AzureOpenAIVisionEmotion()
+    # No ambiente de teste as variaveis Azure nao estao preenchidas.
+    if not classifier.is_configured:
+        frame = np.zeros((10, 10, 3), dtype=np.uint8)
+        result = classifier.classify(frame)
+        assert result is None
+
+
+@pytest.mark.smoke
+def test_azure_openai_vision_parse_json_valido():
+    """_parse_json_response deve converter JSON valido em EmotionScore."""
+    from src.video.azure_openai_vision import _parse_json_response
+
+    content = '{"label": "neutral", "confidence": 0.85, "reasoning": "face relaxada"}'
+    score = _parse_json_response(content)
+    assert score is not None
+    assert score.label == "neutral"
+    assert score.confidence == pytest.approx(0.85)
+    assert score.scores == {"neutral": pytest.approx(0.85)}
+
+
+@pytest.mark.smoke
+def test_azure_openai_vision_parse_json_label_invalido():
+    """Label fora do dominio deve retornar None."""
+    from src.video.azure_openai_vision import _parse_json_response
+
+    content = '{"label": "confused", "confidence": 0.9, "reasoning": "x"}'
+    assert _parse_json_response(content) is None
+
+
+@pytest.mark.smoke
+def test_azure_openai_vision_parse_json_malformado():
+    """JSON malformado deve retornar None sem lancar excecao."""
+    from src.video.azure_openai_vision import _parse_json_response
+
+    assert _parse_json_response("nao e json") is None
+
+
+# ---------------------------------------------------------------------
+# get_facial_emotion_classifier
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.smoke
+def test_get_facial_emotion_classifier_retorna_fer_quando_deployment_vazio(monkeypatch):
+    """Sem deployment de visao configurado, deve retornar FacialEmotionDetector."""
+    monkeypatch.setattr(
+        "src.video.emotion.settings",
+        MagicMock(azure_openai_vision_deployment=""),
+    )
+    classifier = get_facial_emotion_classifier()
+    assert isinstance(classifier, FacialEmotionDetector)
+
+
+@pytest.mark.smoke
+def test_get_facial_emotion_classifier_retorna_azure_quando_configurado(monkeypatch):
+    """Com deployment preenchido e is_configured True, deve retornar AzureOpenAIVisionEmotion."""
+    monkeypatch.setattr(
+        "src.video.emotion.settings",
+        MagicMock(azure_openai_vision_deployment="gpt-4o-mini"),
+    )
+    mock_vision = MagicMock(spec=AzureOpenAIVisionEmotion)
+    mock_vision.is_configured = True
+    mock_vision.deployment = "gpt-4o-mini"
+
+    with patch("src.video.azure_openai_vision.AzureOpenAIVisionEmotion", return_value=mock_vision):
+        classifier = get_facial_emotion_classifier()
+
+    assert classifier is mock_vision
+
+
+@pytest.mark.smoke
+def test_get_facial_emotion_classifier_cai_no_fer_quando_azure_nao_configurado(monkeypatch):
+    """Deployment preenchido mas is_configured False -> cai para FacialEmotionDetector."""
+    monkeypatch.setattr(
+        "src.video.emotion.settings",
+        MagicMock(azure_openai_vision_deployment="gpt-4o-mini"),
+    )
+    mock_vision = MagicMock(spec=AzureOpenAIVisionEmotion)
+    mock_vision.is_configured = False
+
+    with patch("src.video.azure_openai_vision.AzureOpenAIVisionEmotion", return_value=mock_vision):
+        classifier = get_facial_emotion_classifier()
+
+    assert isinstance(classifier, FacialEmotionDetector)
+
+
+# ---------------------------------------------------------------------
+# VideoPipeline: logica de cena + emocao
+# ---------------------------------------------------------------------
+
+
+@pytest.mark.smoke
+def test_video_pipeline_aceita_emotion_classifier_como_parametro():
+    """Pipeline deve aceitar qualquer objeto com metodo classify."""
+    mock_classifier = MagicMock()
+    mock_classifier.classify.return_value = None
+    pipeline = VideoPipeline(
+        detector=MagicMock(spec=BleedingDetector),
+        pose_estimator=MagicMock(spec=PoseEstimator),
+        emotion_classifier=mock_classifier,
+        azure_client=MagicMock(spec=AzureVideoIndexerClient),
+    )
+    assert pipeline.emotion_classifier is mock_classifier
+
+
+@pytest.mark.smoke
+def test_video_pipeline_pula_emocao_em_cena_surgery(tmp_path, monkeypatch):
+    """Cena SURGERY: classify nao deve ser chamado em nenhum frame."""
+    fake_video = tmp_path / "cirurgia.mp4"
+    fake_video.touch()
+
+    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.side_effect = [30.0, 3.0]  # fps, total_frames para classify_scene
+    mock_cap.read.side_effect = [(True, fake_frame), (True, fake_frame), (False, None)]
+
+    mock_classifier = MagicMock()
+    mock_classifier.classify.return_value = None
+
+    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
+    mock_azure.analyze.return_value = None
+
+    import src.video.pipeline as pipeline_mod
+
+    with (
+        patch("cv2.VideoCapture", return_value=mock_cap),
+        patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.SURGERY),
+        patch("src.video.detector.BleedingDetector.predict", return_value=[]),
+        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
+    ):
+        p = VideoPipeline(
+            target_fps=30.0,
+            emotion_classifier=mock_classifier,
+            azure_client=mock_azure,
+        )
+        p.process(fake_video)
+
+    mock_classifier.classify.assert_not_called()
+
+
+@pytest.mark.smoke
+def test_video_pipeline_chama_emocao_em_cena_consultation(tmp_path):
+    """Cena CONSULTATION: classify deve ser chamado em cada frame amostrado."""
+    fake_video = tmp_path / "consulta.mp4"
+    fake_video.touch()
+
+    emotion_result = EmotionScore(label="neutral", confidence=0.9, scores={"neutral": 0.9})
+    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    mock_cap = MagicMock()
+    mock_cap.isOpened.return_value = True
+    mock_cap.get.side_effect = [30.0, 2.0]
+    mock_cap.read.side_effect = [(True, fake_frame), (True, fake_frame), (False, None)]
+
+    mock_classifier = MagicMock()
+    mock_classifier.classify.return_value = emotion_result
+
+    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
+    mock_azure.analyze.return_value = None
+
+    import src.video.pipeline as pipeline_mod
+
+    with (
+        patch("cv2.VideoCapture", return_value=mock_cap),
+        patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.CONSULTATION),
+        patch("src.video.detector.BleedingDetector.predict", return_value=[]),
+        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
+    ):
+        p = VideoPipeline(
+            target_fps=30.0,
+            emotion_classifier=mock_classifier,
+            azure_client=mock_azure,
+        )
+        events = p.process(fake_video)
+
+    assert mock_classifier.classify.call_count >= 1
+    assert any(e.facial_emotion is not None for e in events)
+
+
+@pytest.mark.smoke
+def test_facial_emotion_detector_classify_retorna_none_quando_sem_faces(monkeypatch):
+    """FacialEmotionDetector.classify deve retornar None quando detect retorna []."""
+    detector = FacialEmotionDetector()
+    monkeypatch.setattr(detector, "detect", lambda frame: [])
+    frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    assert detector.classify(frame) is None
+
+
+@pytest.mark.smoke
+def test_facial_emotion_detector_classify_retorna_primeiro_score(monkeypatch):
+    """FacialEmotionDetector.classify deve retornar o primeiro EmotionScore detectado."""
+    detector = FacialEmotionDetector()
+    score = EmotionScore(label="happy", confidence=0.8, scores={"happy": 0.8})
+    monkeypatch.setattr(detector, "detect", lambda frame: [score])
+    frame = np.zeros((10, 10, 3), dtype=np.uint8)
+    result = detector.classify(frame)
+    assert result is score
