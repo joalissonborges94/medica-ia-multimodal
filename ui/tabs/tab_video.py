@@ -271,6 +271,12 @@ def render(video_pipeline: VideoPipeline) -> None:
                 f"{pose_frames} de {len(events)} frames; "
                 f"categoria predominante via heuristica"
             )
+        elif pose_frames > 0:
+            posture_value = "indefinido"
+            posture_hint = (
+                f"{pose_frames} de {len(events)} frames com pose, "
+                f"mas ombros/quadris ocultos para classificacao"
+            )
         else:
             posture_value = "0"
             posture_hint = f"0 de {len(events)} frames com pose detectada"
