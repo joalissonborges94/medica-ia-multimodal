@@ -101,6 +101,7 @@ def render(video_pipeline: VideoPipeline) -> None:
             allow_preview=True,
             show_share_button=False,
             show_download_button=False,
+            elem_classes="compact-gallery",
         )
 
     pose_section = gr.Group(visible=False)
@@ -119,10 +120,11 @@ def render(video_pipeline: VideoPipeline) -> None:
             columns=4,
             rows=1,
             height="auto",
-            object_fit="contain",
+            object_fit="cover",
             allow_preview=True,
             show_share_button=False,
             show_download_button=False,
+            elem_classes="compact-gallery",
         )
 
     with gr.Group():

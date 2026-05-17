@@ -357,6 +357,26 @@ gradio-app > .wrap {{
 }}
 
 /* ----------------------------------------------------------------------
+   Galleries com altura natural: gr.Gallery reserva slots quadrados por
+   default, o que cria barras pretas em cima/baixo quando os frames sao
+   16:9. Aplicando `elem_classes="compact-gallery"` o slot encolhe pra
+   altura da imagem e o padding extra do container some.
+   ---------------------------------------------------------------------- */
+.gradio-container .compact-gallery .grid-wrap,
+.gradio-container .compact-gallery .grid-container,
+.gradio-container .compact-gallery .preview {{
+    height: auto !important;
+    min-height: 0 !important;
+}}
+.gradio-container .compact-gallery .thumbnail-item {{
+    aspect-ratio: 16 / 9;
+    height: auto !important;
+}}
+.gradio-container .compact-gallery .thumbnail-item img {{
+    object-fit: cover !important;
+}}
+
+/* ----------------------------------------------------------------------
    Content box: emula o visual do gr.Textbox para texto/markdown denso.
 
    Insight: gr.Textbox renderiza com box interno (background + border +
