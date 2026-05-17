@@ -80,13 +80,12 @@ def render(video_pipeline: VideoPipeline) -> None:
                 )
                 kpis_html = gr.HTML(value="")
 
-    with gr.Group():
+    detection_section = gr.Group(visible=False)
+    with detection_section:
         gr.HTML(
             section_title(
                 "Frame com deteccoes",
-                "Frame de maior densidade de deteccoes com bboxes sobrepostas. "
-                "Vazio quando nao ha deteccoes (cena nao cirurgica ou nenhum "
-                "instrumento detectado).",
+                "Frame de maior densidade de deteccoes com bboxes sobrepostas.",
             )
         )
         detection_thumb = gr.Image(
@@ -114,7 +113,6 @@ def render(video_pipeline: VideoPipeline) -> None:
             wrap=True,
             interactive=False,
             value=[],
-            max_height=420,
         )
 
     with gr.Accordion("JSON bruto (50 primeiros eventos)", open=False):
@@ -166,6 +164,12 @@ def render(video_pipeline: VideoPipeline) -> None:
         pose_frames = sum(1 for e in events if e.pose_landmarks)
         classes_set = {d.class_name for e in events for d in e.detections}
 
+        # --- Disponibilidade do MediaPipe (Py 3.14 vem com pacote reduzido) ---
+        pose_available = getattr(video_pipeline.pose_estimator, "_available", True)
+        # Considera disponivel se ainda nao carregou (lazy); checa apos primeira chamada
+        if not video_pipeline.pose_estimator._load_attempted:
+            pose_available = True
+
         # --- Estado da cena + decisoes do pipeline ---
         scene_type = getattr(video_pipeline, "last_scene_type", None)
         scene_value = scene_type.value if scene_type else "desconhecido"
@@ -214,8 +218,12 @@ def render(video_pipeline: VideoPipeline) -> None:
                 kpi_tile("Emocoes", emotions_value, hint=emotions_hint),
                 kpi_tile(
                     "Postura",
-                    f"{pose_frames}/{len(events)}",
-                    hint="frames com pose detectada",
+                    f"{pose_frames}/{len(events)}" if pose_available else "n/a",
+                    hint=(
+                        "frames com pose detectada"
+                        if pose_available
+                        else "indisponivel (rodar via Docker/Py 3.12)"
+                    ),
                 ),
                 kpi_tile(
                     "Classes",
@@ -231,7 +239,15 @@ def render(video_pipeline: VideoPipeline) -> None:
         rows = video_events_to_rows(events)
         payload = {"events": [e.model_dump() for e in events[:50]]}
         timeline = build_video_timeline_plot(events)
-        return status_block, kpis, thumb, timeline, rows, payload
+        return (
+            status_block,
+            kpis,
+            gr.update(value=thumb, visible=thumb is not None),
+            gr.update(visible=thumb is not None),
+            timeline,
+            rows,
+            payload,
+        )
 
     analyze_btn.click(
         fn=lambda: gr.update(interactive=False, value="Analisando..."),
@@ -240,7 +256,15 @@ def render(video_pipeline: VideoPipeline) -> None:
     ).then(
         fn=_on_analyze,
         inputs=[video_input],
-        outputs=[status_html, kpis_html, detection_thumb, timeline_plot, events_table, raw_json],
+        outputs=[
+            status_html,
+            kpis_html,
+            detection_thumb,
+            detection_section,
+            timeline_plot,
+            events_table,
+            raw_json,
+        ],
         show_progress="full",
     ).then(
         fn=lambda: gr.update(interactive=True, value="Analisar vıdeo"),
