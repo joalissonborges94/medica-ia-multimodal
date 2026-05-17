@@ -36,12 +36,13 @@ logger = logging.getLogger(__name__)
 
 
 class PostureCategory(StrEnum):
-    """Categoria postural inferida via angulos dos landmarks."""
+    """Categoria postural inferida via angulos e proporcoes dos landmarks."""
 
-    ERETA       = "ereta"
-    INCLINADA   = "inclinada"
-    RETRAIDA    = "retraida"
-    INDEFINIDO  = "indefinido"
+    ERETA        = "ereta"
+    ERETA_TENSA  = "ereta_tensa"   # tronco vertical + ombros elevados (tensao muscular)
+    INCLINADA    = "inclinada"
+    RETRAIDA     = "retraida"
+    INDEFINIDO   = "indefinido"
 
 
 # Mapeamento de indices YOLOv8 Pose (COCO format) -> nomes usados pelo
@@ -61,6 +62,8 @@ _COCO_KEYPOINT_NAMES: tuple[str, ...] = (
 
 # Landmarks essenciais pra heuristica de postura (nomes COCO).
 _LM_NOSE              = "nose"
+_LM_LEFT_EAR          = "left_ear"
+_LM_RIGHT_EAR         = "right_ear"
 _LM_LEFT_SHOULDER     = "left_shoulder"
 _LM_RIGHT_SHOULDER    = "right_shoulder"
 _LM_LEFT_HIP          = "left_hip"
@@ -75,16 +78,80 @@ _MIN_VISIBILITY: float = 0.3
 _ERETA_MAX_ANGLE_DEG: float = 15.0
 _INCLINADA_MAX_ANGLE_DEG: float = 35.0
 
+# Heuristica de tensao postural composta (ereta_tensa):
+# combina 2 sinais que se compensam pra reduzir falso positivo:
+#   s1 = ombros elevados (ratio ombro->orelha baixo)
+#   s2 = cabeca baixa (ratio ombro->nariz baixo, chin tuck)
+# Ratio normal relaxado: shoulder_to_ear ~ 0.30, shoulder_to_nose ~ 0.40.
+# Quando o tronco esta vertical mas s1 + s2 acima do limiar, classifica
+# como ereta_tensa. Combinar 2 sinais exige tensao em 2 dimensoes pra
+# disparar (ex: ombros levemente elevados sozinhos nao bastam).
+_TENSAO_S1_REF_RATIO: float = 0.30   # shoulder_to_ear referencial (relaxado)
+_TENSAO_S2_REF_RATIO: float = 0.40   # shoulder_to_nose referencial (relaxado)
+_TENSAO_SCORE_THRESHOLD: float = 0.5   # soma s1 + s2 normalizada
+
+
+def _detect_postural_tension(
+    by_name: dict[str, PoseLandmark],
+    shoulder_mid_y: float,
+    torso_height: float,
+) -> bool:
+    """Detecta tensao postural via combinacao de 2 sinais.
+
+    Combina ratio ombro->orelha (ombros elevados) com ratio ombro->nariz
+    (cabeca baixa / chin tuck). Ambos normalizados pelo torso. A soma
+    dos desvios em relacao ao baseline relaxado precisa ultrapassar
+    `_TENSAO_SCORE_THRESHOLD` pra disparar. Exigir 2 sinais combinados
+    reduz falso positivo de uma metrica isolada (paciente com torso
+    naturalmente curto, p.ex.).
+
+    Args:
+        by_name: dict de PoseLandmark indexado por name.
+        shoulder_mid_y: coordenada y media dos ombros (0-1).
+        torso_height: altura do tronco (norm do vetor ombros->quadril).
+
+    Returns:
+        True se s1 + s2 (normalizado pelos baselines) >= threshold.
+    """
+    if torso_height <= 0:
+        return False
+
+    # Sinal 1: ombros elevados (ratio ombro->orelha pequeno = ombros
+    # proximos das orelhas)
+    le = by_name.get(_LM_LEFT_EAR)
+    re = by_name.get(_LM_RIGHT_EAR)
+    ears_visible = [
+        e for e in (le, re)
+        if e is not None and e.visibility >= _MIN_VISIBILITY
+    ]
+    s1 = 0.0
+    if ears_visible:
+        ear_y_avg = sum(e.y for e in ears_visible) / len(ears_visible)
+        shoulder_to_ear = abs(shoulder_mid_y - ear_y_avg) / torso_height
+        s1 = max(0.0, (_TENSAO_S1_REF_RATIO - shoulder_to_ear) / _TENSAO_S1_REF_RATIO)
+
+    # Sinal 2: cabeca baixa / chin tuck (ratio ombro->nariz pequeno)
+    nose = by_name.get(_LM_NOSE)
+    s2 = 0.0
+    if nose is not None and nose.visibility >= _MIN_VISIBILITY:
+        shoulder_to_nose = abs(shoulder_mid_y - nose.y) / torso_height
+        s2 = max(0.0, (_TENSAO_S2_REF_RATIO - shoulder_to_nose) / _TENSAO_S2_REF_RATIO)
+
+    return (s1 + s2) >= _TENSAO_SCORE_THRESHOLD
+
 
 def classify_posture(landmarks: list[PoseLandmark]) -> PostureCategory:
     """Infere categoria postural a partir dos landmarks de uma pessoa.
 
-    Estrategia:
-    1. Valida que landmarks essenciais (ombros, quadril) estao visiveis
-       (visibility >= `_MIN_VISIBILITY`).
-    2. Calcula ponto medio dos ombros e quadril.
-    3. Mede angulo entre eixo coluna (ombros -> quadril) e a vertical.
-    4. Classifica em ereta/inclinada/retraida via thresholds calibrados.
+    Estrategia em camadas (primeiro match retorna):
+    1. Valida que landmarks essenciais (ombros, quadril) estao visiveis.
+    2. Calcula angulo eixo coluna (ombros->quadril) vs vertical.
+    3. RETRAIDA: cabeca muito proxima dos ombros (head_drop pequeno).
+    4. ERETA_TENSA: tronco vertical (<= 15deg) + ombros elevados (proximos
+       das orelhas). Indica tensao muscular postural.
+    5. ERETA: tronco vertical, ombros em posicao natural.
+    6. INCLINADA: tronco inclinado (15-35deg).
+    7. RETRAIDA: tronco muito inclinado (> 35deg) ou outras situacoes.
 
     Args:
         landmarks: lista de `PoseLandmark` da pessoa principal retornada
@@ -118,21 +185,26 @@ def classify_posture(landmarks: list[PoseLandmark]) -> PostureCategory:
     hip_mid      = np.array([(lh.x + rh.x) / 2, (lh.y + rh.y) / 2])
 
     spine = hip_mid - shoulder_mid
+    torso_height = float(np.linalg.norm(spine))
+
     vertical = np.array([0.0, 1.0])
-    cos_theta = float(np.dot(spine, vertical) / (np.linalg.norm(spine) + 1e-8))
+    cos_theta = float(np.dot(spine, vertical) / (torso_height + 1e-8))
     cos_theta = max(-1.0, min(1.0, cos_theta))
     angle_deg = float(np.degrees(np.arccos(cos_theta)))
 
-    # Detecta retraida: cabeca muito proxima dos ombros
+    # Camada 1: cabeca muito proxima dos ombros (retraida classica)
     nose = by_name.get(_LM_NOSE)
-    if nose is not None and nose.visibility >= _MIN_VISIBILITY:
+    if nose is not None and nose.visibility >= _MIN_VISIBILITY and torso_height > 0:
         head_drop = abs(nose.y - shoulder_mid[1])
-        torso_height = float(np.linalg.norm(spine))
-        if torso_height > 0 and head_drop / torso_height < 0.15:
+        if head_drop / torso_height < 0.15:
             return PostureCategory.RETRAIDA
 
+    # Camada 2: tronco vertical (ereta) + sinais de tensao postural
     if angle_deg <= _ERETA_MAX_ANGLE_DEG:
+        if _detect_postural_tension(by_name, float(shoulder_mid[1]), torso_height):
+            return PostureCategory.ERETA_TENSA
         return PostureCategory.ERETA
+
     if angle_deg <= _INCLINADA_MAX_ANGLE_DEG:
         return PostureCategory.INCLINADA
     return PostureCategory.RETRAIDA
