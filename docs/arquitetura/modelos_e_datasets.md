@@ -42,7 +42,6 @@ Lista consolidada de modelos pré-treinados, datasets e outras fontes de dados u
 | Dataset | Fonte | Uso | Observação |
 |---|---|---|---|
 | **CholecSeg8k** | Hugging Face (`minwoosun/CholecSeg8k`), Hong et al., arXiv 2012.12453, CC BY-NC-SA 4.0 | Treino YOLO custom para instrumentos cirúrgicos | 8080 frames, 3.1 GB; classes alvo `Grasper` + `L-hook Electrocautery`; splits 5656/1616/808. ADR-012 |
-| **CholecTrack20** | Synapse [syn53182642](https://www.synapse.org/Synapse:syn53182642/wiki/628404), Nwoye et al. (2023), DUA + accesskey CAMMA | Treino YOLO custom v2 com 7 classes de instrumento | ~35k frames anotados @ 1fps de 20 videos de colecistectomia laparoscopica; splits oficiais 10 train / 2 val / 8 test (~17k/3k/14k frames); classes alvo: grasper, bipolar, hook, scissors, clipper, irrigator, specimen_bag. ADR-012 |
 
 ### Datasets de demonstração
 

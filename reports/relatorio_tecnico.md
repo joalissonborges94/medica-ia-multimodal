@@ -287,12 +287,9 @@ Após pesquisa empírica em Roboflow Universe, Kaggle, Hugging Face, PhysioNet, 
 | Dresden Surgical Anatomy | Ginecológico real, mas 19 GB e licença restritiva inviabilizam Colab/HF Spaces |
 | m2caiseg | Mesmo domínio do CholecSeg8k (colecistectomia), 307 imagens, escala insuficiente |
 | AutoLaparo-T3 | Histerectomia laparoscópica real (único dataset ginecológico público), 1.800 frames com anotação pixel-wise. Acesso solicitado e autorizado, mas link de download fornecido pela equipe estava inacessível no momento da implementação. Licença restrita a pesquisa acadêmica |
-| CholecInstanceSeg | Mesmo domínio do CholecSeg8k, mas 5x mais dados (41.9k frames) e 7 classes de instrumento (Grasper, Bipolar, Hook, Clipper, Scissors, Irrigator, Snare), licença Apache 2.0. Requer retreino completo a partir de instance segmentation |
 | **CholecSeg8k** | 3.1 GB, anônimo via HF, classes adequadas, licença CC BY-NC-SA 4.0 |
 
 A decisão foi pivotar para CholecSeg8k (Hong et al., arXiv 2012.12453): 8080 frames anotados de colecistectomia laparoscópica, contendo `Grasper` e `L-hook Electrocautery`, instrumentos idênticos aos usados em cirurgia ginecológica laparoscópica. A transferência de domínio é justificada clinicamente pela técnica (mesmo trocarte, mesma pinça, mesmo eletrocautério).
-
-Os candidatos AutoLaparo-T3 e CholecInstanceSeg foram identificados como tecnicamente superiores ao CholecSeg8k para o caso de uso (o primeiro pela aderência ao domínio ginecológico, o segundo pela escala e amplitude taxonômica). Não foram integrados na entrega por restrições de janela do projeto: o link de acesso ao AutoLaparo não funcionou e o CholecInstanceSeg exigiria recomeçar o ciclo de conversão, treino e validação, o que iria além do escopo deste módulo.
 
 Splits utilizados: 5656 train, 1616 val, 808 test.
 
@@ -465,7 +462,7 @@ Procedimento laparoscópico com sangramento em foco operatório. Vídeo gerado p
 Levantamentos feitos durante o projeto que apontam direções possíveis de melhoria, sem compromisso de execução dentro do escopo deste módulo:
 
 - O cliente `AzureOpenAIAudioEmotion` (`src/audio/azure_openai_audio.py`) e `AzureOpenAIVisionEmotion` (`src/video/azure_openai_vision.py`) ficam plugáveis ao Azure AI Foundry sem alteração de pipeline: basta preencher `AZURE_OPENAI_AUDIO_DEPLOYMENT` e `AZURE_OPENAI_VISION_DEPLOYMENT` no `.env`. Substituem wav2vec2 e FER respectivamente.
-- Expansão da taxonomia do detector visual via `AutoLaparo-T3` (histerectomia) ou `CholecInstanceSeg` (7 classes vs 2 atuais), comparados em 7.1.
+- Expansão da taxonomia do detector visual com datasets de maior escala e cobertura de classes ginecológicas.
 - Expansão da cobertura do RAG para temas hoje fora dos 8 PDFs indexados (endometriose, SOP, infertilidade, menopausa, câncer de ovário).
 - Substituição do `wav2vec2-base-superb-er` por modelo fine-tunado em CORAA-SER, caso queira manter classificação de emoção vocal totalmente local.
 
