@@ -294,33 +294,29 @@ B. Adiar formalmente, marcar como `⏸️ Adiado` no roadmap
 
 ---
 
-## ADR-015: Substituicao de MediaPipe Pose por YOLOv8 Pose (multi-person)
+## ADR-015: Remocao do pilar YOLOv8 Pose em favor de GPT-vision multimodal
 
-**Contexto:** `src/video/pose.py` usava `mediapipe.solutions.pose` para estimar landmarks corporais em cenas de consulta. Dois problemas identificados em producao:
+**Contexto:** O pilar de pose corporal usava YOLOv8 Pose (Ultralytics, ~6 MB) pra extrair 17 keypoints COCO de cenas de consulta e classificar postura geometricamente (`ereta`, `ereta_tensa`, `inclinada`, `retraida`, `indefinido`). Substituiu o MediaPipe Pose anterior por causa de duas limitacoes (single-person e incompatibilidade com Py 3.14). Apos validacao com inputs reais, identificamos que:
 
-1. MediaPipe Pose detecta apenas **uma** pessoa por frame. Em consultas medico + paciente, o detector frequentemente capturava o medico (geralmente mais frontal/proximo da camera) em vez da paciente.
-2. No PyPI do Python 3.14 o pacote `mediapipe` vem sem o submodulo `solutions.pose`. A dependencia bloqueava o pipeline em ambientes 3.14 com erro de `AttributeError`.
+1. A heuristica "maior bbox" nao identifica a paciente corretamente em cenas com medico + paciente. A bbox alternava entre as duas pessoas em frames consecutivos, gerando classificacao postural pouco estavel.
+2. Nos cinco videos de demonstracao, a categoria predominante sempre saiu "ereta", sem diferenciar casos clinicamente relevantes. A categoria `ereta_tensa` (heuristica composta s1 + s2) nunca disparou.
+3. O GPT-vision (Azure OpenAI multimodal) ja analisava postura, gestos e expressao facial como evidencia interna pra inferir emocao, com a vantagem de identificar a paciente pelo contexto semantico em vez da heuristica geometrica.
+4. O pilar agregava mais como demonstracao tecnica de CV classica do que como sinal analitico real.
 
-**Opcoes:**
+**Opcoes consideradas:**
+A. Manter YOLOv8 Pose com agregacao multi-pose (avaliar todas as pessoas detectadas)
+B. Adicionar heuristica posicional (paciente sempre a direita) sobre a bbox principal
+C. Remover YOLOv8 Pose e ensinar o GPT-vision a emitir tambem a categoria de linguagem corporal predominante
 
-A. Manter MediaPipe Pose com pin de versao e restringir a Py 3.12
-B. Substituir por YOLOv8 Pose (Ultralytics), que ja e dependencia do projeto
-C. Implementar pose via Azure Vision (custo adicional por chamada)
-
-**Decisao:** Opcao B.
-
-**Justificativa:**
-- YOLOv8 Pose detecta multiplas pessoas simultaneamente. A pessoa principal (maior bbox) e selecionada como paciente, heuristica mais robusta que single-person.
-- 17 keypoints COCO cobrem todos os landmarks que `classify_posture` usa (nariz, ombros, quadris). Sem perda funcional em relacao aos 33 do MediaPipe.
-- Ultralytics ja estava instalado como dependencia do detector YOLO custom. Zero dependencia nova.
-- Funciona uniformemente em Py 3.12 e 3.14 sem condicional de versao.
-- Modelo `yolov8n-pose.pt` (~6 MB) e baixado automaticamente na primeira chamada, alinhado com o padrao de lazy-load ja adotado no projeto.
+**Decisao:** opcao C. O detector YOLOv8 custom em CholecSeg8k (instrumentos cirurgicos) ja cobre o requisito do enunciado de "analise de videos clinicos com YOLOv8". O pilar humano fica centralizado no GPT-vision multimodal, que agora retorna dois sinais por frame analisado: `label` (emocao) e `body_language` (uma de: `tranquila`, `tensa`, `retraida`, `agitada`, `indefinida`).
 
 **Consequencias:**
-- `classify_posture` continua inalterada: aceita lista de `PoseLandmark` com nomes COCO ou MediaPipe indistintamente.
-- Coordenadas normalizadas (0-1) mantidas, compativel com o resto do pipeline.
-- Reduz o numero de dependencias do projeto (mediapipe removido do `requirements.txt`).
-- `scene_classifier.py` ainda usa `mediapipe.solutions.face_detection` para detectar faces na heuristica de tipo de cena. Esse uso e mais leve (apenas face, sem pose) e permanece com lazy import e fallback gracioso quando mediapipe nao esta disponivel.
+- Pipeline com dois pilares de video: YOLO custom (instrumentos em cirurgia) + GPT-vision (emocao e linguagem corporal em consulta), sob gating por tipo de cena.
+- KPI "Postura" na aba Video substituido por "Linguagem corporal".
+- `src/video/pose.py` removido. `PostureCategory`, `PoseLandmark`, `PoseEstimator`, `classify_posture` deixam de existir. Schema `VideoEvent` perde o campo `pose_landmarks`.
+- `EmotionScore` ganha campo opcional `body_language: str | None`. Backends que nao oferecem o sinal (FER local) deixam `None`.
+- Codigo do pilar removido foi preservado em workspace pessoal (`medica-ia-workspace/execucao/yolo_pose_backup.md`) pra eventual restauracao futura.
+- `scene_classifier.py` mantem uso de `mediapipe.solutions.face_detection` (face apenas, sem pose), com lazy import e fallback gracioso quando mediapipe nao esta disponivel.
 
 ---
 

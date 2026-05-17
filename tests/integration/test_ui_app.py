@@ -83,7 +83,7 @@ def _events(instrument: int = 0, total: int = 3) -> list[VideoEvent]:
             else []
         )
         events.append(
-            VideoEvent(frame_index=i, timestamp_ms=i * 1000, detections=dets, pose_landmarks=[])
+            VideoEvent(frame_index=i, timestamp_ms=i * 1000, detections=dets)
         )
     return events
 
@@ -228,14 +228,14 @@ def test_run_case_so_audio_persiste_no_audit_log(tmp_path: Path):
 
 
 @pytest.mark.integration
-def test_load_examples_carrega_5_casos():
-    """O manifest gerado por `scripts/seed_real_examples.py` deve produzir 5 linhas."""
+def test_load_examples_carrega_7_casos():
+    """O manifest gerado por `scripts/seed_real_examples.py` deve produzir 7 linhas."""
     from app import _load_examples
 
     rows = _load_examples()
-    # Pode ser 0 se o seed nao foi rodado, mas em CI/local apos seed tem 5
+    # Pode ser 0 se o seed nao foi rodado, mas em CI/local apos seed tem 7
     if rows:
-        assert len(rows) == 5
+        assert len(rows) == 7
         # Estrutura por linha: [video_path, audio_path, context_text, paciente_id]
         for row in rows:
             assert len(row) == 4

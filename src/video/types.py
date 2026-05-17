@@ -1,7 +1,7 @@
 """Tipos compartilhados do pipeline de video.
 
-Modelos Pydantic v2 usados por `detector.py`, `pose.py`, `emotion.py`
-e agregados em `pipeline.py`. Manter aqui para evitar imports circulares.
+Modelos Pydantic v2 usados por `detector.py`, `emotion.py` e agregados
+em `pipeline.py`. Manter aqui para evitar imports circulares.
 """
 
 from __future__ import annotations
@@ -40,31 +40,23 @@ class Detection(BaseModel):
     bbox: BoundingBox
 
 
-class PoseLandmark(BaseModel):
-    """Um ponto de referencia corporal estimado pelo MediaPipe Pose.
-
-    Coordenadas `x` e `y` sao normalizadas no intervalo [0, 1] em relacao
-    ao tamanho do frame. `z` e profundidade relativa ao quadril.
-    """
-
-    name: str
-    x: float
-    y: float
-    z: float
-    visibility: float = Field(ge=0.0, le=1.0)
-
-
 class EmotionScore(BaseModel):
     """Resultado de classificacao de emocao para uma face.
 
     `scores` traz a distribuicao completa de probabilidades. `label` e a
     emocao predominante e `confidence` e a probabilidade dela.
+
+    `body_language` (opcional) traz a categoria predominante de linguagem
+    corporal interpretada pelo classifier de visao multimodal (tranquila,
+    tensa, retraida, agitada, indefinida). Backends que nao oferecem o
+    sinal (FER local) deixam `None`.
     """
 
     bbox: BoundingBox | None = None
     label: str
     confidence: float = Field(ge=0.0, le=1.0)
     scores: dict[str, float] = Field(default_factory=dict)
+    body_language: str | None = None
 
     @property
     def label_pt(self) -> str:
@@ -84,6 +76,5 @@ class VideoEvent(BaseModel):
     frame_index: int = Field(ge=0)
     timestamp_ms: int = Field(ge=0)
     detections: list[Detection] = Field(default_factory=list)
-    pose_landmarks: list[PoseLandmark] = Field(default_factory=list)
     facial_emotion: EmotionScore | None = None
     azure_metadata: dict | None = None

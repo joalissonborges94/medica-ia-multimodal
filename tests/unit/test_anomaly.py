@@ -84,7 +84,6 @@ def _event(
         frame_index=frame_index,
         timestamp_ms=frame_index * 1000,
         detections=detections,
-        pose_landmarks=[],
         facial_emotion=facial,
     )
 

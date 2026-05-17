@@ -10,7 +10,6 @@ Lista consolidada de modelos pré-treinados, datasets e outras fontes de dados u
 |---|---|---|---|
 | YOLOv8n base | Ultralytics (download automático) | Stub para destravar o pipeline durante o desenvolvimento | Detecta classes COCO; sem relevância clínica direta. ADR-011 |
 | YOLOv8n custom | Treino próprio no Colab sobre CholecSeg8k | Modelo final para detecção de instrumentos cirúrgicos (Grasper, L-hook Electrocautery) | Substitui o stub via `YOLO_WEIGHTS_PATH` no `.env`. ADR-012 |
-| YOLOv8n-pose | Ultralytics (download automático, ~6 MB) | Estimativa de pose corporal multi-person (17 keypoints COCO) | Substituiu MediaPipe Pose (ADR-015). Funciona em Py 3.12 e 3.14. Pessoa principal = maior bbox |
 | FER (Facial Expression Recognition) | github/justinshenk/fer | Emoção facial | Pré-treinado, CPU |
 
 ### Áudio

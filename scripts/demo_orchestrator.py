@@ -87,7 +87,6 @@ def _video_events(instrument_frames: int, total: int = 6) -> list[VideoEvent]:
                 frame_index=i,
                 timestamp_ms=i * 1000,
                 detections=detections,
-                pose_landmarks=[],
                 facial_emotion=None,
             )
         )

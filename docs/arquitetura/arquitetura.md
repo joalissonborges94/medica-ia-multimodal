@@ -94,7 +94,6 @@ medica-ia-multimodal/
 │   ├── video/
 │   │   ├── __init__.py
 │   │   ├── detector.py           (YOLO interface, model-agnostic)
-│   │   ├── pose.py               (MediaPipe landmarks)
 │   │   ├── emotion.py            (FER ou Azure Face)
 │   │   ├── azure_video.py        (Azure Video Indexer)
 │   │   └── pipeline.py           (orchestra todos acima)
@@ -187,7 +186,6 @@ class VideoEvent(BaseModel):
     frame_index: int
     timestamp_ms: int
     detections: list[Detection]      # YOLO
-    pose_landmarks: list[Landmark]   # MediaPipe
     facial_emotion: EmotionScore | None
     azure_metadata: dict | None
 ```
@@ -196,10 +194,9 @@ Fluxo:
 
 1. Extração de frames com OpenCV (1 a 5 fps configurável)
 2. YOLO detector em cada frame
-3. MediaPipe em paralelo para landmarks
-4. FER ou Azure Face em ROIs faciais detectadas
-5. Azure Video Indexer chamado uma vez no vídeo completo (cenas, transcrição embutida)
-6. Agregação em lista de `VideoEvent`
+3. FER ou Azure OpenAI Vision (GPT-4o multimodal) em ROIs faciais detectadas; o caminho cloud retorna emoção e linguagem corporal predominante
+4. Azure Video Indexer chamado uma vez no vídeo completo (cenas, transcrição embutida)
+5. Agregação em lista de `VideoEvent`
 
 ### Pipeline de Áudio
 

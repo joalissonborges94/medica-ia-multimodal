@@ -3,10 +3,10 @@
 Permite upload de um vıdeo, dispara o `VideoPipeline` e mostra:
 
 - Resumo (badge de risco + tipo de cena detectado + fonte do classifier de emocao)
-- KPIs (frames, deteccoes, emocoes, classes, postura)
+- KPIs (frames, deteccoes, emocoes, linguagem corporal, classes)
 - Miniatura do frame com bboxes desenhadas (evidencia visual do que o YOLO viu)
 - Timeline de eventos
-- Eventos por frame em tabela
+- Eventos por janela em tabela
 - JSON bruto colapsado
 
 Recebe o `VideoPipeline` direto (em vez de so um callable) pra acessar:
@@ -26,7 +26,6 @@ import gradio as gr
 from ui.components import (
     VIDEO_WINDOWS_HEADERS,
     build_detection_thumbnails,
-    build_pose_thumbnails,
     build_video_timeline_plot,
     emotion_source_label,
     empty_state,
@@ -63,8 +62,8 @@ def render(video_pipeline: VideoPipeline) -> None:
                     section_title(
                         "Entrada",
                         "Faca upload de um vıdeo curto (mp4/mov, recomendado <60s) "
-                        "para extrair eventos por frame: deteccoes YOLO, landmarks "
-                        "de pose e estado emocional via linguagem corporal.",
+                        "para extrair eventos por frame: deteccoes YOLO e analise "
+                        "multimodal de emocao + linguagem corporal via GPT-vision.",
                     )
                 )
                 video_input = gr.Video(label="Vıdeo de entrada", sources=["upload"])
@@ -104,29 +103,6 @@ def render(video_pipeline: VideoPipeline) -> None:
             elem_classes="compact-gallery",
         )
 
-    pose_section = gr.Group(visible=False)
-    with pose_section:
-        gr.HTML(
-            section_title(
-                "Frames com pose",
-                "Top 4 frames com mais keypoints visiveis, ordenados temporalmente. "
-                "Bbox azul = pessoa principal; skeleton verde = esqueleto COCO; "
-                "pontos amarelos = keypoints (visibility >= 0.3).",
-            )
-        )
-        pose_thumb = gr.Gallery(
-            label="",
-            show_label=False,
-            columns=4,
-            rows=1,
-            height="auto",
-            object_fit="cover",
-            allow_preview=True,
-            show_share_button=False,
-            show_download_button=False,
-            elem_classes="compact-gallery",
-        )
-
     with gr.Group():
         gr.HTML(section_title("Timeline de eventos"))
         timeline_plot = gr.Plot(label="", show_label=False)
@@ -136,8 +112,8 @@ def render(video_pipeline: VideoPipeline) -> None:
             section_title(
                 "Eventos por janela",
                 "Resumo agregado em janelas de 5s: deteccoes acumuladas, classes "
-                "com confianca media, emocao e postura predominantes. JSON bruto "
-                "abaixo tem os eventos cru por frame.",
+                "com confianca media, emocao e linguagem corporal predominantes. "
+                "JSON bruto abaixo tem os eventos cru por frame.",
             )
         )
         events_table = gr.Dataframe(
@@ -165,7 +141,6 @@ def render(video_pipeline: VideoPipeline) -> None:
             None,
             None,
             None,
-            None,
             [],
             {"events": []},
         )
@@ -178,7 +153,6 @@ def render(video_pipeline: VideoPipeline) -> None:
             return (
                 empty_state("Video fora dos limites aceitos.", hint=validation.message),
                 "",
-                None,
                 None,
                 None,
                 None,
@@ -203,7 +177,6 @@ def render(video_pipeline: VideoPipeline) -> None:
                 None,
                 None,
                 None,
-                None,
                 [],
                 {"events": []},
             )
@@ -211,30 +184,22 @@ def render(video_pipeline: VideoPipeline) -> None:
         # --- Metricas brutas ---
         from collections import Counter
 
-        from src.video.pose import PostureCategory, classify_posture
-
         total_detections = sum(len(e.detections) for e in events)
         emotions_with_face = sum(1 for e in events if e.facial_emotion is not None)
-        pose_frames = sum(1 for e in events if e.pose_landmarks)
         classes_set = {d.class_name for e in events for d in e.detections}
 
-        # Classifica postura por frame e agrega categoria predominante
-        posture_counts: Counter[PostureCategory] = Counter()
-        for e in events:
-            if e.pose_landmarks:
-                posture_counts[classify_posture(e.pose_landmarks)] += 1
-        # Remove INDEFINIDO da contagem pra escolher categoria valida
-        valid_postures = {k: v for k, v in posture_counts.items()
-                          if k != PostureCategory.INDEFINIDO}
-        dominant_posture = (
-            max(valid_postures, key=valid_postures.get) if valid_postures else None
+        # Linguagem corporal predominante (vinda do GPT-vision via EmotionScore)
+        body_labels = [
+            e.facial_emotion.body_language for e in events
+            if e.facial_emotion is not None and e.facial_emotion.body_language
+        ]
+        body_counts: Counter[str] = Counter(body_labels)
+        # Remove "indefinida" pra preferir categoria interpretavel
+        valid_body = {k: v for k, v in body_counts.items() if k != "indefinida"}
+        dominant_body = (
+            max(valid_body, key=valid_body.get) if valid_body else None
         )
-
-        # --- Disponibilidade do MediaPipe (Py 3.14 vem com pacote reduzido) ---
-        pose_available = getattr(video_pipeline.pose_estimator, "_available", True)
-        # Considera disponivel se ainda nao carregou (lazy); checa apos primeira chamada
-        if not video_pipeline.pose_estimator._load_attempted:
-            pose_available = True
+        body_frames = sum(body_counts.values())
 
         # --- Estado da cena + decisoes do pipeline ---
         scene_type = getattr(video_pipeline, "last_scene_type", None)
@@ -290,34 +255,31 @@ def render(video_pipeline: VideoPipeline) -> None:
             emotions_value = str(emotions_with_face)
             emotions_hint = f"{emotions_with_face} de {len(events)} frames com face"
 
-        if not pose_available:
-            posture_value = "n/a"
-            posture_hint = "MediaPipe Pose indisponivel (rodar via Docker/Py 3.12)"
-        elif scene_is_surgery:
-            posture_value = "n/a"
-            posture_hint = "corpo nao visivel em campo cirurgico"
-        elif dominant_posture is not None:
-            posture_value = dominant_posture.value
-            posture_hint = (
-                f"{pose_frames} de {len(events)} frames; "
-                f"categoria predominante via heuristica"
+        if scene_is_surgery:
+            body_value = "n/a"
+            body_hint = "paciente nao visivel em campo cirurgico"
+        elif dominant_body is not None:
+            body_value = dominant_body
+            body_hint = (
+                f"{body_frames} de {len(events)} frames classificados; "
+                f"categoria predominante via GPT-vision"
             )
-        elif pose_frames > 0:
-            posture_value = "indefinido"
-            posture_hint = (
-                f"{pose_frames} de {len(events)} frames com pose, "
-                f"mas ombros/quadris ocultos para classificacao"
+        elif body_frames > 0:
+            body_value = "indefinida"
+            body_hint = (
+                f"{body_frames} de {len(events)} frames com sinal, "
+                f"sem categoria interpretavel"
             )
         else:
-            posture_value = "0"
-            posture_hint = f"0 de {len(events)} frames com pose detectada"
+            body_value = "0"
+            body_hint = f"0 de {len(events)} frames com linguagem corporal classificada"
 
         kpis = kpi_grid(
             [
                 kpi_tile("Frames", str(len(events)), hint="amostrados pelo pipeline"),
                 kpi_tile("Deteccoes", detections_value, hint=detections_hint),
                 kpi_tile("Emocoes", emotions_value, hint=emotions_hint),
-                kpi_tile("Postura", posture_value, hint=posture_hint),
+                kpi_tile("Linguagem corporal", body_value, hint=body_hint),
                 kpi_tile("Classes", classes_value, hint=classes_hint),
             ]
         )
@@ -325,10 +287,6 @@ def render(video_pipeline: VideoPipeline) -> None:
         # --- Miniaturas com bboxes (lista vazia se nao houver deteccao) ---
         thumbs = build_detection_thumbnails(video_path, events, max_thumbs=4)
         has_thumbs = bool(thumbs)
-
-        # --- Miniaturas de pose (skeleton + keypoints + bbox) ---
-        pose_thumbs = build_pose_thumbnails(video_path, events, max_thumbs=4)
-        has_pose_thumbs = bool(pose_thumbs)
 
         rows = video_events_to_windowed_rows(events, window_seconds=5.0)
         payload = {"events": [e.model_dump() for e in events[:50]]}
@@ -338,8 +296,6 @@ def render(video_pipeline: VideoPipeline) -> None:
             kpis,
             gr.update(value=thumbs if has_thumbs else None),
             gr.update(visible=has_thumbs),
-            gr.update(value=pose_thumbs if has_pose_thumbs else None),
-            gr.update(visible=has_pose_thumbs),
             timeline,
             rows,
             payload,
@@ -357,8 +313,6 @@ def render(video_pipeline: VideoPipeline) -> None:
             kpis_html,
             detection_thumb,
             detection_section,
-            pose_thumb,
-            pose_section,
             timeline_plot,
             events_table,
             raw_json,

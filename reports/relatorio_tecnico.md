@@ -144,14 +144,14 @@ Antes de processar frame a frame, o pipeline classifica o tipo de cena via `src/
 
 O resultado classifica a cena em `SURGERY`, `CONSULTATION`, `MIXED` ou `UNKNOWN`. Essa classificação ativa o gating por pilares:
 
-| Cena         | YOLO (instrumentos) | YOLOv8 Pose | Emocao facial |
-|---|---|---|---|
-| SURGERY      | rodando  | pulado  | pulado  |
-| CONSULTATION | pulado   | rodando | rodando |
-| MIXED        | rodando  | rodando | rodando |
-| UNKNOWN      | rodando  | rodando | rodando |
+| Cena         | YOLO (instrumentos) | Emocao + linguagem corporal |
+|--------------|---------------------|-----------------------------|
+| SURGERY      | rodando             | pulado                      |
+| CONSULTATION | pulado              | rodando                     |
+| MIXED        | rodando             | rodando                     |
+| UNKNOWN      | rodando             | rodando                     |
 
-O gating evita dois problemas documentados: (1) em cenas de consulta, o YOLO customizado (treinado em laparoscopia) produz falsos positivos ao classificar equipamentos de exame como instrumentos cirúrgicos; (2) em cenas de cirurgia, o estimador de pose corporal e a classificação de emoção facial não têm sinal útil porque a paciente não é visível.
+O gating evita dois problemas documentados: (1) em cenas de consulta, o YOLO customizado (treinado em laparoscopia) produz falsos positivos ao classificar equipamentos de exame como instrumentos cirúrgicos; (2) em cenas de cirurgia, a inferência de emoção e linguagem corporal não tem sinal útil porque a paciente não é visível.
 
 A frequência de classificação de emoção facial é reduzida por padrão (`emotion_every_n_samples=3`), executando a cada terceiro frame amostrado. Isso reduz chamadas ao classificador de emoção em aproximadamente 3x sem perda significativa de fidelidade temporal.
 
@@ -159,10 +159,9 @@ A frequência de classificação de emoção facial é reduzida por padrão (`em
 
 1. Extração de frames com OpenCV (1 a 5 fps, configurável).
 2. **YOLOv8 customizado** executado em frames de cenas SURGERY, MIXED ou UNKNOWN (interface model-agnostic em `src/video/detector.py`). Modelo treinado em **3 classes**: `grasper` (id 0), `l_hook_electrocautery` (id 1) e `blood` (id 2). As duas primeiras cobrem o requisito "Instrumentos cirúrgicos ginecológicos" do enunciado; a terceira cobre "Sinais de complicações em cirurgias ginecológicas" e dispara trigger `critical` no pipeline de anomalia quando sangramento é detectado.
-3. **YOLOv8 Pose** (`yolov8n-pose.pt`, ~6 MB, download automático) extrai 17 keypoints COCO em frames de cenas CONSULTATION, MIXED ou UNKNOWN. Detecta múltiplas pessoas por frame; a pessoa principal é a de maior bbox. A função `classify_posture` (`src/video/pose.py`) infere categoria postural (`PostureCategory`: `ereta`, `ereta_tensa`, `inclinada`, `retraida`, `indefinido`) calculando o ângulo do eixo coluna (ponto médio dos ombros até ponto médio dos quadris) em relação à vertical. Thresholds geométricos: ereta <= 15 graus, inclinada <= 35 graus; acima disso ou quando a cabeça está muito próxima dos ombros (razão < 0.15 do comprimento do torso), classifica como retraida. A categoria `ereta_tensa` combina dois sinais normalizados pelo torso (distância ombro-orelha e distância ombro-nariz) para detectar tensão postural (ombros elevados, chin tuck) quando o tronco está vertical mas existe encolhimento visível: dispara quando a soma dos desvios em relação ao baseline relaxado ultrapassa 0.5, exigindo evidência em duas dimensões para reduzir falso positivo. Visibilidade mínima de 0.3 por landmark é permissiva o suficiente para pacientes parcialmente fora do enquadramento. Nuances mais sutis (braços cruzados, mãos apertadas, micro-expressões) são delegadas ao GPT-vision via prompt direcionado, mantendo a heurística focada em sinais geométricos determinísticos.
-4. **Classificação de emoção facial** (FER local ou GPT-4o vision via `src/video/azure_openai_vision.py`) executada a cada `emotion_every_n_samples` frames amostrados em cenas CONSULTATION, MIXED ou UNKNOWN. O prompt GPT-4o vision considera linguagem corporal e gestos além da face, cobrindo cenários com paciente mascarada ou parcialmente visível.
-5. Azure Video Indexer chamado uma vez no vídeo completo para cenas e transcrição embutida.
-6. Agregação em estrutura `VideoEvent` por frame.
+3. **Emoção e linguagem corporal** via GPT-vision multimodal (`src/video/azure_openai_vision.py`, Azure OpenAI GPT-4o) executada a cada `emotion_every_n_samples` frames amostrados em cenas CONSULTATION, MIXED ou UNKNOWN. Além do `label` de emoção, o modelo emite agora o campo `body_language` em `EmotionScore`, classificando a linguagem corporal predominante em uma de cinco categorias (`tranquila`, `tensa`, `retraida`, `agitada`, `indefinida`). O modelo interpreta postura, gestos e expressão facial em conjunto, com a vantagem de identificar a paciente pelo contexto semântico (resolve o problema de cenas com médico + paciente simultâneos), sem depender de heurística geométrica sobre keypoints. O fallback local (`FER`) cobre apenas a emoção facial e deixa `body_language` em `None`.
+4. Azure Video Indexer chamado uma vez no vídeo completo para cenas e transcrição embutida.
+5. Agregação em estrutura `VideoEvent` por frame.
 
 A UI da aba Vídeo exibe progresso detalhado via `gr.Progress`, uma galeria com os 4 frames com maior densidade de detecções (com bounding boxes) e uma tabela "Eventos por janela" que agrega os eventos detectados em janelas de 5 segundos.
 
@@ -245,7 +244,6 @@ UI Gradio Blocks em `app.py` com quatro abas: **Vídeo**, **Áudio**, **Multimod
 |---|---|---|
 | YOLOv8n base | Ultralytics | Stub durante desenvolvimento (ADR-011) |
 | YOLOv8n custom | Treino próprio sobre CholecSeg8k | Detector de instrumentos cirúrgicos (ADR-012) |
-| YOLOv8n-pose | Ultralytics (download automático, ~6 MB) | Estimativa de pose corporal multi-person, 17 keypoints COCO (ADR-015) |
 | FER | github/justinshenk/fer | Emoção facial (CPU, fallback local) |
 
 ### 5.2 Modelos de Áudio

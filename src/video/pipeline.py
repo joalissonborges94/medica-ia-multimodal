@@ -1,33 +1,30 @@
 """Pipeline de video completo.
 
 Recebe um caminho de video, amostra frames a uma taxa configuravel
-(`target_fps`) e roda em cada frame: detector YOLO, MediaPipe Pose,
-classificador de emocao facial e (quando configurado) Azure Video Indexer.
-A saida e uma lista de `VideoEvent` com tudo agregado por frame.
+(`target_fps`) e roda em cada frame: detector YOLO, classificador
+multimodal de emocao e linguagem corporal (via GPT-vision) e (quando
+configurado) Azure Video Indexer. A saida e uma lista de `VideoEvent`
+com tudo agregado por frame.
 
-Logica de gating por tipo de cena (3 pilares: detector, pose, emocao):
+Logica de gating por tipo de cena (2 pilares: detector e emocao):
 
-| Cena         | YOLO (instrumentos) | MediaPipe Pose | Emocao facial |
-|--------------|---------------------|----------------|---------------|
-| SURGERY      | rodando             | pulado         | pulado        |
-| CONSULTATION | pulado              | rodando        | rodando       |
-| MIXED        | rodando             | rodando        | rodando       |
-| UNKNOWN      | rodando             | rodando        | rodando       |
+| Cena         | YOLO (instrumentos) | Emocao + linguagem corporal |
+|--------------|---------------------|-----------------------------|
+| SURGERY      | rodando             | pulado                      |
+| CONSULTATION | pulado              | rodando                     |
+| MIXED        | rodando             | rodando                     |
+| UNKNOWN      | rodando             | rodando                     |
 
 Em CONSULTATION o YOLO custom (treinado em laparoscopia) gera falso
 positivo em objetos clinicos comuns como agulhas, seringas, otoscopios,
-classificando como Grasper/L-hook. Em SURGERY o MediaPipe Pose detecta
-"landmarks" em tecido biologico e instrumentos (porque tenta encaixar
-um esqueleto humano), gerando classificacao postural espuria (ex:
-"retraida" no campo cirurgico). Pular em cada cena eleva precisao sem
-perder sinal real.
+classificando como Grasper/L-hook. Em SURGERY o pilar humano nao tem
+sinal porque o campo cirurgico nao expoe a paciente.
 
 Amostragem de emocao reduzida por padrao (`emotion_every_n_samples=3`):
-classificacao de emocao facial via GPT-vision tem latencia ~3s/frame.
-Como paciente em consulta clinica raramente muda emocao em <3s,
-amostrar 1 a cada 3 frames reduz tempo total em 3x sem perder
-resolucao temporal relevante. Frames sem analise de emocao continuam
-no resultado com `facial_emotion=None`.
+classificacao via GPT-vision tem latencia ~3s/frame. Como paciente em
+consulta clinica raramente muda emocao em <3s, amostrar 1 a cada 3
+frames reduz tempo total em 3x sem perder resolucao temporal relevante.
+Frames sem analise continuam no resultado com `facial_emotion=None`.
 """
 
 from __future__ import annotations
@@ -41,7 +38,6 @@ import cv2
 from src.video.azure_video import AzureVideoIndexerClient
 from src.video.detector import BleedingDetector
 from src.video.emotion import FacialEmotionClassifierProtocol, get_facial_emotion_classifier
-from src.video.pose import PoseEstimator
 from src.video.scene_classifier import SceneType, classify_scene_type
 from src.video.types import VideoEvent
 
@@ -58,7 +54,6 @@ class VideoPipeline:
         target_fps: float = 1.0,
         emotion_every_n_samples: int = 3,
         detector: BleedingDetector | None = None,
-        pose_estimator: PoseEstimator | None = None,
         emotion_classifier: FacialEmotionClassifierProtocol | None = None,
         azure_client: AzureVideoIndexerClient | None = None,
     ) -> None:
@@ -67,21 +62,19 @@ class VideoPipeline:
         Args:
             target_fps: quantos frames por segundo amostrar do video.
                 Default 1 fps mantem custo baixo para videos longos.
-            emotion_every_n_samples: roda classificacao de emocao a cada N
-                frames amostrados (default 3). Reduz latencia GPT-vision em
-                3x sem perder resolucao real em consultas clinicas. Use 1
+            emotion_every_n_samples: roda classificacao a cada N frames
+                amostrados (default 3). Reduz latencia GPT-vision em 3x
+                sem perder resolucao real em consultas clinicas. Use 1
                 pra rodar em todos os frames amostrados.
             detector: instancia opcional de `BleedingDetector`.
-            pose_estimator: instancia opcional de `PoseEstimator`.
-            emotion_classifier: instancia opcional de classificador de emocao
-                facial. Default usa `get_facial_emotion_classifier()` que
-                seleciona GPT-4o vision (quando configurado) ou FER local.
+            emotion_classifier: instancia opcional de classificador. Default
+                usa `get_facial_emotion_classifier()` que seleciona GPT-4o
+                vision (quando configurado) ou FER local.
             azure_client: instancia opcional de `AzureVideoIndexerClient`.
         """
         self.target_fps: float = target_fps
         self.emotion_every_n_samples: int = max(1, emotion_every_n_samples)
         self.detector: BleedingDetector = detector or BleedingDetector()
-        self.pose_estimator: PoseEstimator = pose_estimator or PoseEstimator()
         self.emotion_classifier: FacialEmotionClassifierProtocol = (
             emotion_classifier or get_facial_emotion_classifier()
         )
@@ -137,13 +130,13 @@ class VideoPipeline:
             self.last_scene_type = classify_scene_type(video_path)
             logger.info("Tipo de cena identificado: %s", self.last_scene_type.value)
 
-            # Emocao facial so faz sentido em cenas com rosto visivel.
-            # Em cirurgia laparoscopica o campo cirurgico nao expoe faces,
-            # entao pular GPT-vision evita custo e ruido desnecessarios.
+            # Emocao + linguagem corporal so fazem sentido em cenas com
+            # paciente visivel. Em cirurgia laparoscopica o campo cirurgico
+            # nao expoe faces nem corpos, entao pular evita custo e ruido.
             run_emotion = self.last_scene_type != SceneType.SURGERY
             if not run_emotion:
                 logger.info(
-                    "Cena SURGERY: classificacao de emocao facial ignorada."
+                    "Cena SURGERY: classificacao de emocao/linguagem corporal ignorada."
                 )
 
             # Deteccao YOLO so faz sentido em cenas cirurgicas. Em consulta,
@@ -155,17 +148,6 @@ class VideoPipeline:
                 logger.info(
                     "Cena CONSULTATION: deteccao de instrumentos ignorada "
                     "(evita falso positivo do YOLO laparoscopico)."
-                )
-
-            # MediaPipe Pose so faz sentido em cenas com corpo humano visivel.
-            # Em cirurgia laparoscopica o detector tenta encaixar esqueleto em
-            # tecido biologico e gera landmarks falsos, que viram classificacao
-            # postural espuria (ex: "retraida" no campo cirurgico).
-            run_pose = self.last_scene_type != SceneType.SURGERY
-            if not run_pose:
-                logger.info(
-                    "Cena SURGERY: estimacao de pose corporal ignorada "
-                    "(evita landmarks espurios em tecido biologico)."
                 )
 
             if progress is not None:
@@ -189,7 +171,6 @@ class VideoPipeline:
 
                 timestamp_ms = int(round(frame_idx * 1000 / video_fps))
                 detections = self.detector.predict(frame) if run_detection else []
-                pose_landmarks = self.pose_estimator.estimate(frame) if run_pose else []
 
                 # Emocao roda so a cada N amostras (default 3) pra reduzir
                 # latencia de chamada GPT-vision sem perder resolucao real
@@ -207,7 +188,6 @@ class VideoPipeline:
                         frame_index=frame_idx,
                         timestamp_ms=timestamp_ms,
                         detections=detections,
-                        pose_landmarks=pose_landmarks,
                         facial_emotion=facial_emotion,
                         azure_metadata=azure_metadata,
                     )
@@ -232,4 +212,3 @@ class VideoPipeline:
             return events
         finally:
             cap.release()
-            self.pose_estimator.close()

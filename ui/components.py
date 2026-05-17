@@ -142,132 +142,6 @@ def _render_detection_overlay(frame, detections):
         )
 
 
-_POSE_BBOX_COLOR_BGR: tuple[int, int, int] = (255, 200, 0)        # azul claro
-_POSE_KEYPOINT_COLOR_BGR: tuple[int, int, int] = (0, 255, 255)    # amarelo
-_POSE_SKELETON_COLOR_BGR: tuple[int, int, int] = (0, 220, 120)    # verde claro
-_POSE_KEYPOINT_MIN_VISIBILITY: float = 0.3
-
-_POSE_SKELETON_EDGES: tuple[tuple[str, str], ...] = (
-    ("left_shoulder", "right_shoulder"),
-    ("left_shoulder", "left_hip"),
-    ("right_shoulder", "right_hip"),
-    ("left_hip", "right_hip"),
-    ("left_shoulder", "left_elbow"),
-    ("left_elbow", "left_wrist"),
-    ("right_shoulder", "right_elbow"),
-    ("right_elbow", "right_wrist"),
-    ("left_hip", "left_knee"),
-    ("left_knee", "left_ankle"),
-    ("right_hip", "right_knee"),
-    ("right_knee", "right_ankle"),
-    ("nose", "left_eye"),
-    ("nose", "right_eye"),
-    ("left_eye", "left_ear"),
-    ("right_eye", "right_ear"),
-)
-
-
-def _render_pose_overlay(frame, landmarks):
-    """Desenha bbox + skeleton + keypoints da pose sobre um frame BGR (in-place).
-
-    Landmarks ficam normalizados (0-1). Converte pra coordenadas em pixels
-    usando dimensoes do frame. Bbox e calculada a partir do envoltorio dos
-    keypoints visiveis (visibility >= 0.3) com pequena folga.
-    """
-    import cv2
-
-    if not landmarks:
-        return
-
-    h, w = frame.shape[:2]
-    by_name = {lm.name: lm for lm in landmarks}
-    visible = [lm for lm in landmarks if lm.visibility >= _POSE_KEYPOINT_MIN_VISIBILITY]
-    if not visible:
-        return
-
-    xs = [lm.x * w for lm in visible]
-    ys = [lm.y * h for lm in visible]
-    padding = max(8, int(0.04 * max(w, h)))
-    x1 = max(0, int(min(xs)) - padding)
-    y1 = max(0, int(min(ys)) - padding)
-    x2 = min(w - 1, int(max(xs)) + padding)
-    y2 = min(h - 1, int(max(ys)) + padding)
-    cv2.rectangle(frame, (x1, y1), (x2, y2), _POSE_BBOX_COLOR_BGR, 2)
-
-    for a_name, b_name in _POSE_SKELETON_EDGES:
-        a, b = by_name.get(a_name), by_name.get(b_name)
-        if (
-            a is None or b is None
-            or a.visibility < _POSE_KEYPOINT_MIN_VISIBILITY
-            or b.visibility < _POSE_KEYPOINT_MIN_VISIBILITY
-        ):
-            continue
-        cv2.line(
-            frame,
-            (int(a.x * w), int(a.y * h)),
-            (int(b.x * w), int(b.y * h)),
-            _POSE_SKELETON_COLOR_BGR, 2, cv2.LINE_AA,
-        )
-
-    for lm in visible:
-        cv2.circle(
-            frame, (int(lm.x * w), int(lm.y * h)),
-            3, _POSE_KEYPOINT_COLOR_BGR, -1, cv2.LINE_AA,
-        )
-
-
-def build_pose_thumbnails(
-    video_path: str, events: list, max_thumbs: int = 4,
-):
-    """Pega os top N frames com mais keypoints visiveis e desenha pose sobreposta.
-
-    Espelha `build_detection_thumbnails` para o pilar de pose: util pra mostrar
-    visualmente o que o YOLOv8 Pose viu em consultas. Retorna lista vazia se
-    nenhum frame tiver pose detectada.
-
-    Args:
-        video_path: caminho absoluto do arquivo de video.
-        events: lista de `VideoEvent` (do pipeline.process()).
-        max_thumbs: numero maximo de frames a retornar (default 4 = grid 2x2).
-
-    Returns:
-        Lista de frames numpy RGB com pose desenhada, ordenados temporalmente.
-        Vazia se nao ha pose detectada ou se a leitura do video falhar.
-    """
-    import cv2
-
-    def _visible_count(event) -> int:
-        return sum(
-            1 for lm in event.pose_landmarks
-            if lm.visibility >= _POSE_KEYPOINT_MIN_VISIBILITY
-        )
-
-    events_with_pose = [e for e in events if e.pose_landmarks and _visible_count(e) > 0]
-    if not events_with_pose:
-        return []
-
-    top_events = sorted(events_with_pose, key=_visible_count, reverse=True)[:max_thumbs]
-    top_events.sort(key=lambda e: e.frame_index)
-
-    cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        return []
-
-    thumbnails = []
-    try:
-        for event in top_events:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, event.frame_index)
-            ret, frame = cap.read()
-            if not ret:
-                continue
-            _render_pose_overlay(frame, event.pose_landmarks)
-            thumbnails.append(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-    finally:
-        cap.release()
-
-    return thumbnails
-
-
 def build_detection_thumbnails(
     video_path: str, events: list, max_thumbs: int = 4,
 ):
@@ -411,19 +285,18 @@ def video_events_to_windowed_rows(
 
     Para cada janela retorna: range de tempo, n frames, n deteccoes,
     classes predominantes (com confianca media), emocao predominante,
-    postura predominante. Vazio quando nenhum frame caiu na janela.
+    linguagem corporal predominante. Vazio quando nenhum frame caiu
+    na janela.
 
     Args:
         events: lista do pipeline.process().
         window_seconds: duracao de cada janela em segundos (default 5).
 
     Returns:
-        Lista de listas no formato `gr.Dataframe` com 7 colunas (ver
-        `VIDEO_EVENTS_HEADERS`).
+        Lista de listas no formato `gr.Dataframe` com 6 colunas (ver
+        `VIDEO_WINDOWS_HEADERS`).
     """
     from collections import Counter, defaultdict
-
-    from src.video.pose import PostureCategory, classify_posture
 
     if not events:
         return []
@@ -469,25 +342,23 @@ def video_events_to_windowed_rows(
         else:
             emotion_str = "-"
 
-        # Postura predominante (heuristica sobre os landmarks)
-        posture_counts: Counter[PostureCategory] = Counter()
-        for e in bucket:
-            if e.pose_landmarks:
-                cat = classify_posture(e.pose_landmarks)
-                if cat != PostureCategory.INDEFINIDO:
-                    posture_counts[cat] += 1
-        if posture_counts:
-            top = posture_counts.most_common()
-            if len(top) == 1 or top[0][1] >= n_frames * 0.7:
-                posture_str = f"{top[0][0].value} ({top[0][1]}/{n_frames})"
+        # Linguagem corporal predominante (vinda do GPT-vision via EmotionScore)
+        body_labels = [
+            e.facial_emotion.body_language for e in bucket
+            if e.facial_emotion is not None and e.facial_emotion.body_language
+        ]
+        if body_labels:
+            top = Counter(body_labels).most_common()
+            n_body = len(body_labels)
+            if len(top) == 1 or top[0][1] >= n_body * 0.7:
+                body_str = f"{top[0][0]} ({top[0][1]}/{n_body})"
             else:
-                # Mistura: mostra 1a e 2a
-                posture_str = (
-                    f"{top[0][0].value} ({top[0][1]}/{n_frames}), "
-                    f"{top[1][0].value} ({top[1][1]}/{n_frames})"
+                body_str = (
+                    f"{top[0][0]} ({top[0][1]}/{n_body}), "
+                    f"{top[1][0]} ({top[1][1]}/{n_body})"
                 )
         else:
-            posture_str = "-"
+            body_str = "-"
 
         rows.append(
             [
@@ -496,7 +367,7 @@ def video_events_to_windowed_rows(
                 str(total_dets),
                 classes_str,
                 emotion_str,
-                posture_str,
+                body_str,
             ]
         )
     return rows
@@ -517,7 +388,7 @@ VIDEO_WINDOWS_HEADERS: list[str] = [
     "Deteccoes",
     "Classes",
     "Emocao predominante",
-    "Postura predominante",
+    "Linguagem corporal predominante",
 ]
 
 

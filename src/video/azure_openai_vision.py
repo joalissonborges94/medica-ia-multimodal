@@ -54,11 +54,25 @@ ALLOWED_LABELS: tuple[str, ...] = (
     "disgust",
 )
 
+# Categorias de linguagem corporal predominante. Mapeadas pelo prompt;
+# o modelo escolhe uma quando consegue interpretar a cena.
+ALLOWED_BODY_LANGUAGE: tuple[str, ...] = (
+    "tranquila",
+    "tensa",
+    "retraida",
+    "agitada",
+    "indefinida",
+)
+
 SYSTEM_PROMPT: str = (
-    "Analise visual de cena clinica de saude da mulher. Classifique a "
-    "emocao aparente da paciente considerando postura corporal, gestos "
-    "e expressao facial quando visivel. Pessoas em repouso clinico sao "
-    "tipicamente neutras. Responda apenas em JSON valido."
+    "Analise visual de cena clinica de saude da mulher. Identifique "
+    "visualmente a paciente (pessoa em atendimento, geralmente sentada "
+    "frente a profissional de saude) e classifique dois sinais: "
+    "(a) emocao aparente, considerando postura, gestos e expressao "
+    "facial quando visivel; "
+    "(b) linguagem corporal predominante, descrevendo a manifestacao "
+    "nao-verbal global em uma categoria. Pessoas em repouso clinico "
+    "sao tipicamente neutras e tranquilas. Responda apenas em JSON valido."
 )
 
 
@@ -178,8 +192,10 @@ class AzureOpenAIVisionEmotion:
             return None
 
         user_prompt = (
-            "Avalie a emocao aparente. Retorne JSON com label (uma de: "
-            + ", ".join(ALLOWED_LABELS) + "), confidence (0.0 a 1.0) e "
+            "Avalie a paciente e retorne JSON com: "
+            "label (emocao, uma de: " + ", ".join(ALLOWED_LABELS) + "), "
+            "confidence (0.0 a 1.0), "
+            "body_language (uma de: " + ", ".join(ALLOWED_BODY_LANGUAGE) + "), "
             "reasoning (frase curta sobre postura, gestos ou expressao)."
         )
 
@@ -238,8 +254,12 @@ def _parse_json_response(content: str) -> EmotionScore | None:
         confidence = 0.0
     confidence = max(0.0, min(1.0, confidence))
 
+    body_raw = str(data.get("body_language", "")).strip().lower()
+    body_language = body_raw if body_raw in ALLOWED_BODY_LANGUAGE else None
+
     return EmotionScore(
         label=label_raw,
         confidence=confidence,
         scores={label_raw: confidence},
+        body_language=body_language,
     )

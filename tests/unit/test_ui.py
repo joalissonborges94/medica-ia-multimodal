@@ -189,7 +189,6 @@ def test_build_video_timeline_plot_retorna_figure_quando_ha_eventos():
             detections=[Detection(class_id=0, class_name="grasper", confidence=0.9, bbox=bbox)]
             if i % 2 == 0
             else [],
-            pose_landmarks=[],
         )
         for i in range(4)
     ]

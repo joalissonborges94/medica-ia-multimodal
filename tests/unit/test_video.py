@@ -18,8 +18,6 @@ from src.video import (
     Detection,
     EmotionScore,
     FacialEmotionDetector,
-    PoseEstimator,
-    PoseLandmark,
     SceneType,
     VideoEvent,
     VideoPipeline,
@@ -58,13 +56,6 @@ def test_detection_rejeita_confianca_acima_de_um():
 
 
 @pytest.mark.smoke
-def test_pose_landmark_aceita_visibility_no_range():
-    lm = PoseLandmark(name="nose", x=0.5, y=0.5, z=0.0, visibility=0.9)
-    assert lm.name == "nose"
-    assert lm.visibility == pytest.approx(0.9)
-
-
-@pytest.mark.smoke
 def test_emotion_score_aceita_distribuicao():
     score = EmotionScore(label="happy", confidence=0.7, scores={"happy": 0.7, "sad": 0.3})
     assert score.label == "happy"
@@ -72,10 +63,17 @@ def test_emotion_score_aceita_distribuicao():
 
 
 @pytest.mark.smoke
+def test_emotion_score_aceita_body_language():
+    score = EmotionScore(
+        label="neutral", confidence=0.8, body_language="tranquila",
+    )
+    assert score.body_language == "tranquila"
+
+
+@pytest.mark.smoke
 def test_video_event_tem_defaults_vazios():
     event = VideoEvent(frame_index=0, timestamp_ms=0)
     assert event.detections == []
-    assert event.pose_landmarks == []
     assert event.facial_emotion is None
     assert event.azure_metadata is None
 
@@ -115,70 +113,6 @@ def test_ensure_yolo_weights_retorna_path_existente_sem_download(tmp_path):
 @pytest.mark.smoke
 def test_default_stub_model_aponta_para_yolov8n():
     assert DEFAULT_STUB_MODEL == "yolov8n.pt"
-
-
-# ---------------------------------------------------------------------
-# Pose
-# ---------------------------------------------------------------------
-
-
-@pytest.mark.smoke
-def test_pose_estimator_inicializa_lazy():
-    estimator = PoseEstimator(min_detection_confidence=0.7)
-    assert estimator.min_detection_confidence == 0.7
-    assert estimator._model is None
-    assert estimator._load_attempted is False
-
-
-@pytest.mark.smoke
-def test_pose_estimator_retorna_lista_vazia_quando_nao_detecta():
-    """Modelo carregado mas YOLO Pose nao detecta ninguem -> lista vazia."""
-    estimator = PoseEstimator()
-    fake_result = MagicMock()
-    fake_result.keypoints = None
-    fake_result.boxes = MagicMock()
-    fake_result.boxes.data = []
-    fake_model = MagicMock()
-    fake_model.predict.return_value = [fake_result]
-    estimator._model = fake_model
-    estimator._available = True
-    estimator._load_attempted = True
-    frame = np.zeros((10, 10, 3), dtype=np.uint8)
-    assert estimator.estimate(frame) == []
-
-
-@pytest.mark.smoke
-def test_pose_estimator_retorna_pose_principal_em_cena_multipessoa():
-    """Com varias pessoas detectadas, retorna a de maior bbox."""
-    import torch
-
-    estimator = PoseEstimator()
-    # 2 pessoas: bbox 1 = 100x100 (pequena), bbox 2 = 300x300 (grande)
-    fake_boxes = MagicMock()
-    fake_boxes.xyxy = torch.tensor([[10, 10, 110, 110], [50, 50, 350, 350]])
-    fake_boxes.data = fake_boxes.xyxy
-    # Keypoints: pessoa 1 com nariz em (60, 60); pessoa 2 com nariz em (200, 200)
-    kp_p1 = [[60, 60, 0.9]] + [[0, 0, 0.1]] * 16  # 17 keypoints
-    kp_p2 = [[200, 200, 0.9]] + [[0, 0, 0.1]] * 16
-    fake_kps = MagicMock()
-    fake_kps.data = torch.tensor([kp_p1, kp_p2], dtype=torch.float32)
-
-    fake_result = MagicMock()
-    fake_result.keypoints = fake_kps
-    fake_result.boxes = fake_boxes
-    fake_model = MagicMock()
-    fake_model.predict.return_value = [fake_result]
-    estimator._model = fake_model
-    estimator._available = True
-    estimator._load_attempted = True
-
-    frame = np.zeros((500, 500, 3), dtype=np.uint8)
-    landmarks = estimator.estimate(frame)
-    # Pessoa 2 (maior bbox) deveria ser retornada -> nariz em (200, 200) normalizado
-    nose = next((lm for lm in landmarks if lm.name == "nose"), None)
-    assert nose is not None
-    assert nose.x == pytest.approx(200 / 500)
-    assert nose.y == pytest.approx(200 / 500)
 
 
 # ---------------------------------------------------------------------
@@ -245,7 +179,6 @@ def test_azure_client_nao_configurado_retorna_none(tmp_path):
 def test_video_pipeline_falha_quando_arquivo_nao_existe(tmp_path):
     pipeline = VideoPipeline(
         detector=MagicMock(spec=BleedingDetector),
-        pose_estimator=MagicMock(spec=PoseEstimator),
         emotion_classifier=MagicMock(spec=FacialEmotionDetector),
         azure_client=MagicMock(spec=AzureVideoIndexerClient),
     )
@@ -519,7 +452,6 @@ def test_video_pipeline_aceita_emotion_classifier_como_parametro():
     mock_classifier.classify.return_value = None
     pipeline = VideoPipeline(
         detector=MagicMock(spec=BleedingDetector),
-        pose_estimator=MagicMock(spec=PoseEstimator),
         emotion_classifier=mock_classifier,
         azure_client=MagicMock(spec=AzureVideoIndexerClient),
     )
@@ -550,7 +482,6 @@ def test_video_pipeline_pula_emocao_em_cena_surgery(tmp_path, monkeypatch):
         patch("cv2.VideoCapture", return_value=mock_cap),
         patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.SURGERY),
         patch("src.video.detector.BleedingDetector.predict", return_value=[]),
-        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
     ):
         p = VideoPipeline(
             target_fps=30.0,
@@ -587,7 +518,6 @@ def test_video_pipeline_chama_emocao_em_cena_consultation(tmp_path):
         patch("cv2.VideoCapture", return_value=mock_cap),
         patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.CONSULTATION),
         patch("src.video.detector.BleedingDetector.predict", return_value=[]),
-        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
     ):
         p = VideoPipeline(
             target_fps=30.0,
@@ -622,7 +552,6 @@ def test_video_pipeline_pula_deteccao_em_cena_consultation(tmp_path):
     with (
         patch("cv2.VideoCapture", return_value=mock_cap),
         patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.CONSULTATION),
-        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
     ):
         p = VideoPipeline(
             target_fps=30.0,
@@ -658,7 +587,6 @@ def test_video_pipeline_chama_deteccao_em_cena_surgery(tmp_path):
     with (
         patch("cv2.VideoCapture", return_value=mock_cap),
         patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.SURGERY),
-        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
     ):
         p = VideoPipeline(
             target_fps=30.0,
@@ -695,7 +623,6 @@ def test_video_pipeline_amostra_emocao_a_cada_n_frames(tmp_path):
     with (
         patch("cv2.VideoCapture", return_value=mock_cap),
         patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.CONSULTATION),
-        patch("src.video.pose.PoseEstimator.estimate", return_value=[]),
     ):
         p = VideoPipeline(
             target_fps=30.0,
@@ -708,76 +635,6 @@ def test_video_pipeline_amostra_emocao_a_cada_n_frames(tmp_path):
 
     # 6 frames amostrados, com step=3 -> emocao em sample 0, 3 -> 2 chamadas
     assert mock_classifier.classify.call_count == 2
-
-
-# ---------------------------------------------------------------------
-# Postura: classify_posture
-# ---------------------------------------------------------------------
-
-
-@pytest.mark.smoke
-def test_video_pipeline_pula_pose_em_cena_surgery(tmp_path):
-    """Cena SURGERY: PoseEstimator.estimate nao deve ser chamado.
-
-    Evita classificacao postural espuria em tecido biologico cirurgico
-    (MediaPipe tenta encaixar esqueleto em qualquer textura).
-    """
-    fake_video = tmp_path / "cirurgia.mp4"
-    fake_video.touch()
-
-    fake_frame = np.zeros((10, 10, 3), dtype=np.uint8)
-    mock_cap = MagicMock()
-    mock_cap.isOpened.return_value = True
-    mock_cap.get.side_effect = [30.0, 2.0]
-    mock_cap.read.side_effect = [(True, fake_frame), (True, fake_frame), (False, None)]
-
-    mock_pose = MagicMock(spec=PoseEstimator)
-    mock_pose.estimate.return_value = []
-
-    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
-    mock_azure.analyze.return_value = None
-
-    import src.video.pipeline as pipeline_mod
-
-    with (
-        patch("cv2.VideoCapture", return_value=mock_cap),
-        patch.object(pipeline_mod, "classify_scene_type", return_value=SceneType.SURGERY),
-        patch("src.video.detector.BleedingDetector.predict", return_value=[]),
-    ):
-        p = VideoPipeline(
-            target_fps=30.0,
-            detector=MagicMock(spec=BleedingDetector, predict=MagicMock(return_value=[])),
-            pose_estimator=mock_pose,
-            emotion_classifier=MagicMock(classify=MagicMock(return_value=None)),
-            azure_client=mock_azure,
-        )
-        p.process(fake_video)
-
-    mock_pose.estimate.assert_not_called()
-
-
-@pytest.mark.smoke
-def test_classify_posture_retorna_indefinido_quando_landmarks_vazios():
-    """Sem landmarks (lista vazia ou MediaPipe indisponivel) -> INDEFINIDO."""
-    from src.video.pose import PostureCategory, classify_posture
-
-    assert classify_posture([]) == PostureCategory.INDEFINIDO
-
-
-@pytest.mark.smoke
-def test_classify_posture_retorna_ereta_quando_tronco_vertical():
-    """Tronco proximo da vertical (ombros acima do quadril alinhados) -> ERETA."""
-    from src.video.pose import PostureCategory, classify_posture
-
-    # Coluna vertical: ombros em y=0.3, quadril em y=0.6, x mesmo
-    landmarks = [
-        PoseLandmark(name="nose", x=0.5, y=0.2, z=0.0, visibility=0.9),
-        PoseLandmark(name="left_shoulder", x=0.45, y=0.3, z=0.0, visibility=0.9),
-        PoseLandmark(name="right_shoulder", x=0.55, y=0.3, z=0.0, visibility=0.9),
-        PoseLandmark(name="left_hip", x=0.45, y=0.6, z=0.0, visibility=0.9),
-        PoseLandmark(name="right_hip", x=0.55, y=0.6, z=0.0, visibility=0.9),
-    ]
-    assert classify_posture(landmarks) == PostureCategory.ERETA
 
 
 @pytest.mark.smoke
