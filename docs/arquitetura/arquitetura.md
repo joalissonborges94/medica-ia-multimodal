@@ -146,7 +146,7 @@ medica-ia-multimodal/
 │   ├── build_rag_index.py        (carrega PDFs no Chroma)
 │   ├── gen_tts_scripts.py        (Azure Speech TTS PT-BR → WAVs por cenário)
 │   ├── gen_contexts.py           (GPT-4.1-mini → contextos clínicos por caso)
-│   ├── seed_real_examples.py     (orquestra TTS + contextos + manifest dos 4 casos)
+│   ├── seed_real_examples.py     (orquestra TTS + contextos + manifest dos 6 casos)
 │   ├── gen_synthetic_audio.py    (legado: áudios sintéticos para dev)
 │   ├── gen_synthetic_pdfs.py     (PDFs sintéticos para RAG)
 │   ├── seed_examples.py          (legado: 3 casos sintéticos, superseded por seed_real_examples)
@@ -214,12 +214,15 @@ class AudioAnalysis(BaseModel):
     azure_metadata: dict | None
 ```
 
-Fluxo:
+Fluxo (com callback `progress(frac, desc)` reportado ao `gr.Progress` da aba **Áudio**, `show_progress="minimal"`):
 
-1. Transcrição via faster-whisper (local) ou Azure Speech (toggle)
-2. librosa extrai features acústicas
-3. wav2vec2 classifica emoção predominante
-4. Azure Language analisa sentimento e frases-chave da transcrição
+1. **5% Transcrevendo audio.** faster-whisper local (modelo `small`) ou Azure Speech com **reconhecimento contínuo** (toggle `USE_CLOUD_TRANSCRIPTION`). O caminho cloud usa `start_continuous_recognition_async` com handlers `recognized`/`session_stopped`/`canceled` e captura áudios inteiros acima de 60s, convertendo `offset`/`duration` de 100-ns ticks para milissegundos por segmento. ADR-016
+2. **45% Extraindo features acusticas.** librosa: jitter, shimmer, pitch, energia RMS, MFCC
+3. **60% Classificando emocao vocal.** wav2vec2 local OU `AzureOpenAIAudioEmotion` (GPT-4o multimodal) quando `AZURE_OPENAI_AUDIO_DEPLOYMENT` está preenchido
+4. **85% Analisando sentimento e frases-chave.** Azure Language sobre a transcrição. Quando label = `mixed`, expõe `max(positive, negative)` como confidence e a UI mostra a distribuição `pos: X% / neg: Y%`
+5. **100% Concluído.**
+
+Limites de upload em `ui/limits.py`: até 30 MB e 120 segundos.
 
 ### Pipeline RAG
 

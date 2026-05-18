@@ -16,9 +16,9 @@ Lista consolidada de modelos pré-treinados, datasets e outras fontes de dados u
 
 | Modelo | Onde | Uso | Observação |
 |---|---|---|---|
-| faster-whisper small | github/SYSTRAN/faster-whisper | Transcrição local | Multilíngue, suporta PT-BR |
-| Azure Speech | Azure Cognitive Services | Transcrição cloud | Toggle via env var |
-| wav2vec2 emotion | superb/wav2vec2-base | Classificação de emoção | Pré-treinado em RAVDESS |
+| faster-whisper small | github/SYSTRAN/faster-whisper | Transcrição local (fallback) | Multilíngue, suporta PT-BR. `compute_type=int8` em CPU |
+| Azure Speech (continuous) | Azure Cognitive Services | Transcrição cloud (toggle `USE_CLOUD_TRANSCRIPTION`) | Reconhecimento contínuo (`start_continuous_recognition_async`) com handlers `recognized`/`session_stopped`/`canceled`; captura áudio inteiro acima de 60s com timestamps por segmento. ADR-016 |
+| wav2vec2 emotion | superb/wav2vec2-base | Classificação de emoção (fallback local) | Pré-treinado em RAVDESS; enviesado para angry/sad em PT-BR (ADR cita Azure OpenAI Audio como alternativa) |
 | Azure OpenAI GPT-4o-audio | Azure AI Foundry (`gpt-audio-mini`) | Emoção vocal multimodal substituindo wav2vec2 | Deployment próprio. Recebe audio + prompt textual e retorna JSON com emoção classificada. Substitui wav2vec2 enviesado para angry/sad em PT-BR |
 
 ### Texto e LLM

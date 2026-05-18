@@ -320,6 +320,31 @@ C. Remover YOLOv8 Pose e ensinar o GPT-vision a emitir tambem a categoria de lin
 
 ---
 
+## ADR-016: Azure Speech com reconhecimento continuo no transcritor cloud
+
+**Contexto:** A primeira implementacao do `AzureSpeechTranscriber` (`src/audio/transcriber.py`) usava `recognize_once_async`, que processa o audio ate a primeira pausa significativa e encerra. Em audios reais de consulta clinica (acima de 60 segundos, com pausas naturais entre falas) isso devolvia apenas a primeira frase, ignorando o restante do conteudo. O pipeline a jusante recebia transcricao incompleta, e a analise de sentimento/key phrases via Azure Language nao tinha texto suficiente pra produzir sinal util.
+
+**Opcoes consideradas:**
+
+A. Manter `recognize_once_async` e segmentar o audio em chunks de poucos segundos antes de enviar (juncao manual no cliente).
+B. Migrar para `start_continuous_recognition_async` com handlers de evento (`recognized`, `session_stopped`, `canceled`) acumulando segmentos.
+C. Trocar inteiramente pra batch transcription da Azure Speech (API REST assincrona com polling).
+
+**Decisao:** Opcao B. O cliente cloud passa a usar reconhecimento continuo, acumulando cada frase finalizada em um `Segment` com timestamps em milissegundos.
+
+**Justificativa:**
+- Cobre audios longos (acima de 60s) sem chunking manual, que introduziria erros nas bordas e dificultaria a reconstrucao de timestamps absolutos.
+- Mantem a mesma interface `transcribe(path) -> (text, segments)` que o `WhisperTranscriber` local. O pipeline a jusante nao percebe a mudanca.
+- Os eventos `recognized` ja entregam `offset` e `duration` em ticks de 100 nanosegundos, convertidos para milissegundos no cliente, alimentando diretamente o schema `Segment` que o Whisper local ja produz.
+- Evita complexidade operacional da batch transcription (polling de status, gerenciamento de blob storage de saida), que e mais adequada pra cargas em massa.
+
+**Consequencias:**
+- `AzureSpeechTranscriber.transcribe` agora abre um `threading.Event` que e setado pelo handler `session_stopped` (fim normal) ou `canceled` (erro), aguardando o fim da execucao continua antes de retornar.
+- Erros do servico sao logados via handler `canceled` com `error_code` e `error_details`, sem propagar excecao: o pipeline cai pra texto vazio e segue (mesmo comportamento de falha de cliente nao configurado).
+- O fallback local (`faster-whisper small`) continua intacto e e selecionado quando `USE_CLOUD_TRANSCRIPTION=false` ou quando o cliente Azure nao esta configurado.
+
+---
+
 ## Como Adicionar Nova ADR
 
 1. Próximo número sequencial (ADR-011, etc.)

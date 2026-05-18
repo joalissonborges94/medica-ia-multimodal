@@ -165,24 +165,26 @@ A frequência de classificação de emoção facial é reduzida por padrão (`em
 
 A UI da aba Vídeo exibe progresso detalhado via `gr.Progress`, uma galeria com os 4 frames com maior densidade de detecções (com bounding boxes) e uma tabela "Eventos por janela" que agrega os eventos detectados em janelas de 5 segundos.
 
-**Limite de upload (`ui/limits.py`):** vídeos até 30 MB e 60 segundos, validados via `ffprobe` antes de despachar para o pipeline. Acima disso, a UI rejeita com mensagem clara, evitando OOM em casos abusivos.
+**Limite de upload (`ui/limits.py`):** vídeos até 60 MB e 120 segundos, validados via `ffprobe` antes de despachar para o pipeline. Acima disso, a UI rejeita com mensagem clara, evitando OOM em casos abusivos.
 
 ### 4.3 Pilar Áudio
 
 Pipeline em `src/audio/pipeline.py`. Entrada: caminho de áudio. Saída: `AudioAnalysis` com transcrição, features acústicas, emoção, sentimento e frases-chave.
 
-Etapas:
+Etapas, reportadas via callback `progress(frac, desc)` que a aba **Áudio** repassa ao `gr.Progress` da UI (`show_progress="minimal"`):
 
-1. Transcrição via `faster-whisper` local ou Azure Speech (toggle por `USE_CLOUD_TRANSCRIPTION`).
-2. `librosa` extrai jitter, shimmer e MFCC.
-3. Classificação de emoção vocal com dois caminhos disponíveis:
+1. **Transcrevendo audio... (5%)** via `faster-whisper` local (modelo `small`) ou Azure Speech (toggle por `USE_CLOUD_TRANSCRIPTION` no `.env`). O caminho cloud usa **reconhecimento contínuo** (`start_continuous_recognition_async`), com handlers de `recognized`, `session_stopped` e `canceled` que acumulam segmentos com timestamps. Esse modelo de execução substitui o `recognize_once_async` original, que só capturava a primeira frase antes de parar na primeira pausa: o reconhecimento contínuo processa o áudio inteiro (validado em trechos acima de 60 segundos) e converte os campos `offset`/`duration` de 100-ns ticks para milissegundos por segmento.
+2. **Extraindo features acusticas... (45%)** com `librosa`: jitter, shimmer, energia RMS, pitch médio/desvio e MFCC.
+3. **Classificando emocao vocal... (60%)** por um dos dois caminhos:
    - **Padrão (fallback local):** `wav2vec2-base-superb-er` (pré-treinado em RAVDESS, atores americanos em inglês).
    - **Multimodal cloud:** `AzureOpenAIAudioEmotion` em `src/audio/azure_openai_audio.py` envia o WAV em base64 + prompt JSON-mode para um deployment de modelo de áudio no Azure AI Foundry (ex.: `gpt-4o-mini-audio-preview`) e recebe a classificação no schema do `EmotionScore`. Quando `AZURE_OPENAI_AUDIO_DEPLOYMENT` está vazio, cai automaticamente no wav2vec2. Detalhes da motivação dessa decisão em 9.1.
-4. Azure Language analisa sentimento e frases-chave sobre a transcrição.
+4. **Analisando sentimento e frases-chave... (85%)** via Azure Language sobre a transcrição. Quando o serviço retorna o meta-label `mixed` (texto com partes positivas e negativas, sem confidence próprio), o cliente preenche `confidence = max(scores["positive"], scores["negative"])` em `src/audio/azure_language.py`. A aba **Áudio** expõe esse caso explicitamente: o KPI Sentimento mostra o hint `pos: X% / neg: Y%` e o sumário em markdown imprime `mixed (pos: X% / neg: Y%)`, evitando KPI com 0% que sugeriria ausência de sinal.
+
+Ao final (100%, `Concluido.`) o pipeline devolve o `AudioAnalysis` agregado. A aba **Áudio** também reseta todos os outputs (status, KPIs, sumário, gráfico, JSON bruto) via callback `_on_clear` ligado ao evento `clear` do componente de áudio, garantindo estado consistente quando o usuário remove o arquivo antes de uma nova análise. O layout da aba foi reorganizado em blocos empilhados verticalmente (Entrada, Resumo, Transcrição + emoção + sentimento, Gráfico + features, JSON bruto), priorizando largura total para a transcrição e o gráfico de features.
 
 Estratégia de dados híbrida (ADR-013): Azure TTS PT-BR Neural gera áudios scriptados como gold standard para a demo; CORAA-SER valida que o classificador não overfita ao timbre sintético.
 
-**Limite de upload (`ui/limits.py`):** áudios até 15 MB e 60 segundos.
+**Limite de upload (`ui/limits.py`):** áudios até 30 MB e 120 segundos.
 
 ### 4.4 Pilar RAG (Diretrizes Clínicas)
 
@@ -250,9 +252,9 @@ UI Gradio Blocks em `app.py` com quatro abas: **Vídeo**, **Áudio**, **Multimod
 
 | Modelo | Origem | Uso |
 |---|---|---|
-| faster-whisper small | SYSTRAN/faster-whisper | Transcrição local PT-BR |
-| Azure Speech | Azure Cognitive Services | Transcrição cloud (toggle) |
-| wav2vec2 emotion | superb/wav2vec2-base | Classificação de emoção |
+| faster-whisper small | SYSTRAN/faster-whisper | Transcrição local PT-BR (fallback) |
+| Azure Speech (continuous) | Azure Cognitive Services | Transcrição cloud com reconhecimento contínuo (toggle `USE_CLOUD_TRANSCRIPTION`) |
+| wav2vec2 emotion | superb/wav2vec2-base | Classificação de emoção (fallback local) |
 
 ### 5.3 Modelos de Texto e LLM
 
@@ -281,8 +283,8 @@ Quando as chaves estão preenchidas no `.env`, o sistema usa os serviços gerenc
 | Serviço | Função | Onde é usado | Fallback offline |
 |---|---|---|---|
 | **Azure OpenAI** (GPT-4.1-mini, AI Foundry) | Gera o relatório clínico final em markdown | `src/llm/azure_openai.py`, `src/report.py` | Relatório determinístico em markdown construído a partir das triggers |
-| **Azure Speech** | Transcrição de áudio + TTS para gerar voz PT-BR | `src/audio/transcriber.py` (toggle `USE_CLOUD_TRANSCRIPTION`) | `faster-whisper` local |
-| **Azure Language** | Análise de sentimento + key phrases na transcrição | `src/audio/azure_language.py` | Pular esse pilar (não há substituto local equivalente) |
+| **Azure Speech** | Transcrição de áudio (reconhecimento contínuo, captura áudios acima de 60s com timestamps por segmento) + TTS para gerar voz PT-BR | `src/audio/transcriber.py` (toggle `USE_CLOUD_TRANSCRIPTION`) | `faster-whisper` local (modelo `small`) |
+| **Azure Language** | Análise de sentimento + key phrases na transcrição. Quando o label é `mixed`, expõe `max(positive, negative)` como confidence e a UI mostra a distribuição pos/neg | `src/audio/azure_language.py` | Pular esse pilar (não há substituto local equivalente) |
 | **Azure Face** | Emoção facial em vídeo (adiado por RAI policy) | n/a | `FER` local (Py 3.12) |
 
 A aba **Configurações** da UI mostra em tempo real quais serviços estão ativos (cloud) ou em fallback (local).
@@ -388,7 +390,7 @@ A validação empírica dessa transferência (rodar `best.pt` em vídeo ginecol�
 
 ## 8. Resultados em Cenários Reais
 
-Cada cenário foi rodado fim a fim pela UI Gradio. Os artefatos (vídeo, áudio, prints) estão em `data/examples/` e nos prints abaixo.
+Cada cenário foi rodado fim a fim pela UI Gradio. Os artefatos (vídeo, áudio, prints) estão em `data/examples/` e nos prints abaixo. O `manifest.json` da pasta de exemplos lista os **6 casos** abaixo, cobrindo os três níveis esperados (normal, moderado, crítico) tanto em consultas clínicas quanto em cirurgias laparoscópicas.
 
 ### 8.1 Consulta Normal
 
@@ -422,7 +424,7 @@ Triggers acionados:
 
 <!-- TODO: print da aba Multimodal -->
 
-### 8.3 Consulta Crítica (Dermatológica com ansiedade)
+### 8.3 Consulta Moderada (Dermatológica com ansiedade)
 
 Consulta dermatológica com queixa de manchas faciais e componente emocional acentuado. Caso útil para demonstrar **detecção de inconsistência multimodal**: voz com sinais de medo/tensão (`vocal_distress`, `vocal_strain`) enquanto a fala minimiza sofrimento ("não estou desesperada").
 
@@ -435,7 +437,20 @@ Consulta dermatológica com queixa de manchas faciais e componente emocional ace
 
 <!-- TODO: print da aba Multimodal -->
 
-### 8.4 Cirurgia Normal (Laparoscopia sem intercorrência)
+### 8.4 Pré-natal (Acolhimento emocional)
+
+Primeira consulta gestacional, trecho de acolhimento ao resultado positivo. Paciente expressa ansiedade e dúvidas sobre como comunicar a notícia ao parceiro e à família. Postura corporal levemente retraída, fala entrecortada, sinais de ansiedade situacional. Caso útil para demonstrar sinal vocal moderado em contexto não-emergencial.
+
+| Modalidade | Entrada | Saída resumida |
+|---|---|---|
+| Vídeo | `data/examples/consultas/prenatal_acolhimento/video.mp4` | <!-- TODO --> |
+| Áudio | `data/examples/consultas/prenatal_acolhimento/audio.wav` | <!-- TODO --> |
+| Texto | Contexto de pré-natal com ansiedade situacional | <!-- TODO --> |
+| Nível final | `moderate` esperado | <!-- TODO --> |
+
+<!-- TODO: print da aba Multimodal -->
+
+### 8.5 Cirurgia Normal (Laparoscopia sem intercorrência)
 
 Procedimento laparoscópico em andamento, sem evento crítico visível. Demonstra que o pipeline diferencia cirurgia rotineira (`normal`) de cirurgia com complicação (próxima seção).
 
@@ -448,7 +463,7 @@ Procedimento laparoscópico em andamento, sem evento crítico visível. Demonstr
 
 <!-- TODO: print da aba Vídeo com bounding boxes + print da aba Multimodal -->
 
-### 8.5 Cirurgia Crítica (Sangramento intraoperatório)
+### 8.6 Cirurgia Crítica (Sangramento intraoperatório)
 
 Procedimento laparoscópico com sangramento em foco operatório. Vídeo gerado por `scripts/build_cirurgia_demo_video.py` filtrando frames do CholecSeg8k onde o YOLO custom v1 detectou a classe `blood` com confiança > 95%.
 
