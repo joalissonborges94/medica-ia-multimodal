@@ -445,11 +445,31 @@ Primeira consulta gestacional, trecho de acolhimento ao resultado positivo. Paci
 | Modalidade | Entrada | Saída resumida |
 |---|---|---|
 | Vídeo | `data/examples/consultas/prenatal_acolhimento/video.mp4` | <!-- TODO --> |
-| Áudio | `data/examples/consultas/prenatal_acolhimento/audio.wav` | <!-- TODO --> |
+| Áudio | `data/examples/consultas/prenatal_acolhimento/audio.wav` | Emoção vocal `medo` (85%), sentimento textual `mixed` (pos 28% / neg 65%), 8 segmentos transcritos em 60s |
 | Texto | Contexto de pré-natal com ansiedade situacional | <!-- TODO --> |
-| Nível final | `moderate` esperado | <!-- TODO --> |
+| Nível final | `moderate` esperado | Badge **MODERADO** atribuído pela heurística da aba Áudio |
 
-<!-- TODO: print da aba Multimodal -->
+#### Demonstração visual da aba Áudio
+
+A figura 8.4.1 apresenta o ponto de entrada da aba Áudio após o upload do arquivo de 60 segundos. O stepper Upload, Processar, Resultado sinaliza o estágio atual, e o painel Resumo recebe o badge **MODERADO** derivado da heurística local da aba. A legenda abaixo do badge explicita que essa classificação é restrita ao pilar áudio, remetendo o leitor à aba Multimodal para a decisão final integrada com os demais pilares.
+
+![Resumo da aba Áudio para o caso de acolhimento pré-natal](figures/screenshots/aba_audio_prenatal_resumo.png)
+
+*Figura 8.4.1: aba Áudio após upload do arquivo de 60 segundos, com player de forma de onda completa, botão de análise e badge **MODERADO** no painel Resumo.*
+
+A identificação do caso gestacional combinada ao sofrimento psíquico apoia-se em três sinais convergentes: o canal vocal indica medo com 85% de confiança via `gpt-4o-mini-audio-preview` (ADR de migração para classificação multimodal cloud), o canal textual aponta sentimento misto via Azure Language e o canal acústico evidencia jitter e shimmer elevados em conjunto com energia RMS baixa, padrão consistente com fala entrecortada e tensão vocal.
+
+![KPIs, badge de provider e transcrição completa](figures/screenshots/aba_audio_prenatal_transcricao.png)
+
+*Figura 8.4.2: linha de KPIs com Duração 60.0 s, Emoção `medo` (gpt-audio-mini via Azure OpenAI), Sentimento `mixed` com hint `pos: 28% / neg: 65%` e 8 segmentos. Abaixo, a seção Transcrição, emoção e sentimento exibe o parágrafo completo da fala da paciente e a linha-resumo com emoção vocal, sentimento textual e frases-chave extraídas.*
+
+O Azure Speech operando em modo de reconhecimento contínuo (ver seção 4.3 e ADR-016) entrega oito segmentos com `start_ms` e `end_ms` ao longo dos 60 segundos, recuperando o diálogo inteiro sem interrupção na primeira pausa, comportamento que o uso anterior de `recognize_once_async` não suportava. O rótulo `mixed` retornado pelo Azure Language reflete a ambivalência da fala, em que a paciente alterna nervosismo e tentativas de racionalização. A exibição da distribuição `pos: 28% / neg: 65%` no hint do KPI evita a leitura enganosa de confidence próxima de zero que ocorria antes da correção em `src/audio/azure_language.py`, dado que o meta-label `mixed` não possui confidence própria no contrato do serviço.
+
+![Gráfico de features acústicas, tabela equivalente e JSON bruto](figures/screenshots/aba_audio_prenatal_features.png)
+
+*Figura 8.4.3: gráfico de barras com pitch médio 174.7 Hz, pitch std 76.1, RMS 0.0164, ZCR 0.0577, jitter 0.0369 e shimmer 0.1321; tabela com os mesmos valores e suas unidades; início do JSON bruto exibindo `transcription` e a lista de `segments` com timestamps.*
+
+As features acústicas exibidas no painel da figura 8.4.3 alimentam as regras determinísticas declaradas em `src/anomaly/rules.py`, em que `jitter > 0.02` e `shimmer > 0.1` disparam o trigger `voice_tension`. No caso atual, os valores observados (0.0369 e 0.1321) ultrapassam ambos os limiares, sustentando a classificação `moderate` da heurística da aba sem necessidade de acionar gatilhos de severidade crítica reservados a contextos clínicos de maior gravidade.
 
 ### 8.5 Cirurgia Normal (Laparoscopia sem intercorrência)
 
