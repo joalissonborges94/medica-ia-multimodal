@@ -8,6 +8,7 @@ features acusticas (librosa), emocao vocal (wav2vec2) e analise textual
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 
 from src.audio.azure_language import AzureLanguageClient
@@ -17,6 +18,8 @@ from src.audio.transcriber import TranscriberProtocol, get_transcriber
 from src.audio.types import AudioAnalysis
 
 logger = logging.getLogger(__name__)
+
+ProgressCallback = Callable[[float, str], None]
 
 
 class AudioPipeline:
@@ -44,11 +47,18 @@ class AudioPipeline:
         )
         self.language_client: AzureLanguageClient = language_client or AzureLanguageClient()
 
-    def process(self, audio_path: Path) -> AudioAnalysis:
+    def process(
+        self,
+        audio_path: Path,
+        progress: ProgressCallback | None = None,
+    ) -> AudioAnalysis:
         """Processa um arquivo de audio e retorna `AudioAnalysis`.
 
         Args:
             audio_path: caminho do arquivo.
+            progress: callback opcional `(frac, desc)` com `frac` em [0, 1]
+                e `desc` string curta. Util pra integrar com `gr.Progress`.
+                Default `None` (sem reportes).
 
         Returns:
             `AudioAnalysis` com todas as analises agregadas.
@@ -61,11 +71,25 @@ class AudioPipeline:
             raise FileNotFoundError(f"Audio nao encontrado: {audio_path}")
         logger.info("Iniciando pipeline de audio para %s", audio_path)
 
+        if progress is not None:
+            progress(0.05, "Transcrevendo audio...")
         text, segments = self.transcriber.transcribe(audio_path)
+
+        if progress is not None:
+            progress(0.45, "Extraindo features acusticas...")
         features = extract_features(audio_path)
+
+        if progress is not None:
+            progress(0.60, "Classificando emocao vocal...")
         emotion = self.emotion_classifier.classify(audio_path)
+
+        if progress is not None:
+            progress(0.85, "Analisando sentimento e frases-chave...")
         sentiment = self.language_client.analyze_sentiment(text) if text else None
         key_phrases = self.language_client.extract_key_phrases(text) if text else []
+
+        if progress is not None:
+            progress(1.0, "Concluido.")
 
         analysis = AudioAnalysis(
             transcription=text,

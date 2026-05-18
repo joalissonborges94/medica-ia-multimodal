@@ -128,8 +128,8 @@ def build_app(orchestrator: Orchestrator | None = None) -> gr.Blocks:
     """
     orch = orchestrator or _build_orchestrator()
 
-    def _process_audio(path: Path) -> AudioAnalysis:
-        return orch.audio_pipeline.process(path)
+    def _process_audio(path: Path, progress=None) -> AudioAnalysis:
+        return orch.audio_pipeline.process(path, progress=progress)
 
     def _run_case(
         *,

@@ -96,7 +96,10 @@ def render(process_audio: AudioProcessor) -> None:
     with gr.Accordion("JSON bruto da analise", open=False):
         raw_json = gr.JSON(value={})
 
-    def _on_analyze(audio_path: str | None):
+    def _on_analyze(
+        audio_path: str | None,
+        progress=gr.Progress(),  # noqa: B008  # pattern idiomatico do Gradio
+    ):
         if not audio_path:
             return (
                 empty_state(
@@ -122,8 +125,13 @@ def render(process_audio: AudioProcessor) -> None:
                 {},
             )
 
+        # Adapter: gr.Progress espera `progress(frac, desc=...)`;
+        # AudioPipeline.process chama `cb(frac, desc)` posicional.
+        def _progress_cb(frac: float, desc: str) -> None:
+            progress(frac, desc=desc)
+
         try:
-            analysis = process_audio(Path(audio_path))
+            analysis = process_audio(Path(audio_path), progress=_progress_cb)
         except (FileNotFoundError, RuntimeError, ValueError) as exc:
             logger.warning("Falha ao processar audio na UI: %s", exc)
             return (
@@ -193,7 +201,9 @@ def render(process_audio: AudioProcessor) -> None:
             features_md,
             raw_json,
         ],
-        show_progress="full",
+        # show_progress="minimal" pra deixar gr.Progress do callback aparecer
+        # com texto detalhado em vez do spinner generico do "full"
+        show_progress="minimal",
     ).then(
         fn=lambda: gr.update(interactive=True, value="Analisar audio"),
         outputs=analyze_btn,
