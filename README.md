@@ -1,3 +1,15 @@
+---
+title: Medica IA Multimodal
+emoji: 👩‍⚕️
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+short_description: Análise multimodal (vídeo, áudio, RAG) aplicada à saúde da mulher
+---
+
 # medica-ia-multimodal
 
 Sistema de monitoramento multimodal aplicado à saúde da mulher. Tech Challenge Fase 4 da pós-graduação Tech IADT.

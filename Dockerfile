@@ -35,5 +35,8 @@ COPY . .
 
 EXPOSE 7860
 
-# Entrypoint padrao: app Gradio. O arquivo app.py sera criado no Sprint 5.
-CMD ["python", "app.py"]
+# Entrypoint padrao: constroi o indice Chroma (se nao existir) e sobe o app.
+# Idempotente: se ja indexado, build_rag_index pula via upsert por chunk_id.
+# Em HF Spaces o disco persiste entre boots, entao a indexacao roda so na
+# primeira execucao apos o build da imagem.
+CMD ["sh", "-c", "python scripts/build_rag_index.py && python app.py"]
