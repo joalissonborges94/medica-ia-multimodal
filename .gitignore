@@ -56,6 +56,10 @@ yolov8n.pt
 
 data/raw/*
 !data/raw/.gitkeep
+# PDFs publicos de diretrizes clinicas (MS/INCA/FEBRASGO, ~48 MB total).
+# Versionados pra simplificar deploy: usuario nao precisa rodar warmup.py
+# pra baixar, e a base indexada na avaliacao fica reproduzivel.
+!data/raw/*.pdf
 data/processed/*
 !data/processed/.gitkeep
 

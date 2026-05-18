@@ -32,18 +32,19 @@ pip install -r requirements.txt
 cp .env.example .env
 # Editar .env preenchendo as chaves Azure que você tiver
 
-# 4. Setup completo em um comando: dataset + PDFs + índice RAG + exemplos reais da UI.
-#    Modelos (YOLO stub, Whisper, wav2vec2, bge-m3) são baixados lazy pelos
-#    próprios pipelines na primeira chamada: o warmup só dispara o download
-#    com antecedência pra evitar pausa na demo.
-python scripts/warmup.py
+# 4. Gerar o índice RAG (~3 min). Os 9 PDFs de diretrizes clínicas
+#    (MS/INCA/FEBRASGO, ~48 MB) já vêm versionados em `data/raw/`,
+#    então não é preciso baixar nada. Modelos (YOLO stub, Whisper,
+#    wav2vec2, bge-m3) são baixados lazy pelos próprios pipelines na
+#    primeira chamada.
+python scripts/build_rag_index.py
 
 # 5. Subir a UI Gradio
 python app.py
 # Abrir http://127.0.0.1:7860
 ```
 
-O `warmup.py` é idempotente e aceita filtros: `--models`, `--datasets`, `--pdfs`, `--examples`, `--skip-rag`. Detalhes em `python scripts/warmup.py --help`.
+Opcional: `python scripts/warmup.py` faz setup completo idempotente (re-baixa PDFs se sumirem, prepara dataset, gera índice RAG, baixa modelos). Aceita filtros `--models`, `--datasets`, `--pdfs`, `--examples`, `--skip-rag`. Detalhes em `python scripts/warmup.py --help`.
 
 Os exemplos da aba **Multimodal** são gerados por `scripts/seed_real_examples.py` (orquestra `gen_tts_scripts.py` + `gen_contexts.py`): os MP4s já vêm versionados no repo em `data/examples/`, os áudios vêm de Azure Speech TTS PT-BR e os contextos clínicos saem do GPT-4.1-mini. Para regerar áudios e contextos:
 
