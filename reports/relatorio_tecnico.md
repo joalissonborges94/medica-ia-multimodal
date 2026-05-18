@@ -14,6 +14,10 @@ O projeto entrega um sistema de monitoramento multimodal voltado à saúde da mu
 
 **Métricas-chave:** YOLOv8 customizado atinge mAP@50 = **0.989** e mAP@50-95 = **0.882** no test split do CholecSeg8k (808 imagens, 920 instâncias), com desempenho balanceado entre as 3 classes treinadas (`grasper`, `l_hook_electrocautery`, `blood`). Treino completo em ~17 min em GPU A100 (40 epochs, YOLOv8m, batch 16, imgsz 640). Pipeline multimodal cobre 3 das 4 funcionalidades do enunciado (vídeo, áudio e Azure Cognitive Services) e 4 dos 5 objetivos listados.
 
+**Demo pública:** o sistema está disponível em [huggingface.co/spaces/joalissonborges/medica-ia-multimodal](https://huggingface.co/spaces/joalissonborges/medica-ia-multimodal), com as quatro abas (`Vídeo`, `Áudio`, `Multimodal`, `Auditoria`) e a aba `Configurações` operacionais sob o status `Running` do Hugging Face Spaces.
+
+![Header do Hugging Face Space rodando com status Running e as quatro abas da UI Gradio visíveis](figures/screenshots/hf_space_header.png)
+
 ---
 
 ## 2. Contexto e Objetivo
