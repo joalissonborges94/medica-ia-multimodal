@@ -94,7 +94,7 @@ medica-ia-multimodal/
 │   ├── video/
 │   │   ├── __init__.py
 │   │   ├── detector.py           (YOLO interface, model-agnostic)
-│   │   ├── emotion.py            (FER ou Azure Face)
+│   │   ├── emotion.py            (FER local ou Azure OpenAI vision multimodal)
 │   │   ├── azure_video.py        (Azure Video Indexer)
 │   │   └── pipeline.py           (orchestra todos acima)
 │   ├── audio/
@@ -310,13 +310,12 @@ AZURE_LANGUAGE_KEY=
 AZURE_LANGUAGE_ENDPOINT=
 AZURE_VIDEO_INDEXER_KEY=
 AZURE_VIDEO_INDEXER_ACCOUNT_ID=
-AZURE_FACE_KEY=
-AZURE_FACE_ENDPOINT=
 AZURE_OPENAI_KEY=
 AZURE_OPENAI_ENDPOINT=
 AZURE_OPENAI_DEPLOYMENT=
+AZURE_OPENAI_AUDIO_DEPLOYMENT=
+AZURE_OPENAI_VISION_DEPLOYMENT=
 USE_CLOUD_TRANSCRIPTION=false
-USE_CLOUD_EMOTION=false
 YOLO_WEIGHTS_PATH=models/yolo_v1.pt
 RAG_INDEX_PATH=data/processed/chroma
 LOG_LEVEL=INFO

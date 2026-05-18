@@ -380,6 +380,35 @@ C. Dividir a recuperacao em multiplas queries focadas por eixo tematico (clinico
 
 ---
 
+## ADR-018: Remocao do Azure Face Service em favor de Azure OpenAI vision multimodal
+
+**Contexto:** A configuracao inicial do projeto previa o Azure Face Service como provider cloud opcional para emocao facial, ativado pelo toggle `USE_CLOUD_EMOTION` em conjunto com `AZURE_FACE_KEY` / `AZURE_FACE_ENDPOINT`. Na pratica, o servico nunca chegou a ser exercitado em runtime: nao houve provisionamento da chave nem implementacao de cliente especifico. Apos a introducao do `AzureOpenAIVisionEmotion` (`src/video/azure_openai_vision.py`), que usa GPT-vision multimodal para inferir simultaneamente emocao e linguagem corporal numa unica chamada e sem o vies de FER-2013, a presenca do Azure Face no codigo passou a ser ruido: campos de settings sem uso, entradas na aba de Configuracoes que nunca ficariam verdes, e documentacao sugerindo um caminho que ja foi superado.
+
+**Opcoes consideradas:**
+
+A. Manter os campos como contrato historico, marcando-os como deprecated com aviso na UI.
+
+B. Remover por completo (settings, env vars, entrada na aba de Configuracoes, mencoes em docs) e tratar o GPT-vision como unico caminho cloud para emocao facial.
+
+C. Manter o toggle `USE_CLOUD_EMOTION` como flag generica desacoplada do Face, controlando apenas o roteamento cloud/local independente do provider.
+
+**Decisao:** opcao B. Os campos `azure_face_key`, `azure_face_endpoint` e o toggle `use_cloud_emotion` foram removidos do `Settings` (`src/config/settings.py`), do `.env.example` e da aba de Configuracoes da UI (`ui/tabs/tab_config.py`). A funcao `emotion_provider_label()` (`ui/components.py`) passa a checar somente o caminho GPT-vision, com fallback explicito para FER local.
+
+**Justificativa:**
+
+- O Azure Face Service exige aprovacao via processo de Responsible AI da Microsoft para emocao, com prazo e overhead que nunca couberam no escopo do projeto.
+- O GPT-vision multimodal cobre o mesmo requisito (emocao facial em video clinico) e entrega o sinal adicional `body_language`, simplificando o pipeline.
+- Manter codigo morto em settings e UI confunde quem le o repositorio e gera atrito desnecessario na aba de Configuracoes, onde apareceria sempre como "Inativo" sem caminho de ativacao real.
+
+**Consequencias:**
+
+- `Settings` perde dois campos secretos e um boolean toggle. Testes que validavam o default de `use_cloud_emotion` foram simplificados (`tests/unit/test_config.py`).
+- `.env.example` mais enxuto. Quem ja tinha `AZURE_FACE_KEY` / `AZURE_FACE_ENDPOINT` no `.env` local pode remover manualmente; Pydantic Settings ignora chaves extras (`extra="ignore"`).
+- Aba de Configuracoes deixa de listar Azure Face entre os servicos Azure. A linha "Emocao facial" agora reflete apenas dois estados: GPT-vision ativo (cloud) ou FER local (fallback).
+- `FacialEmotionDetector` continua intacto como fallback offline, conforme padrao "stub-first + fallback gracioso" adotado em todo o projeto.
+
+---
+
 ## Como Adicionar Nova ADR
 
 1. Próximo número sequencial (ADR-011, etc.)

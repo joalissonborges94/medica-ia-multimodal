@@ -19,7 +19,6 @@ def test_settings_carrega_defaults_quando_env_ausente():
     """Sem env vars definidas, defaults conservadores devem prevalecer."""
     fresh = Settings(_env_file=None)  # ignora .env do disco
     assert fresh.use_cloud_transcription is False
-    assert fresh.use_cloud_emotion is False
     assert fresh.azure_openai_deployment == "gpt-4.1-mini"
     assert fresh.log_level == "INFO"
 

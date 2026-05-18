@@ -52,10 +52,6 @@ class Settings(BaseSettings):
     azure_video_indexer_key: SecretStr = Field(default=SecretStr(""))
     azure_video_indexer_account_id: str = Field(default="")
 
-    # ----- Azure Face --------------------------------------------------
-    azure_face_key: SecretStr = Field(default=SecretStr(""))
-    azure_face_endpoint: str = Field(default="")
-
     # ----- Azure OpenAI ------------------------------------------------
     azure_openai_key: SecretStr = Field(default=SecretStr(""))
     azure_openai_endpoint: str = Field(default="")
@@ -71,7 +67,6 @@ class Settings(BaseSettings):
 
     # ----- Toggles cloud vs local --------------------------------------
     use_cloud_transcription: bool = Field(default=False)
-    use_cloud_emotion: bool = Field(default=False)
 
     # ----- Caminhos de modelos e indices -------------------------------
     yolo_weights_path: Path = Field(default=Path("models/yolov8n_surgical.pt"))

@@ -47,7 +47,7 @@ class EmotionScore(BaseModel):
         """Versao em PT-BR do label, pronta pra exibir na UI / mensagens de regras.
 
         Cobre labels do wav2vec2-superb-er (`ang`, `hap`, `neu`, `sad`) e dos
-        modelos faciais FER / Azure Face (`angry`, `happy`, `neutral`, etc.).
+        modelos faciais FER / GPT-vision (`angry`, `happy`, `neutral`, etc.).
         Caso o label nao esteja no mapa, devolve o original.
         """
         return EMOTION_LABEL_PT.get(self.label.lower(), self.label)
@@ -63,7 +63,7 @@ EMOTION_LABEL_PT: dict[str, str] = {
     "neu": "neutro",
     "sad": "tristeza",
     "fea": "medo",
-    # FER local + Azure Face (rotulos extendidos)
+    # FER local + GPT-vision (rotulos extendidos)
     "angry": "raiva",
     "happy": "alegria",
     "neutral": "neutro",

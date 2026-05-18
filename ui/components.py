@@ -533,11 +533,20 @@ def transcription_provider_label() -> str:
 
 
 def emotion_provider_label() -> str:
-    """Descreve o classificador de emocao facial ativo."""
+    """Descreve o classificador de emocao facial ativo.
+
+    Quando `AZURE_OPENAI_VISION_DEPLOYMENT` esta preenchido e o cliente Azure
+    consegue inicializar, o pipeline usa GPT-vision multimodal. Caso
+    contrario, cai no FER local (com vies conhecido de FER-2013).
+    """
     from src.config.settings import settings
 
-    if settings.use_cloud_emotion and settings.azure_face_key.get_secret_value():
-        return "Azure Face"
+    if (
+        settings.azure_openai_vision_deployment
+        and settings.azure_openai_key.get_secret_value()
+        and settings.azure_openai_endpoint
+    ):
+        return f"Azure OpenAI vision ({settings.azure_openai_vision_deployment})"
     return "FER local"
 
 
