@@ -89,7 +89,15 @@ def _status_panel() -> str:
 
     # ---- Toggles locais ---------------------------------------------------
     speech_local_ativo = not settings.use_cloud_transcription
-    emotion_local_ativo = not settings.use_cloud_emotion
+    # Emocao facial: GPT-vision multimodal vence quando o deployment esta
+    # setado (caminho preferido apos migracao do FER/Azure Face). Senao,
+    # checa USE_CLOUD_EMOTION (Azure Face); senao, cai no FER local.
+    vision_cloud_ativo = bool(
+        settings.azure_openai_vision_deployment
+        and settings.azure_openai_key.get_secret_value()
+        and settings.azure_openai_endpoint
+    )
+    face_local_ativo = not settings.use_cloud_emotion and not vision_cloud_ativo
     linhas.append(
         _row(
             "Transcricao",
@@ -103,17 +111,23 @@ def _status_panel() -> str:
             ),
         )
     )
+    if vision_cloud_ativo:
+        emocao_facial_detail = (
+            f"Azure OpenAI vision multimodal ({settings.azure_openai_vision_deployment}): "
+            "emocao + linguagem corporal numa chamada."
+        )
+    elif not face_local_ativo:
+        emocao_facial_detail = "Azure Face ativo via USE_CLOUD_EMOTION=true."
+    else:
+        emocao_facial_detail = "FER local (Py 3.12) com fallback gracioso em Py 3.14."
     linhas.append(
         _row(
             "Emocao facial",
             _badge(
-                "ok" if emotion_local_ativo else "info", "Local" if emotion_local_ativo else "Cloud"
+                "ok" if face_local_ativo else "info",
+                "Local" if face_local_ativo else "Cloud",
             ),
-            (
-                "FER local (Py 3.12) com fallback gracioso em Py 3.14."
-                if emotion_local_ativo
-                else "Azure Face ativo via USE_CLOUD_EMOTION=true."
-            ),
+            emocao_facial_detail,
         )
     )
 
@@ -163,7 +177,7 @@ def _status_panel() -> str:
             "Azure Face",
             "azure_face_key",
             "azure_face_endpoint",
-            "Emocao facial cloud. Sem isso, FER local responde (Py 3.12).",
+            "Substituido por Azure OpenAI vision multimodal (linha 'Emocao facial' acima).",
         ),
         (
             "Azure OpenAI",
