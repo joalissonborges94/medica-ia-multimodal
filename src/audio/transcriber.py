@@ -119,11 +119,12 @@ class WhisperTranscriber:
 
 
 class AzureSpeechTranscriber:
-    """Transcricao cloud via Azure Speech (alternativa ao Whisper).
+    """Transcricao cloud via Azure Speech com reconhecimento continuo.
 
-    Usa `recognize_once_async` que serve para clipes curtos (<= 60s).
-    Para arquivos longos, sera necessario migrar para reconhecimento
-    continuo no futuro.
+    Diferente de `recognize_once_async` (que para na primeira pausa),
+    o reconhecimento continuo processa o audio todo, acumulando frases
+    em segmentos com timestamps. Cada `Recognized` event vira um
+    `Segment`, e o texto final e a concatenacao deles.
     """
 
     def __init__(self, language: str = "pt-BR") -> None:
@@ -142,7 +143,7 @@ class AzureSpeechTranscriber:
         return bool(self.api_key and self.region)
 
     def transcribe(self, audio_path: Path) -> tuple[str, list[Segment]]:
-        """Transcreve via Azure Speech Service.
+        """Transcreve audio inteiro via Azure Speech continuous recognition.
 
         Returns:
             `(texto, segmentos)` ou `("", [])` se o cliente nao estiver configurado.
@@ -150,6 +151,8 @@ class AzureSpeechTranscriber:
         if not self.is_configured:
             logger.info("Azure Speech nao configurado; pulando transcricao cloud")
             return "", []
+        import threading
+
         import azure.cognitiveservices.speech as speechsdk
 
         speech_config = speechsdk.SpeechConfig(subscription=self.api_key, region=self.region)
@@ -158,15 +161,49 @@ class AzureSpeechTranscriber:
         recognizer = speechsdk.SpeechRecognizer(
             speech_config=speech_config, audio_config=audio_input
         )
-        result = recognizer.recognize_once_async().get()
-        if result.reason == speechsdk.ResultReason.RecognizedSpeech:
-            text = result.text
-            duration_ms = int(result.duration / 10000) if result.duration else 0
-            segments = [Segment(start_ms=0, end_ms=duration_ms, text=text)]
-            logger.info("Azure Speech transcreveu %d caracteres", len(text))
-            return text, segments
-        logger.warning("Azure Speech sem reconhecimento: %s", result.reason)
-        return "", []
+
+        segments: list[Segment] = []
+        done = threading.Event()
+
+        def on_recognized(evt) -> None:
+            """Chamado quando o Azure devolve uma frase finalizada."""
+            if evt.result.reason != speechsdk.ResultReason.RecognizedSpeech:
+                return
+            text = evt.result.text.strip()
+            if not text:
+                return
+            # offset/duration vem em 100-nanosegundos (ticks). Converte pra ms.
+            start_ms = int(evt.result.offset / 10000)
+            end_ms = start_ms + int(evt.result.duration / 10000)
+            segments.append(Segment(start_ms=start_ms, end_ms=end_ms, text=text))
+
+        def on_session_stopped(_evt) -> None:
+            """Chamado quando o reconhecimento termina (fim do audio ou cancelamento)."""
+            done.set()
+
+        def on_canceled(evt) -> None:
+            """Chamado em erro ou cancelamento pelo servico."""
+            if evt.reason == speechsdk.CancellationReason.Error:
+                logger.warning(
+                    "Azure Speech cancelado por erro: %s | %s",
+                    evt.error_code, evt.error_details,
+                )
+            done.set()
+
+        recognizer.recognized.connect(on_recognized)
+        recognizer.session_stopped.connect(on_session_stopped)
+        recognizer.canceled.connect(on_canceled)
+
+        recognizer.start_continuous_recognition_async().get()
+        done.wait()
+        recognizer.stop_continuous_recognition_async().get()
+
+        text = " ".join(s.text for s in segments)
+        logger.info(
+            "Azure Speech transcreveu %d caracteres em %d segmento(s)",
+            len(text), len(segments),
+        )
+        return text, segments
 
 
 def get_transcriber() -> TranscriberProtocol:
