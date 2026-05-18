@@ -30,20 +30,13 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-# Copia o restante do projeto.
+# Copia o restante do projeto. O indice Chroma (data/processed/chroma/)
+# vem versionado via LFS pra evitar timeout de build no HF Spaces:
+# gerar embeddings bge-m3 em CPU leva ~30min sem GPU, alem do timeout
+# do hardware free. Regerar local com `scripts/build_rag_index.py` ao
+# trocar PDFs ou embedding model.
 COPY . .
-
-# Pre-build do indice Chroma DURANTE o build da imagem, nao no boot.
-# Em HF Spaces o boot do container tem timeout (~10min) e o build_rag_index
-# leva ~5-8min (download bge-m3 + indexar 9 PDFs), fazendo o app nao
-# responder em 7860 a tempo e disparando restart em loop.
-# Movendo pra Docker RUN o app sobe em ~30s no boot (so carrega modelos
-# em memoria; indice ja persiste no diretorio data/processed/chroma da
-# imagem).
-RUN python scripts/build_rag_index.py
 
 EXPOSE 7860
 
-# Entrypoint padrao: sobe o app Gradio diretamente. Indice Chroma ja foi
-# construido durante o build da imagem.
 CMD ["python", "app.py"]

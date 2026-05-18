@@ -62,6 +62,10 @@ data/raw/*
 !data/raw/*.pdf
 data/processed/*
 !data/processed/.gitkeep
+# Indice Chroma commitado via LFS pra evitar timeout de build no HF Spaces
+# (gerar embeddings em CPU leva ~30min, alem do timeout do hardware free).
+!data/processed/chroma/
+!data/processed/chroma/**
 
 # Mantem amostras pequenas e exemplos rastreados.
 # data/synthetic e data/examples ficam versionados (com seus proprios .gitkeep).
@@ -70,10 +74,7 @@ data/processed/*
 data/synthetic/demo_video.mp4
 data/synthetic/audio_*.wav
 
-# =====================================================================
-# Indice RAG (Chroma) regenerado por scripts/build_rag_index.py
-# =====================================================================
-data/processed/chroma/
+# (Indice Chroma e versionado via LFS — ver bloco data/processed acima.)
 
 # =====================================================================
 # Banco de auditoria SQLite (gerado em runtime)
