@@ -515,6 +515,34 @@ A figura 8.6.3 mostra a tabela de eventos agregados por janelas de 5 segundos. A
 
 A combinação das três figuras demonstra o caminho fim a fim: o YOLO custom v1, treinado em CholecSeg8k (seção 7), detecta de forma consistente as classes alvo no vídeo de demonstração; o gating de cena bloqueia pilares afetivos irrelevantes para o contexto cirúrgico; e o anomaly classifier converte a evidência visual em nível de risco `critical`.
 
+#### Demonstração visual da aba Multimodal
+
+A figura 8.6.4 apresenta o formulário do caso já preenchido na aba Multimodal. O usuário carrega o vídeo laparoscópico em `data/examples/cirurgias/sangramento/video.mp4` e descreve, no campo Contexto clínico, um quadro de sangramento intraoperatório com lesão vascular, monitoramento hemodinâmico e necessidade de intervenção hemostática. O campo de áudio permanece vazio porque não há fala da paciente em campo cirúrgico, e o identificador é deixado em branco para o caso ad hoc. O botão Processar caso fica pronto para disparar a orquestração dos pilares.
+
+![Caso de sangramento intraoperatório preenchido na aba Multimodal](figures/screenshots/aba_multimodal_sangramento_caso.png)
+
+*Figura 8.6.4: card Caso clínico com vídeo carregado, contexto textual descrevendo lesão vascular e manejo hemodinâmico, campo de áudio sem arquivo e identificador da paciente vazio.*
+
+A figura 8.6.5 exibe o card Resultado consolidado após o processamento. O `AnomalyClassifier` atribui nível **CRÍTICO** somando dois triggers oriundos da modalidade vídeo, conforme os KPIs NIVEL=Crítico, TRIGGERS=2, MODALIDADES=2 (vídeo e texto) e DIRETRIZES=0. A ausência de diretrizes recuperadas reflete a refatoração multi-query (ADR-019): para casos cirúrgicos sem eixo humano ativado, o orquestrador suprime a query base e o retriever não retorna chunks tangencialmente relacionados à ginecologia obstétrica indexada. Case ID `case-6ecf6b9d3caf` e Audit ID `48` identificam o registro persistido para auditoria.
+
+![Resultado consolidado do caso cirúrgico crítico](figures/screenshots/aba_multimodal_sangramento_resultado.png)
+
+*Figura 8.6.5: card Resultado consolidado com badge **CRÍTICO**, KPIs de nível, triggers, modalidades e diretrizes, além de Case ID e Audit ID.*
+
+A figura 8.6.6 mostra o relatório clínico gerado pelo Azure OpenAI `gpt-4.1-mini` (via AI Foundry). As seções Resumo, Achados, Diretrizes Aplicáveis e Recomendações seguem o contrato do `src/report.py:SYSTEM_PROMPT_PT_BR`. O ponto a destacar é a regra de salvaguarda contra alucinação: quando o contexto RAG vem vazio, o LLM declara explicitamente que nenhuma das diretrizes indexadas aborda o manejo específico de sangramento intraoperatório em cirurgia ginecológica e orienta o seguimento de protocolos institucionais, sem fabricar referências a documentos inexistentes (comportamento previsto e auditável após a correção descrita em ADR-017).
+
+![Relatório clínico gerado pelo LLM para o caso de sangramento](figures/screenshots/aba_multimodal_sangramento_relatorio.png)
+
+*Figura 8.6.6: relatório clínico em Resumo, Achados, Diretrizes Aplicáveis e Recomendações, com declaração explícita de ausência de diretrizes aplicáveis indexadas e cinco ações enumeradas para o manejo hemodinâmico e hemostático.*
+
+A figura 8.6.7 detalha o resumo de anomalia, a tabela de triggers e o painel de diretrizes consultadas. Duas regras determinísticas do `RuleEngine` (`src/anomaly/rules.py`) sustentam o nível final: `video.surgical_instrument_presence` com severidade `Moderado` (instrumental em uso em 6 frames consecutivos) e `video.bleeding_detected` com severidade `Crítico` (sangramento em 6 de 6 frames, maior streak consecutivo igual a 6). O nível final é o máximo entre as severidades dos triggers, isto é, `critical`. As cinco ações recomendadas vinculadas a esses triggers (documentar instrumental, correlacionar fase cirúrgica, acionar protocolo de hemorragia, verificar hemodinâmica e reforçar equipe) provêm das regras e independem do LLM, preservando a auditabilidade dessa camada.
+
+![Resumo de anomalia, tabela de triggers e diretrizes consultadas](figures/screenshots/aba_multimodal_sangramento_anomalia.png)
+
+*Figura 8.6.7: painéis Resumo de anomalia (nível crítico, dois triggers, cinco ações), tabela de triggers com `video.surgical_instrument_presence` (Moderado) e `video.bleeding_detected` (Crítico) e painel Diretrizes consultadas exibindo "Sem diretrizes recuperadas no contexto.".*
+
+As quatro figuras 8.6.4 a 8.6.7 fecham a demonstração fim a fim do caso cirúrgico crítico: a entrada multimodal foi processada pelos pilares relevantes (vídeo e texto), a camada determinística do `RuleEngine` produziu nível e ações auditáveis, o RAG corretamente identificou ausência de cobertura temática e o LLM respeitou essa lacuna sem alucinar diretrizes.
+
 ---
 
 ## 9. Limitações e Trabalho Futuro
