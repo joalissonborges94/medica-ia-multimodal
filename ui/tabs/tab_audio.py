@@ -146,6 +146,17 @@ def render(process_audio: AudioProcessor) -> None:
         emotion_label_raw = analysis.emotion.label.lower() if analysis.emotion else "n/d"
         emotion_label = analysis.emotion.label_pt if analysis.emotion else "n/d"
         sentiment_label = analysis.sentiment.label if analysis.sentiment else "n/d"
+
+        # Hint do sentimento muda conforme o label. Pra "mixed" mostramos
+        # a distribuicao positive/negative que justifica a marcacao;
+        # pros demais, mostramos quem oferece o sinal (Azure Language).
+        if analysis.sentiment and sentiment_label == "mixed":
+            pos = analysis.sentiment.scores.get("positive", 0.0)
+            neg = analysis.sentiment.scores.get("negative", 0.0)
+            sentiment_hint = f"pos: {pos:.0%} / neg: {neg:.0%}"
+        else:
+            sentiment_hint = sentiment_provider_label()
+
         distress_emotions = {"sad", "angry", "fearful", "fear", "ang", "fea"}
         level = (
             "moderate"
@@ -166,7 +177,7 @@ def render(process_audio: AudioProcessor) -> None:
             [
                 kpi_tile("Duracao", duration, hint="audio analisado"),
                 kpi_tile("Emocao", emotion_label, hint=vocal_emotion_provider_label()),
-                kpi_tile("Sentimento", sentiment_label, hint=sentiment_provider_label()),
+                kpi_tile("Sentimento", sentiment_label, hint=sentiment_hint),
                 kpi_tile(
                     "Segmentos",
                     str(len(analysis.segments)),
