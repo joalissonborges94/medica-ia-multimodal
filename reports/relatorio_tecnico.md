@@ -505,16 +505,42 @@ As features acústicas exibidas no painel da figura 8.4.3 alimentam as regras de
 
 ### 8.5 Cirurgia Normal (Laparoscopia sem intercorrência)
 
-Procedimento laparoscópico em andamento, sem evento crítico visível. Demonstra que o pipeline diferencia cirurgia rotineira (`normal`) de cirurgia com complicação (próxima seção).
+Procedimento laparoscópico em andamento, sem evento crítico visível. Demonstra que o pipeline diferencia cirurgia rotineira de cirurgia com complicação (próxima seção), mantendo o nível em `moderate` quando há apenas instrumental em uso e ausência de sangramento.
 
 | Modalidade | Entrada | Saída resumida |
 |---|---|---|
-| Vídeo | `data/examples/cirurgias/rotina/video.mp4` | <!-- TODO: detecção de `Grasper` e `L-hook` esperada --> |
+| Vídeo | `data/examples/cirurgias/rotina/video.mp4` | Detecção persistente de instrumental cirúrgico (`l_hook_electrocautery`, `grasper`) em 25 frames consecutivos, sem ocorrência da classe `blood` |
 | Áudio | n/a (cirurgia sem voz do paciente) | n/a |
-| Texto | Contexto de procedimento sem complicação | <!-- TODO --> |
-| Nível final | `normal` esperado | <!-- TODO --> |
+| Texto | Contexto de procedimento sem intercorrências (visualização da cavidade abdominal, uso de grasper e eletrocautério, conduta de continuidade) | Indicação textual de rotina alinhada com a saída visual |
+| Nível final | `moderate` (trigger `rule_surgical_instrument_presence`) | Badge **MODERADO** atribuído corretamente, sem escalada para `critical` |
 
-<!-- TODO: print da aba Vídeo com bounding boxes + print da aba Multimodal -->
+#### Demonstração visual da aba Multimodal
+
+A figura 8.5.1 apresenta o formulário do caso já preenchido na aba Multimodal. O usuário carrega o vídeo laparoscópico padrão em `data/examples/cirurgias/rotina/video.mp4`, que exibe a cavidade abdominal com instrumental em uso e sem evento hemorrágico. No campo Contexto clínico, descreve um procedimento ginecológico de rotina com visualização da cavidade, manipulação por grasper e eletrocautério, ausência de sangramento e conduta de continuidade. O caso opera com duas modalidades ativas (vídeo e texto), uma vez que o campo cirúrgico não expõe fala da paciente e o áudio permanece vazio. O identificador `exemplo-cirurgia-rotina` rotula o caso para auditoria.
+
+![Card Caso clínico com vídeo de cirurgia laparoscópica de rotina e contexto textual sem intercorrências](figures/screenshots/aba_multimodal_rotina_caso.png)
+
+*Figura 8.5.1: card Caso clínico com vídeo carregado, contexto textual descrevendo procedimento sem intercorrências, campo de áudio sem arquivo e identificador `exemplo-cirurgia-rotina`.*
+
+A figura 8.5.2 exibe o card Resultado consolidado após o processamento. O `AnomalyClassifier` atribui nível **MODERADO** sustentado por um único trigger oriundo da modalidade vídeo, conforme os KPIs NIVEL=Moderado, TRIGGERS=1, MODALIDADES=2 (vídeo e texto) e DIRETRIZES=0. A regra acionada é `surgical_instrument_presence` em nível Moderado, e a ausência de chunks recuperados ocorre porque o caso cirúrgico não ativa eixos humanos: conforme ADR-019, o orquestrador suprime a query base nesse cenário, evitando que o retriever retorne diretrizes tangencialmente relacionadas à ginecologia obstétrica indexada. Case ID `case-69af9a8169b6` e Audit ID `50` identificam o registro persistido.
+
+![Resultado consolidado com badge moderado, 1 trigger e 0 diretrizes recuperadas](figures/screenshots/aba_multimodal_rotina_resultado.png)
+
+*Figura 8.5.2: card Resultado consolidado com badge **MODERADO**, KPIs de nível, triggers, modalidades e diretrizes, além de Case ID `case-69af9a8169b6` e Audit ID `50`.*
+
+A figura 8.5.3 mostra o relatório clínico gerado pelo Azure OpenAI `gpt-4.1-mini` (via AI Foundry) e estabelece o contraste explícito com o caso de sangramento intraoperatório (§8.6). Sem o trigger `bleeding_detected`, o nível permanece moderado e as recomendações do LLM convergem para cirurgia rotineira: monitoramento contínuo dos sinais vitais, controle de esterilidade e instrumental, avaliação pós-operatória imediata e orientação à paciente quanto ao seguimento. A regra de salvaguarda contra alucinação (regra 5 do `src/report.py:SYSTEM_PROMPT_PT_BR`) continua ativa: como o contexto RAG vem vazio, o LLM declara que "Nenhuma das diretrizes indexadas aborda diretamente este tema específico de cirurgia ginecológica rotineira com nível de risco moderado", sem fabricar referências a documentos inexistentes.
+
+![Relatório clínico LLM com resumo, achados, declaração de ausência de diretrizes e quatro recomendações de cirurgia rotineira](figures/screenshots/aba_multimodal_rotina_relatorio.png)
+
+*Figura 8.5.3: relatório clínico em Resumo, Achados, Diretrizes Aplicáveis e Recomendações, com declaração explícita de ausência de diretrizes aplicáveis indexadas e quatro ações enumeradas para o manejo de cirurgia rotineira.*
+
+A figura 8.5.4 detalha o resumo de anomalia, a tabela de triggers e o painel de diretrizes consultadas. A única regra disparada é `video.surgical_instrument_presence` com severidade Moderado (instrumental cirúrgico detectado em 25 frames consecutivos, acima do limiar mínimo de 3), e o nível final acompanha esse máximo sem qualquer escalada para `critical`. As duas ações recomendadas vinculadas ao trigger (documentar instrumental utilizado no prontuário e correlacionar a detecção com a fase cirúrgica registrada) são genéricas e auditáveis, provêm do `RuleEngine` (`src/anomaly/rules.py`) e independem do LLM. O painel Diretrizes consultadas exibe "Sem diretrizes recuperadas no contexto.", evidenciando que o `AnomalyClassifier` diferencia corretamente cirurgia rotineira de cirurgia com evento crítico, sem inflar artificialmente o nível.
+
+![Painéis resumo de anomalia, tabela de triggers com surgical_instrument_presence moderado e painel diretrizes vazio](figures/screenshots/aba_multimodal_rotina_anomalia.png)
+
+*Figura 8.5.4: painéis Resumo de anomalia (nível moderado, um trigger, duas ações), tabela de triggers com `video.surgical_instrument_presence` (Moderado, origem vídeo) e painel Diretrizes consultadas exibindo "Sem diretrizes recuperadas no contexto.".*
+
+As quatro figuras 8.5.1 a 8.5.4 fecham a demonstração fim a fim do caso cirúrgico de rotina e funcionam como contraponto direto ao caso crítico da seção seguinte: mesma cena cirúrgica laparoscópica, mas sem evento hemorrágico, com o pipeline distinguindo corretamente os níveis (`moderate` versus `critical`) e o LLM preservando a honestidade epistêmica ao declarar tema fora da cobertura das diretrizes indexadas.
 
 ### 8.6 Cirurgia Crítica (Sangramento intraoperatório)
 
