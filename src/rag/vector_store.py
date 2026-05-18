@@ -96,11 +96,14 @@ class VectorStore:
             logger.warning("VectorStore indisponivel (%s). Operacoes retornarao vazio.", exc)
             self._available = False
 
-    def add(self, chunks: list[Chunk]) -> int:
+    def add(self, chunks: list[Chunk], batch_size: int = 64) -> int:
         """Indexa chunks (upsert por `chunk_id`).
 
         Args:
             chunks: lista a inserir/atualizar.
+            batch_size: quantos chunks enviar por upsert. Embedding de bge-m3
+                requer memoria proporcional ao tamanho do batch; lotes maiores
+                que 64 podem estourar GiB de RAM/VRAM em PDFs longos.
 
         Returns:
             Numero de chunks indexados (0 se store indisponivel ou lista vazia).
@@ -111,13 +114,16 @@ class VectorStore:
             self.load()
         if not self._available or self._collection is None:
             return 0
-        self._collection.upsert(
-            documents=[c.text for c in chunks],
-            metadatas=[c.metadata() for c in chunks],
-            ids=[c.chunk_id for c in chunks],
-        )
-        logger.info("Indexados %d chunks na colecao %s", len(chunks), self.collection_name)
-        return len(chunks)
+        total = len(chunks)
+        for offset in range(0, total, batch_size):
+            batch = chunks[offset : offset + batch_size]
+            self._collection.upsert(
+                documents=[c.text for c in batch],
+                metadatas=[c.metadata() for c in batch],
+                ids=[c.chunk_id for c in batch],
+            )
+        logger.info("Indexados %d chunks na colecao %s", total, self.collection_name)
+        return total
 
     def query(
         self,

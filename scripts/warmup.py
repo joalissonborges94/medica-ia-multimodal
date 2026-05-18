@@ -202,6 +202,11 @@ PDFS: dict[str, dict[str, str]] = {
         "size": "~3.2 MB",
         "label": "MS - Caderno Atencao Basica 26 (Saude Sexual e Reprodutiva)",
     },
+    "cab34_saude_mental.pdf": {
+        "url": "https://bvsms.saude.gov.br/bvs/publicacoes/cadernos_atencao_basica_34_saude_mental.pdf",
+        "size": "~8.2 MB",
+        "label": "MS - Caderno Atencao Basica 34 (Saude Mental)",
+    },
 }
 
 

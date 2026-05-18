@@ -77,6 +77,7 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 | MS, PCDT IST e Atenção a Vítimas de Violência | `ms_pcdt_ist_violencia` | Ministério da Saúde | IST, violência sexual, profilaxia |
 | MS, Diretrizes de Atenção ao Parto Normal | `ms_parto_normal` | Ministério da Saúde | Parto fisiológico, intervenções |
 | Caderno AB nº 26, Saúde Sexual e Reprodutiva | `cab26_saude_sexual_reprodutiva` | Ministério da Saúde | Contracepção, planejamento reprodutivo |
+| Caderno AB nº 34, Saúde Mental | `cab34_saude_mental` | Ministério da Saúde | Transtornos mentais comuns na APS, manejo e encaminhamento |
 
 ## Convenções
 

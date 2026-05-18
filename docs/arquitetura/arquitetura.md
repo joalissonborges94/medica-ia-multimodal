@@ -40,7 +40,7 @@ flowchart LR
     end
 
     subgraph Indexing["Indexação (uma vez por release)"]
-        PDF[8 PDFs<br/>MS/FEBRASGO/INCA]
+        PDF[9 PDFs<br/>MS/FEBRASGO/INCA]
         ING[scripts/build_rag_index.py]
         CHR[Chroma<br/>bge-m3]
         PDF --> ING --> CHR
@@ -235,7 +235,7 @@ Fluxo:
 2. Embeddings via bge-m3 (multilíngue, roda em CPU)
 3. Retriever LangChain com filtros opcionais por fonte e seção
 
-Documentos indexados (8 PDFs):
+Documentos indexados (9 PDFs):
 
 - Manual MS Pré-natal de baixo e alto risco (`manual_ms_prenatal`)
 - Diretriz FEBRASGO de pré-eclâmpsia (`febrasgo_preeclampsia`)
@@ -245,6 +245,7 @@ Documentos indexados (8 PDFs):
 - MS: PCDT de IST e Atenção a Vítimas de Violência (`ms_pcdt_ist_violencia`)
 - MS: Diretrizes de Atenção ao Parto Normal (`ms_parto_normal`)
 - Caderno de Atenção Básica nº 26: Saúde Sexual e Reprodutiva (`cab26_saude_sexual_reprodutiva`)
+- Caderno de Atenção Básica nº 34: Saúde Mental (`cab34_saude_mental`)
 
 ### Pipeline de Anomalia
 
