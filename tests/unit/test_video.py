@@ -12,7 +12,6 @@ from pydantic import ValidationError
 
 from src.video import (
     AzureOpenAIVisionEmotion,
-    AzureVideoIndexerClient,
     BleedingDetector,
     BoundingBox,
     Detection,
@@ -75,7 +74,6 @@ def test_video_event_tem_defaults_vazios():
     event = VideoEvent(frame_index=0, timestamp_ms=0)
     assert event.detections == []
     assert event.facial_emotion is None
-    assert event.azure_metadata is None
 
 
 # ---------------------------------------------------------------------
@@ -156,21 +154,6 @@ def test_facial_emotion_detector_parseia_saida_do_fer(monkeypatch):
 
 
 # ---------------------------------------------------------------------
-# Azure Video Indexer
-# ---------------------------------------------------------------------
-
-
-@pytest.mark.smoke
-def test_azure_client_nao_configurado_retorna_none(tmp_path):
-    client = AzureVideoIndexerClient()
-    # No ambiente de teste, .env esta em branco -> nao configurado.
-    assert client.is_configured is False
-    fake_video = tmp_path / "fake.mp4"
-    fake_video.touch()
-    assert client.analyze(fake_video) is None
-
-
-# ---------------------------------------------------------------------
 # Pipeline
 # ---------------------------------------------------------------------
 
@@ -180,7 +163,6 @@ def test_video_pipeline_falha_quando_arquivo_nao_existe(tmp_path):
     pipeline = VideoPipeline(
         detector=MagicMock(spec=BleedingDetector),
         emotion_classifier=MagicMock(spec=FacialEmotionDetector),
-        azure_client=MagicMock(spec=AzureVideoIndexerClient),
     )
     with pytest.raises(FileNotFoundError):
         pipeline.process(tmp_path / "inexistente.mp4")
@@ -453,7 +435,6 @@ def test_video_pipeline_aceita_emotion_classifier_como_parametro():
     pipeline = VideoPipeline(
         detector=MagicMock(spec=BleedingDetector),
         emotion_classifier=mock_classifier,
-        azure_client=MagicMock(spec=AzureVideoIndexerClient),
     )
     assert pipeline.emotion_classifier is mock_classifier
 
@@ -473,9 +454,6 @@ def test_video_pipeline_pula_emocao_em_cena_surgery(tmp_path, monkeypatch):
     mock_classifier = MagicMock()
     mock_classifier.classify.return_value = None
 
-    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
-    mock_azure.analyze.return_value = None
-
     import src.video.pipeline as pipeline_mod
 
     with (
@@ -486,7 +464,6 @@ def test_video_pipeline_pula_emocao_em_cena_surgery(tmp_path, monkeypatch):
         p = VideoPipeline(
             target_fps=30.0,
             emotion_classifier=mock_classifier,
-            azure_client=mock_azure,
         )
         p.process(fake_video)
 
@@ -509,9 +486,6 @@ def test_video_pipeline_chama_emocao_em_cena_consultation(tmp_path):
     mock_classifier = MagicMock()
     mock_classifier.classify.return_value = emotion_result
 
-    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
-    mock_azure.analyze.return_value = None
-
     import src.video.pipeline as pipeline_mod
 
     with (
@@ -522,7 +496,6 @@ def test_video_pipeline_chama_emocao_em_cena_consultation(tmp_path):
         p = VideoPipeline(
             target_fps=30.0,
             emotion_classifier=mock_classifier,
-            azure_client=mock_azure,
         )
         p.process(fake_video)
 
@@ -544,9 +517,6 @@ def test_video_pipeline_pula_deteccao_em_cena_consultation(tmp_path):
     mock_detector = MagicMock(spec=BleedingDetector)
     mock_detector.predict.return_value = []
 
-    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
-    mock_azure.analyze.return_value = None
-
     import src.video.pipeline as pipeline_mod
 
     with (
@@ -557,7 +527,6 @@ def test_video_pipeline_pula_deteccao_em_cena_consultation(tmp_path):
             target_fps=30.0,
             detector=mock_detector,
             emotion_classifier=MagicMock(classify=MagicMock(return_value=None)),
-            azure_client=mock_azure,
         )
         p.process(fake_video)
 
@@ -579,9 +548,6 @@ def test_video_pipeline_chama_deteccao_em_cena_surgery(tmp_path):
     mock_detector = MagicMock(spec=BleedingDetector)
     mock_detector.predict.return_value = []
 
-    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
-    mock_azure.analyze.return_value = None
-
     import src.video.pipeline as pipeline_mod
 
     with (
@@ -592,7 +558,6 @@ def test_video_pipeline_chama_deteccao_em_cena_surgery(tmp_path):
             target_fps=30.0,
             detector=mock_detector,
             emotion_classifier=MagicMock(classify=MagicMock(return_value=None)),
-            azure_client=mock_azure,
         )
         p.process(fake_video)
 
@@ -615,9 +580,6 @@ def test_video_pipeline_amostra_emocao_a_cada_n_frames(tmp_path):
     mock_classifier = MagicMock()
     mock_classifier.classify.return_value = None
 
-    mock_azure = MagicMock(spec=AzureVideoIndexerClient)
-    mock_azure.analyze.return_value = None
-
     import src.video.pipeline as pipeline_mod
 
     with (
@@ -629,7 +591,6 @@ def test_video_pipeline_amostra_emocao_a_cada_n_frames(tmp_path):
             emotion_every_n_samples=3,
             detector=MagicMock(spec=BleedingDetector, predict=MagicMock(return_value=[])),
             emotion_classifier=mock_classifier,
-            azure_client=mock_azure,
         )
         p.process(fake_video)
 

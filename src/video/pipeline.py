@@ -1,10 +1,9 @@
 """Pipeline de video completo.
 
 Recebe um caminho de video, amostra frames a uma taxa configuravel
-(`target_fps`) e roda em cada frame: detector YOLO, classificador
-multimodal de emocao e linguagem corporal (via GPT-vision) e (quando
-configurado) Azure Video Indexer. A saida e uma lista de `VideoEvent`
-com tudo agregado por frame.
+(`target_fps`) e roda em cada frame: detector YOLO e classificador
+multimodal de emocao e linguagem corporal (via GPT-vision). A saida e
+uma lista de `VideoEvent` com tudo agregado por frame.
 
 Logica de gating por tipo de cena (2 pilares: detector e emocao):
 
@@ -35,7 +34,6 @@ from pathlib import Path
 
 import cv2
 
-from src.video.azure_video import AzureVideoIndexerClient
 from src.video.detector import BleedingDetector
 from src.video.emotion import FacialEmotionClassifierProtocol, get_facial_emotion_classifier
 from src.video.scene_classifier import SceneType, classify_scene_type
@@ -55,7 +53,6 @@ class VideoPipeline:
         emotion_every_n_samples: int = 3,
         detector: BleedingDetector | None = None,
         emotion_classifier: FacialEmotionClassifierProtocol | None = None,
-        azure_client: AzureVideoIndexerClient | None = None,
     ) -> None:
         """Configura o pipeline.
 
@@ -70,7 +67,6 @@ class VideoPipeline:
             emotion_classifier: instancia opcional de classificador. Default
                 usa `get_facial_emotion_classifier()` que seleciona GPT-4o
                 vision (quando configurado) ou FER local.
-            azure_client: instancia opcional de `AzureVideoIndexerClient`.
         """
         self.target_fps: float = target_fps
         self.emotion_every_n_samples: int = max(1, emotion_every_n_samples)
@@ -78,7 +74,6 @@ class VideoPipeline:
         self.emotion_classifier: FacialEmotionClassifierProtocol = (
             emotion_classifier or get_facial_emotion_classifier()
         )
-        self.azure_client: AzureVideoIndexerClient = azure_client or AzureVideoIndexerClient()
         # Preenchido apos cada chamada a `process()`.
         self.last_scene_type: SceneType = SceneType.UNKNOWN
 
@@ -156,8 +151,6 @@ class VideoPipeline:
                     f"Cena: {self.last_scene_type.value}. Iniciando processamento...",
                 )
 
-            azure_metadata = self.azure_client.analyze(video_path)
-
             events: list[VideoEvent] = []
             frame_idx = 0
             sample_idx = 0
@@ -189,7 +182,6 @@ class VideoPipeline:
                         timestamp_ms=timestamp_ms,
                         detections=detections,
                         facial_emotion=facial_emotion,
-                        azure_metadata=azure_metadata,
                     )
                 )
 

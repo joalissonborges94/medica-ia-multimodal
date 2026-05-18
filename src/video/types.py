@@ -77,4 +77,3 @@ class VideoEvent(BaseModel):
     timestamp_ms: int = Field(ge=0)
     detections: list[Detection] = Field(default_factory=list)
     facial_emotion: EmotionScore | None = None
-    azure_metadata: dict | None = None

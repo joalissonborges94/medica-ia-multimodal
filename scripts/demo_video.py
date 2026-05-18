@@ -63,8 +63,7 @@ def imprimir_resumo(eventos: list[VideoEvent]) -> None:
             f"  frame={evento.frame_index:>4} "
             f"ts={evento.timestamp_ms:>6}ms "
             f"det={len(evento.detections):>2} "
-            f"emocao={evento.facial_emotion.label if evento.facial_emotion else 'N/A':<8} "
-            f"azure={'sim' if evento.azure_metadata else 'nao'}"
+            f"emocao={evento.facial_emotion.label if evento.facial_emotion else 'N/A':<8}"
         )
     if len(eventos) > 3:
         print(f"  ... ({len(eventos) - 3} eventos a mais)")

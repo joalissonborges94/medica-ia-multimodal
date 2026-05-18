@@ -65,7 +65,7 @@ Detecção de instrumental cirúrgico em vídeo laparoscópico real (classes `Gr
 | RAG | Chroma + bge-m3 |
 | LLM | Azure OpenAI (GPT-4.1-mini via AI Foundry) |
 | TTS | Azure TTS |
-| Cloud | Azure Cognitive Services (Speech, Language, Video Indexer, Face) |
+| Cloud | Azure Cognitive Services (Speech, Language) |
 | Logs | SQLite |
 | Container | Docker + Docker Compose |
 | Deploy | Hugging Face Spaces |

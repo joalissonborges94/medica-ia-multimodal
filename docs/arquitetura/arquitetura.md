@@ -95,7 +95,6 @@ medica-ia-multimodal/
 │   │   ├── __init__.py
 │   │   ├── detector.py           (YOLO interface, model-agnostic)
 │   │   ├── emotion.py            (FER local ou Azure OpenAI vision multimodal)
-│   │   ├── azure_video.py        (Azure Video Indexer)
 │   │   └── pipeline.py           (orchestra todos acima)
 │   ├── audio/
 │   │   ├── __init__.py
@@ -187,7 +186,6 @@ class VideoEvent(BaseModel):
     timestamp_ms: int
     detections: list[Detection]      # YOLO
     facial_emotion: EmotionScore | None
-    azure_metadata: dict | None
 ```
 
 Fluxo:
@@ -195,8 +193,7 @@ Fluxo:
 1. Extração de frames com OpenCV (1 a 5 fps configurável)
 2. YOLO detector em cada frame
 3. FER ou Azure OpenAI Vision (GPT-4o multimodal) em ROIs faciais detectadas; o caminho cloud retorna emoção e linguagem corporal predominante
-4. Azure Video Indexer chamado uma vez no vídeo completo (cenas, transcrição embutida)
-5. Agregação em lista de `VideoEvent`
+4. Agregação em lista de `VideoEvent`
 
 ### Pipeline de Áudio
 
@@ -211,7 +208,6 @@ class AudioAnalysis(BaseModel):
     emotion: EmotionScore
     sentiment: SentimentResult
     key_phrases: list[str]
-    azure_metadata: dict | None
 ```
 
 Fluxo (com callback `progress(frac, desc)` reportado ao `gr.Progress` da aba **Áudio**, `show_progress="minimal"`):
@@ -308,8 +304,6 @@ AZURE_SPEECH_KEY=
 AZURE_SPEECH_REGION=
 AZURE_LANGUAGE_KEY=
 AZURE_LANGUAGE_ENDPOINT=
-AZURE_VIDEO_INDEXER_KEY=
-AZURE_VIDEO_INDEXER_ACCOUNT_ID=
 AZURE_OPENAI_KEY=
 AZURE_OPENAI_ENDPOINT=
 AZURE_OPENAI_DEPLOYMENT=

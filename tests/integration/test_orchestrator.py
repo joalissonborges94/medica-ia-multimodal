@@ -42,7 +42,6 @@ def _audio(
         emotion=emotion,
         sentiment=sentiment,
         key_phrases=[],
-        azure_metadata=None,
     )
 
 

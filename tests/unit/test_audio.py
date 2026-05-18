@@ -66,7 +66,6 @@ def test_audio_analysis_tem_defaults_sensatos():
     assert analise.emotion is None
     assert analise.sentiment is None
     assert analise.key_phrases == []
-    assert analise.azure_metadata is None
 
 
 # ---------------------------------------------------------------------

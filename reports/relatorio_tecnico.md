@@ -160,8 +160,7 @@ A frequência de classificação de emoção facial é reduzida por padrão (`em
 1. Extração de frames com OpenCV (1 a 5 fps, configurável).
 2. **YOLOv8 customizado** executado em frames de cenas SURGERY, MIXED ou UNKNOWN (interface model-agnostic em `src/video/detector.py`). Modelo treinado em **3 classes**: `grasper` (id 0), `l_hook_electrocautery` (id 1) e `blood` (id 2). As duas primeiras cobrem o requisito "Instrumentos cirúrgicos ginecológicos" do enunciado; a terceira cobre "Sinais de complicações em cirurgias ginecológicas" e dispara trigger `critical` no pipeline de anomalia quando sangramento é detectado.
 3. **Emoção e linguagem corporal** via GPT-vision multimodal (`src/video/azure_openai_vision.py`, Azure OpenAI GPT-4o) executada a cada `emotion_every_n_samples` frames amostrados em cenas CONSULTATION, MIXED ou UNKNOWN. Além do `label` de emoção, o modelo emite agora o campo `body_language` em `EmotionScore`, classificando a linguagem corporal predominante em uma de cinco categorias (`tranquila`, `tensa`, `retraida`, `agitada`, `indefinida`). O modelo interpreta postura, gestos e expressão facial em conjunto, com a vantagem de identificar a paciente pelo contexto semântico (resolve o problema de cenas com médico + paciente simultâneos), sem depender de heurística geométrica sobre keypoints. O fallback local (`FER`) cobre apenas a emoção facial e deixa `body_language` em `None`.
-4. Azure Video Indexer chamado uma vez no vídeo completo para cenas e transcrição embutida.
-5. Agregação em estrutura `VideoEvent` por frame.
+4. Agregação em estrutura `VideoEvent` por frame.
 
 A UI da aba Vídeo exibe progresso detalhado via `gr.Progress`, uma galeria com os 4 frames com maior densidade de detecções (com bounding boxes) e uma tabela "Eventos por janela" que agrega os eventos detectados em janelas de 5 segundos.
 
@@ -543,7 +542,7 @@ Quantitativamente, o detector custom convergiu com mAP@50 = 0.989 e mAP@50-95 = 
 ### Serviços Azure
 
 - Azure OpenAI Service (AI Foundry).
-- Azure Cognitive Services: Speech, Language, Video Indexer, Face.
+- Azure Cognitive Services: Speech, Language.
 
 ### Documentação Interna
 

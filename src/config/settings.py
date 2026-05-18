@@ -48,10 +48,6 @@ class Settings(BaseSettings):
     azure_language_key: SecretStr = Field(default=SecretStr(""))
     azure_language_endpoint: str = Field(default="")
 
-    # ----- Azure Video Indexer -----------------------------------------
-    azure_video_indexer_key: SecretStr = Field(default=SecretStr(""))
-    azure_video_indexer_account_id: str = Field(default="")
-
     # ----- Azure OpenAI ------------------------------------------------
     azure_openai_key: SecretStr = Field(default=SecretStr(""))
     azure_openai_endpoint: str = Field(default="")

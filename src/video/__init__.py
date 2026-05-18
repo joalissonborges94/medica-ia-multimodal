@@ -1,7 +1,6 @@
-"""Pipeline de video: deteccao YOLO, emocao facial e Azure."""
+"""Pipeline de video: deteccao YOLO e emocao facial multimodal."""
 
 from src.video.azure_openai_vision import AzureOpenAIVisionEmotion
-from src.video.azure_video import AzureVideoIndexerClient
 from src.video.detector import BleedingDetector, ensure_yolo_weights
 from src.video.emotion import (
     FacialEmotionClassifierProtocol,
@@ -19,7 +18,6 @@ from src.video.types import (
 
 __all__ = [
     "AzureOpenAIVisionEmotion",
-    "AzureVideoIndexerClient",
     "BleedingDetector",
     "BoundingBox",
     "Detection",

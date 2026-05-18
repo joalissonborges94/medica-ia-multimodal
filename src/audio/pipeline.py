@@ -98,7 +98,6 @@ class AudioPipeline:
             emotion=emotion,
             sentiment=sentiment,
             key_phrases=key_phrases,
-            azure_metadata=None,
         )
         logger.info(
             "Pipeline concluido: %d caracteres, %d segmentos, emocao=%s, sentimento=%s",

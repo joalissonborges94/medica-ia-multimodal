@@ -165,12 +165,6 @@ def _status_panel() -> str:
             "Sentimento + key phrases. Sem isso, regra negative_sentiment nao dispara.",
         ),
         (
-            "Azure Video Indexer",
-            "azure_video_indexer_key",
-            None,
-            "Cenas + transcricao embutida. Sem isso, azure_metadata=None nos VideoEvent.",
-        ),
-        (
             "Azure OpenAI",
             "azure_openai_key",
             "azure_openai_endpoint",

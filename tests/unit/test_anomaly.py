@@ -103,7 +103,6 @@ def _audio(
         emotion=emotion,
         sentiment=sentiment,
         key_phrases=key_phrases or [],
-        azure_metadata=None,
     )
 
 

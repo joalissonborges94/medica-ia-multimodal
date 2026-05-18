@@ -91,4 +91,3 @@ class AudioAnalysis(BaseModel):
     emotion: EmotionScore | None = None
     sentiment: SentimentResult | None = None
     key_phrases: list[str] = Field(default_factory=list)
-    azure_metadata: dict | None = None

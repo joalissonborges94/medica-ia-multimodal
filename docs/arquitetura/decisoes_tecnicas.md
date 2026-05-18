@@ -409,6 +409,45 @@ C. Manter o toggle `USE_CLOUD_EMOTION` como flag generica desacoplada do Face, c
 
 ---
 
+## ADR-019: Remocao do Azure Video Indexer Service (nao exercitado)
+
+**Contexto:** A arquitetura inicial previa o Azure Video Indexer (VI) como provider cloud para enriquecer cada caso com cenas, transcricao embutida, deteccao de objetos e analise visual semantica, ativado pelas variaveis `AZURE_VIDEO_INDEXER_KEY` e `AZURE_VIDEO_INDEXER_ACCOUNT_ID`. Na pratica, o cliente (`src/video/azure_video.py`) sempre permaneceu como esqueleto que retornava `None` em `analyze()` por falta de provisionamento: nem o fluxo de obtencao de access token, nem o upload + polling de Insights chegaram a ser implementados. O `VideoEvent` carregava o campo `azure_metadata: dict | None`, fixo em `None` em todo caminho de execucao real. Em paralelo, os pilares ja implementados passaram a cobrir o mesmo conjunto de sinais que o VI ofereceria:
+
+- **Transcricao:** Whisper local (`faster-whisper`) e Azure Speech com reconhecimento continuo (ADR-016) ja produzem texto e segmentos com timestamps a partir do audio extraido do video.
+- **Analise de cenas:** `src/video/scene_classifier.py` ja identifica o tipo de cena (`SURGERY`, `CONSULTATION`, `MIXED`, `UNKNOWN`) e direciona o pipeline por gating, dispensando o classificador de cenas do VI.
+- **Deteccao de objetos:** o YOLO custom em CholecSeg8k (ADR-012) cobre instrumentos cirurgicos com aderencia clinica superior a deteccao generica do VI.
+- **Analise visual semantica:** o GPT-vision multimodal (`src/video/azure_openai_vision.py`, ADR-018) ja entrega emocao + linguagem corporal por frame com identificacao da paciente por contexto.
+
+**Opcoes consideradas:**
+
+A. Manter o esqueleto e o campo `azure_metadata`, marcando-os como deprecated com aviso, ate que algum provisionamento futuro motive a implementacao completa.
+
+B. Remover por completo o modulo `azure_video.py`, o campo `azure_metadata` em `VideoEvent` e `AudioAnalysis`, os tres settings (`azure_video_indexer_key`, `azure_video_indexer_account_id` e `azure_video_indexer_region`, quando aplicaveis), as entradas correspondentes em `.env.example` e na aba de Configuracoes, e quaisquer mencoes em docs e relatorio.
+
+C. Substituir o cliente VI por uma implementacao funcional via batch transcription + polling, integrando-o ao orquestrador como passo assincrono.
+
+**Decisao:** opcao B. O Azure Video Indexer e removido do projeto. Pipelines sincronos cobrem o que o VI ofereceria sem introduzir custos cloud adicionais, complexidade de polling assincrono ou dependencia de provisionamento bloqueada por aprovacao da Microsoft.
+
+**Justificativa:**
+
+- O VI nunca foi exercitado em runtime; manter codigo morto em `src/`, `tests/` e docs gera atrito de leitura e sinaliza compromissos arquiteturais inexistentes.
+- Os quatro insights do VI (cenas, transcricao, objetos, semantica visual) ja sao cobertos por modulos proprios mais aderentes ao dominio clinico (YOLO custom em laparoscopia, scene classifier por HSV + face detection, Whisper/Azure Speech, GPT-vision).
+- Eliminar tres variaveis de ambiente simplifica o deploy em Hugging Face Spaces e o roteiro de configuracao para quem rodar o projeto pela primeira vez.
+- O pipeline atual e sincrono e roda em segundos por caso; o VI exigiria polling de Insights com latencia tipica de minutos, incompativel com a UX da aba multimodal.
+
+**Consequencias:**
+
+- `src/video/azure_video.py` removido. `src/video/__init__.py` deixa de exportar `AzureVideoIndexerClient`.
+- `VideoEvent` perde o campo `azure_metadata`. `AudioAnalysis` perde o campo equivalente, que era vestigial da mesma decisao.
+- `VideoPipeline.__init__` deixa de aceitar `azure_client`. A chamada `self.azure_client.analyze(video_path)` e removida do loop de processamento.
+- `Settings` perde os campos `azure_video_indexer_key` e `azure_video_indexer_account_id`. `.env.example` perde o bloco correspondente.
+- Aba de Configuracoes deixa de listar "Azure Video Indexer" entre os servicos Azure.
+- Testes em `tests/unit/test_video.py`, `tests/unit/test_audio.py`, `tests/unit/test_anomaly.py` e `tests/integration/test_orchestrator.py` deixam de mockar o cliente VI e de assertar o campo `azure_metadata`.
+- Quem ja tinha as chaves no `.env` local pode remover manualmente; Pydantic Settings ignora chaves extras (`extra="ignore"`).
+- Documentacao (`arquitetura.md`, `modelos_e_datasets.md`, `overview.md`, `relatorio_tecnico.md`) atualizada para remover mencoes ao VI dos diagramas, schemas e tabela de stack cloud.
+
+---
+
 ## Como Adicionar Nova ADR
 
 1. Próximo número sequencial (ADR-011, etc.)
