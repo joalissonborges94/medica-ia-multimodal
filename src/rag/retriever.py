@@ -106,6 +106,7 @@ class Retriever:
         total_k: int = 6,
         min_score: float = DEFAULT_MIN_SCORE,
         sources_per_query: list[tuple[str, ...] | None] | None = None,
+        excluded_sources_per_query: list[tuple[str, ...] | None] | None = None,
     ) -> RetrievalResult:
         """Roda multiplas queries focadas e funde resultados, deduplicando por chunk_id.
 
@@ -134,6 +135,12 @@ class Retriever:
                 pra busca global. Util pra queries focadas que devem buscar
                 apenas em PDFs especificos (ex.: query do eixo `saude_mental`
                 so consulta `cab34_saude_mental` e `manual_ms_prenatal`).
+            excluded_sources_per_query: opcional, mesma cardinalidade. Cada
+                entrada e uma tupla de sources a EXCLUIR (denylist), aplicada
+                apos a busca via filtro de pos-processamento. Util pra remover
+                PDFs irrelevantes ao caso (ex.: excluir obstetricos quando a
+                paciente nao for gestante). Mutuamente exclusivo com
+                `sources_per_query[i]` (allowlist tem precedencia).
 
         Returns:
             `RetrievalResult` com ate `total_k` chunks distintos, ordenados
@@ -183,11 +190,31 @@ class Retriever:
                 chunks_acc = [chunks_acc[i] for i in order]
                 scores_acc = [scores_acc[i] for i in order]
             else:
-                res = self.search(
-                    query, top_k=top_k_per_query, min_score=min_score,
+                # Sem allowlist: busca global. Pra compensar exclusao via
+                # denylist (que reduz o pool retornado), buscamos um pool
+                # maior antes de filtrar.
+                excluded = (
+                    excluded_sources_per_query[orig_idx]
+                    if excluded_sources_per_query is not None
+                    and orig_idx < len(excluded_sources_per_query)
+                    else None
                 )
-                chunks_acc = list(res.chunks)
-                scores_acc = list(res.scores)
+                fetch_k = top_k_per_query * 3 if excluded else top_k_per_query
+                res = self.search(
+                    query, top_k=fetch_k, min_score=min_score,
+                )
+                if excluded:
+                    chunks_acc = []
+                    scores_acc = []
+                    for chunk, score in zip(res.chunks, res.scores, strict=True):
+                        if chunk.source not in excluded:
+                            chunks_acc.append(chunk)
+                            scores_acc.append(score)
+                        if len(chunks_acc) >= top_k_per_query:
+                            break
+                else:
+                    chunks_acc = list(res.chunks)
+                    scores_acc = list(res.scores)
 
             per_query_chunks.append(chunks_acc)
             per_query_scores.append(scores_acc)

@@ -49,6 +49,21 @@ ProgressCallback = Callable[[float, str], None]
 DEFAULT_RAG_TOP_K: int = 6
 MAX_QUERY_CHARS: int = 400
 
+# PDFs centrados em cuidado obstetrico/gestacional. Quando o haystack do caso
+# nao contem keywords de gestacao, esses documentos sao excluidos da query
+# base do RAG pra evitar que o pipeline cite diretrizes pre-natais a
+# pacientes nao gestantes (band-aid pragmatico; ver ADR-017).
+OBSTETRIC_SOURCES: tuple[str, ...] = (
+    "manual_ms_prenatal",
+    "ms_gestacao_alto_risco",
+    "ms_parto_normal",
+    "febrasgo_preeclampsia",
+)
+PREGNANCY_KEYWORDS: tuple[str, ...] = (
+    "gravid", "gesta", "prenatal", "pre-natal", "parto", "puer",
+    "amament", "lactant", "concep",
+)
+
 # Eixos tematicos detectados nos triggers/transcricao pra montar queries focadas.
 # Cada entry tem keywords (gatilhos) e um sufixo clinico que orienta o retriever
 # pro PDF correto. Multiplos eixos podem ser ativados pra um mesmo caso; cada
@@ -324,10 +339,17 @@ class Orchestrator:
         haystack = " ".join([base_query, trigger_text]).lower()
 
         # Sempre roda a query "clinica" base (contexto + transcricao + triggers)
-        # sem filtro de source: ela captura tema central do caso.
+        # sem filtro de source: ela captura tema central do caso. Quando o
+        # caso nao tem nenhum sinal de gestacao no haystack (fala da paciente,
+        # contexto clinico, triggers), excluimos os PDFs obstetricos da query
+        # base pra evitar que dominem o ranking em pacientes nao gestantes.
+        is_pregnancy_case = any(kw in haystack for kw in PREGNANCY_KEYWORDS)
         clinical_query = " ".join([base_query, trigger_text]).strip()[:MAX_QUERY_CHARS]
         queries: list[str] = [clinical_query]
         sources_per_query: list[tuple[str, ...] | None] = [None]
+        excluded_sources_per_query: list[tuple[str, ...] | None] = [
+            None if is_pregnancy_case else OBSTETRIC_SOURCES,
+        ]
 
         # Detecta eixos ativados pelas keywords e adiciona queries focadas
         # com allowlist de sources pra garantir representacao do PDF correto.
@@ -341,12 +363,15 @@ class Orchestrator:
                 sources: tuple[str, ...] = axis["sources"]  # type: ignore[assignment]
                 queries.append(suffix[:MAX_QUERY_CHARS])
                 sources_per_query.append(sources)
+                # Queries focadas ja tem allowlist; nao precisam de denylist.
+                excluded_sources_per_query.append(None)
                 activated.append(axis_name)
 
         logger.info(
-            "RAG multi-query: %d queries (eixos ativados: %s)",
+            "RAG multi-query: %d queries (eixos ativados: %s, caso gestacional: %s)",
             len(queries),
             activated or ["nenhum, so base"],
+            is_pregnancy_case,
         )
 
         try:
@@ -355,6 +380,7 @@ class Orchestrator:
                 top_k_per_query=3,
                 total_k=self.rag_top_k,
                 sources_per_query=sources_per_query,
+                excluded_sources_per_query=excluded_sources_per_query,
             )
         except Exception as exc:  # noqa: BLE001 - RAG pode falhar por falta de indice
             logger.warning("RAG retrieval falhou: %s", exc)
