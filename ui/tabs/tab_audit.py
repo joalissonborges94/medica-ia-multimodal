@@ -95,21 +95,15 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
     initial_rows, initial_kpis = _compute_refresh(DEFAULT_LIMIT, list_cases)
 
     with gr.Group():
-        # Header da secao: titulo a esquerda, botao Recarregar no canto
-        # superior direito (substitui o antigo "Atualizar lista" full-width
-        # que parecia divisor entre o input e a tabela).
-        with gr.Row(equal_height=True):
-            with gr.Column(scale=8):
-                gr.HTML(
-                    section_title(
-                        "Casos registrados",
-                        "Casos processados pelo orquestrador sao registrados em "
-                        "SQLite (`data/processed/audit.sqlite`). A lista atualiza "
-                        "automaticamente ao mudar o limite.",
-                    )
-                )
-            with gr.Column(scale=0, min_width=110, elem_classes=["audit-recarregar"]):
-                refresh_btn = gr.Button("Recarregar", variant="secondary", size="sm")
+        gr.HTML(
+            section_title(
+                "Casos registrados",
+                "Casos processados pelo orquestrador sao registrados em "
+                "SQLite (`data/processed/audit.sqlite`). A lista atualiza "
+                "automaticamente ao mudar o limite. Clique em uma linha "
+                "para inspecionar o caso.",
+            )
+        )
         kpis_html = gr.HTML(value=initial_kpis)
         limit_input = gr.Number(
             value=DEFAULT_LIMIT,
@@ -126,7 +120,11 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
             elem_classes="audit-table",
         )
 
-    with gr.Accordion("Detalhar e exportar um caso", open=False):
+    detail_section = gr.Accordion(
+        "Detalhar e exportar um caso", open=False,
+        elem_id="audit-detail-anchor",
+    )
+    with detail_section:
         # ----- Card 1: Audit ID + Buscar detalhe ---------------------------
         with gr.Group():
             gr.HTML(
@@ -226,14 +224,8 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
             tmp_path = tmp.name
         return str(Path(tmp_path))
 
-    # Auto-refresh ao mudar o Limite + recarga manual pelo botao
+    # Auto-refresh ao mudar o Limite
     limit_input.change(
-        fn=_on_refresh,
-        inputs=[limit_input],
-        outputs=[list_table, kpis_html],
-        show_progress="minimal",
-    )
-    refresh_btn.click(
         fn=_on_refresh,
         inputs=[limit_input],
         outputs=[list_table, kpis_html],
@@ -250,4 +242,53 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
         inputs=[audit_id_input],
         outputs=[download_file],
         show_progress="minimal",
+    )
+
+    # Clique numa linha da tabela: extrai o ID da 1a coluna, preenche o
+    # input, dispara o detalhe, abre o accordion e rola ate ele (mesmo
+    # padrao de ancora usado na aba Multimodal).
+    def _on_row_select(evt: gr.SelectData, current_rows: list[list]):
+        if not current_rows or evt.index is None:
+            return (
+                gr.update(),
+                empty_state("Selecione uma linha valida."),
+                "",
+                {},
+                gr.update(),
+            )
+        # gr.SelectData.index pode vir como [row, col] (Dataframe) ou int.
+        row_idx = evt.index[0] if isinstance(evt.index, list) else evt.index
+        if row_idx >= len(current_rows):
+            return (
+                gr.update(),
+                empty_state("Linha fora dos limites."),
+                "",
+                {},
+                gr.update(),
+            )
+        audit_id_val = current_rows[row_idx][0]
+        status, report_md, raw = _on_detail(audit_id_val)
+        return (
+            gr.update(value=audit_id_val),
+            status,
+            report_md,
+            raw,
+            gr.update(open=True),
+        )
+
+    list_table.select(
+        fn=_on_row_select,
+        inputs=[list_table],
+        outputs=[audit_id_input, status_html, detail_md, detail_json, detail_section],
+        show_progress="minimal",
+    ).then(
+        fn=None,
+        inputs=None,
+        outputs=None,
+        js=(
+            "() => { "
+            "  const el = document.getElementById('audit-detail-anchor'); "
+            "  if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'}); "
+            "}"
+        ),
     )
