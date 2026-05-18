@@ -46,31 +46,28 @@ def render(process_audio: AudioProcessor) -> None:
     """
     gr.HTML(progress_breadcrumb(1))
 
-    with gr.Row(equal_height=True):
-        with gr.Column(scale=1, elem_classes="input-col"):
-            with gr.Group(elem_classes="input-card"):
-                gr.HTML(
-                    section_title(
-                        "Entrada",
-                        "Faca upload de um audio (wav/mp3) para extrair transcricao, "
-                        "features acusticas, emocao vocal e sentimento do texto.",
-                    )
-                )
-                audio_input = gr.Audio(
-                    label="Audio de entrada", sources=["upload"], type="filepath"
-                )
-                analyze_btn = gr.Button("Analisar audio", variant="primary")
+    with gr.Group():
+        gr.HTML(
+            section_title(
+                "Entrada",
+                "Faca upload de um audio (wav/mp3) para extrair transcricao, "
+                "features acusticas, emocao vocal e sentimento do texto.",
+            )
+        )
+        audio_input = gr.Audio(
+            label="Audio de entrada", sources=["upload"], type="filepath"
+        )
+        analyze_btn = gr.Button("Analisar audio", variant="primary")
 
-        with gr.Column(scale=1):
-            with gr.Group():
-                gr.HTML(section_title("Resumo"))
-                status_html = gr.HTML(
-                    value=empty_state(
-                        "Nenhum audio analisado ainda.",
-                        hint="Faca upload e clique em Analisar para gerar o resumo.",
-                    )
-                )
-                kpis_html = gr.HTML(value="")
+    with gr.Group():
+        gr.HTML(section_title("Resumo"))
+        status_html = gr.HTML(
+            value=empty_state(
+                "Nenhum audio analisado ainda.",
+                hint="Faca upload e clique em Analisar para gerar o resumo.",
+            )
+        )
+        kpis_html = gr.HTML(value="")
 
     with gr.Group():
         gr.HTML(
