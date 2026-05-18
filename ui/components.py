@@ -437,7 +437,17 @@ def format_audio_summary(analysis: AudioAnalysis | None) -> str:
         lines.append(f"**Emocao vocal:** {emo.label_pt} ({emo.confidence:.0%})")
     if analysis.sentiment is not None:
         sent = analysis.sentiment
-        lines.append(f"**Sentimento do texto:** {sent.label} ({sent.confidence:.0%})")
+        if sent.label == "mixed":
+            pos = sent.scores.get("positive", 0.0)
+            neg = sent.scores.get("negative", 0.0)
+            lines.append(
+                f"**Sentimento do texto:** {sent.label} "
+                f"(pos: {pos:.0%} / neg: {neg:.0%})"
+            )
+        else:
+            lines.append(
+                f"**Sentimento do texto:** {sent.label} ({sent.confidence:.0%})"
+            )
     if analysis.key_phrases:
         phrases = ", ".join(analysis.key_phrases[:8])
         lines.append(f"**Frases-chave:** {phrases}")
