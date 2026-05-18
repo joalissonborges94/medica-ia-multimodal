@@ -345,6 +345,41 @@ C. Trocar inteiramente pra batch transcription da Azure Speech (API REST assincr
 
 ---
 
+## ADR-017: RAG multi-query por eixo tematico (substitui query unica)
+
+**Contexto:** O `_retrieve_context` no orchestrator concatenava contexto clinico, transcricao de audio e mensagens de trigger numa unica query passada ao retriever. Em casos com sinais emocionais sobre quadro nao gestacional (ex.: paciente dermatologica com angustia, depressao fora do pos-parto, violencia domestica), o ranking do `bge-m3` era dominado pelo PDF mais volumoso da colecao (geralmente `manual_ms_prenatal`, que tem uma secao psicologica grande). O CAB 34 (saude mental geral), recem adicionado, nao aparecia entre os top-4 chunks, e o LLM acabava recomendando "saude mental perinatal" pra pacientes nao gestantes.
+
+**Opcoes consideradas:**
+
+A. Aumentar `rag_top_k` de 4 pra 6 e ajustar prompt do LLM pra ignorar pre-natal em paciente nao gestante.
+
+B. Concatenar palavras-chave clinicas extra na query unica quando triggers sinalizam tema especifico (boost de termos).
+
+C. Dividir a recuperacao em multiplas queries focadas por eixo tematico (clinico, saude mental, violencia, reprodutivo, rastreio), fundir resultados via interleaving round-robin com dedup por chunk_id.
+
+**Decisao:** Opcao C, em conjunto com aumento moderado de `rag_top_k` para 6.
+
+**Justificativa:**
+- Generica: cada eixo identificado pelas keywords ativa uma query especifica com sufixo clinico que orienta o retriever pro PDF correto. O caso dermatologica + ansiedade ativa `saude_mental`, o caso violencia domestica ativa `violencia`, o caso pre-natal ativa `reprodutivo`, e assim por diante. Nao depende de regras casuisticas por especialidade.
+- Cirurgica: queries separadas evitam que sinais clinicos competam com sinais emocionais no mesmo vetor. O `bge-m3` retorna chunks mais relevantes do PDF correto para cada eixo.
+- Escalavel: adicionar novo PDF (ex.: climaterio) requer apenas adicionar um eixo novo no dicionario `RAG_AXES`, sem mudancas em codigo de runtime.
+- Honesta: se nenhum eixo casa com o caso, so a query base roda (mesmo comportamento de antes), sem ruido.
+- Multi-query e padrao em sistemas RAG modernos para queries complexas (LangChain MultiQueryRetriever) e cobre o cenario "uma query nao representa todos os angulos do caso".
+
+**Implementacao:**
+
+- `src/rag/retriever.py:multi_search(queries, top_k_per_query, total_k, min_score)`: roda cada query independente, dedupe por `chunk_id`, interleaving round-robin (rodada 1 pega 1o chunk de cada query, rodada 2 pega 2o, etc) ate completar `total_k`. Score final por chunk e o melhor observado entre as queries em que ele apareceu.
+- `src/orchestrator.py:RAG_AXES`: dicionario com 4 eixos (`saude_mental`, `violencia`, `reprodutivo`, `rastreio`), cada um com keywords (gatilhos a buscar no haystack lowercase) e sufixo (texto clinico que orienta a query focada).
+- `_retrieve_context`: monta query base (contexto + transcricao + triggers) e, pra cada eixo detectado no haystack, adiciona query focada com `contexto[:200] + sufixo do eixo`. Chama `multi_search` com `top_k_per_query=3, total_k=6`.
+
+**Consequencias:**
+- Custo extra de embedding: 1 a 5 embeddings locais por caso (1 query base + ate 4 eixos detectados). Tudo local via `bge-m3`, sem custo Azure adicional.
+- Latencia adicional: ~50ms por embedding extra (~200ms no pior caso). Imperceptivel no fluxo do orchestrator que ja gasta segundos em LLM.
+- `DEFAULT_RAG_TOP_K` aumentado de 4 para 6 chunks no contexto final do LLM (mais tokens consumidos no prompt, ~50% a mais), mas em troca de cobertura mais ampla do tema.
+- Tests novos cobrem dedup, interleaving e queries vazias. Mocks de testes existentes precisam stubbar `multi_search.return_value` alem de `search.return_value`.
+
+---
+
 ## Como Adicionar Nova ADR
 
 1. Próximo número sequencial (ADR-011, etc.)

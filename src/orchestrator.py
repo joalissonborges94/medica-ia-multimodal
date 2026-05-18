@@ -46,8 +46,59 @@ logger = logging.getLogger(__name__)
 
 ProgressCallback = Callable[[float, str], None]
 
-DEFAULT_RAG_TOP_K: int = 4
+DEFAULT_RAG_TOP_K: int = 6
 MAX_QUERY_CHARS: int = 400
+
+# Eixos tematicos detectados nos triggers/transcricao pra montar queries focadas.
+# Cada entry tem keywords (gatilhos) e um sufixo clinico que orienta o retriever
+# pro PDF correto. Multiplos eixos podem ser ativados pra um mesmo caso; cada
+# eixo ativo vira uma query separada no `multi_search` (round-robin).
+RAG_AXES: dict[str, dict[str, object]] = {
+    "saude_mental": {
+        "keywords": (
+            "ansios", "depress", "medo", "tens", "sofrimento", "angust",
+            "choro", "isolam", "desesper", "panico", "suicid", "automutil",
+            "transtorno mental", "saude mental", "psicol", "psiquia",
+        ),
+        "suffix": (
+            "manejo de transtornos mentais comuns na atencao primaria: "
+            "ansiedade, depressao, sofrimento psiquico, encaminhamento para "
+            "saude mental"
+        ),
+    },
+    "violencia": {
+        "keywords": (
+            "violenc", "agres", "abuso", "ameac", "machucad", "espancad",
+            "estupr", "agresor", "agressor", "acolhimento violenc",
+        ),
+        "suffix": (
+            "acolhimento e linha de cuidado a mulheres em situacao de "
+            "violencia, notificacao compulsoria, protocolo IST profilaxia"
+        ),
+    },
+    "reprodutivo": {
+        "keywords": (
+            "gravid", "gesta", "pre-natal", "prenatal", "parto", "puer",
+            "contracep", "menstrua", "amament", "lactant", "concep",
+            "menopaus", "climater",
+        ),
+        "suffix": (
+            "atencao a saude reprodutiva da mulher: pre-natal, parto, "
+            "puerperio, contracepcao, planejamento reprodutivo"
+        ),
+    },
+    "rastreio": {
+        "keywords": (
+            "nodulo", "mamograf", "papanicolau", "citologi", "rastrei",
+            "preventiv", "biops", "lesao", "tumor", "cancer", "neoplasia",
+            "hpv", "colposcop",
+        ),
+        "suffix": (
+            "rastreamento e deteccao precoce: cancer de mama, cancer de "
+            "colo do utero, citologia, exames preventivos"
+        ),
+    },
+}
 
 
 class CaseInput(BaseModel):
@@ -238,25 +289,57 @@ class Orchestrator:
         audio_analysis: AudioAnalysis | None,
         anomaly: AnomalyResult,
     ) -> list[Chunk]:
-        """Monta query a partir de triggers + transcricao + contexto e busca."""
+        """Monta queries por eixo tematico e funde resultados via multi_search.
+
+        Em vez de uma unica query unificada (que mistura sinais e deixa o
+        ranking dominado pelo PDF mais volumoso), monta uma query base
+        clinica + queries especificas pros eixos detectados (saude mental,
+        violencia, reprodutivo, rastreio). Cada eixo vira uma query focada,
+        os resultados sao deduplicados e interleaved no `multi_search`.
+        """
         if self.retriever is None:
             return []
 
-        query_parts: list[str] = []
+        base_parts: list[str] = []
         if case.text_context:
-            query_parts.append(case.text_context)
+            base_parts.append(case.text_context)
         if audio_analysis is not None and audio_analysis.transcription:
-            query_parts.append(audio_analysis.transcription)
-        for trigger in anomaly.triggers:
-            query_parts.append(trigger.message)
+            base_parts.append(audio_analysis.transcription)
+        trigger_text = " ".join(t.message for t in anomaly.triggers)
 
-        query = " ".join(query_parts).strip()
-        if not query:
+        base_query = " ".join(base_parts).strip()
+        if not base_query and not trigger_text:
             return []
-        query = query[:MAX_QUERY_CHARS]
+
+        # Texto a inspecionar pra detectar eixos. Inclui contexto, transcricao
+        # e mensagens de trigger (todos lowercase pra match com keywords).
+        haystack = " ".join([base_query, trigger_text]).lower()
+
+        # Sempre roda a query "clinica" base (contexto + transcricao + triggers).
+        clinical_query = " ".join([base_query, trigger_text]).strip()[:MAX_QUERY_CHARS]
+        queries: list[str] = [clinical_query]
+
+        # Detecta eixos ativados pelas keywords e adiciona queries focadas.
+        activated: list[str] = []
+        for axis_name, axis in RAG_AXES.items():
+            keywords: tuple[str, ...] = axis["keywords"]  # type: ignore[assignment]
+            if any(kw in haystack for kw in keywords):
+                suffix: str = axis["suffix"]  # type: ignore[assignment]
+                # Query focada: contexto curto + sufixo clinico do eixo
+                focused = f"{base_query[:200]} {suffix}".strip()[:MAX_QUERY_CHARS]
+                queries.append(focused)
+                activated.append(axis_name)
+
+        logger.info(
+            "RAG multi-query: %d queries (eixos ativados: %s)",
+            len(queries),
+            activated or ["nenhum, so base"],
+        )
 
         try:
-            result = self.retriever.search(query, top_k=self.rag_top_k)
+            result = self.retriever.multi_search(
+                queries, top_k_per_query=3, total_k=self.rag_top_k,
+            )
         except Exception as exc:  # noqa: BLE001 - RAG pode falhar por falta de indice
             logger.warning("RAG retrieval falhou: %s", exc)
             return []

@@ -197,6 +197,7 @@ Etapas:
 3. Vector store Chroma persistido em `data/processed/chroma` (ADR-008).
 4. Retriever LangChain com filtros opcionais por fonte e seção.
 5. **Threshold de similaridade (`min_score=0.3` por default)** em `src/rag/retriever.py`: chunks com score abaixo do limiar são descartados. Quando a query toca tema fora dos 9 PDFs indexados (ex.: endometriose, SOP, mioma, infertilidade, menopausa, câncer de ovário), o retriever retorna lista vazia. O LLM é instruído pelo system prompt a sinalizar explicitamente "tema fora das diretrizes indexadas" em vez de redigir recomendações genéricas com chunks irrelevantes.
+6. **Recuperação multi-query por eixo temático** (ADR-017) em `Orchestrator._retrieve_context`. Em vez de concatenar contexto, transcrição e triggers numa única query, o orquestrador detecta eixos ativos (`saude_mental`, `violencia`, `reprodutivo`, `rastreio`) via palavras-chave no haystack e dispara uma query focada por eixo, somadas à query base clínica. Os resultados são fundidos via interleaving round-robin com dedup por `chunk_id` em `Retriever.multi_search`, retornando até `rag_top_k=6` chunks distintos. Isso evita que sinais clínicos compitam com sinais emocionais no mesmo vetor e impede que o PDF mais volumoso (`manual_ms_prenatal`) domine o ranking em casos sem contexto gestacional.
 
 Documentos indexados:
 

@@ -86,7 +86,9 @@ def _mock_audio_pipeline(analysis: AudioAnalysis) -> MagicMock:
 
 def _mock_retriever(chunks: list[Chunk]) -> MagicMock:
     retriever = MagicMock()
-    retriever.search.return_value = RetrievalResult(chunks=chunks, scores=[0.9] * len(chunks))
+    result = RetrievalResult(chunks=chunks, scores=[0.9] * len(chunks))
+    retriever.search.return_value = result
+    retriever.multi_search.return_value = result
     return retriever
 
 

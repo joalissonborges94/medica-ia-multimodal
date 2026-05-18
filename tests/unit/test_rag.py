@@ -204,3 +204,58 @@ def test_retriever_combina_source_e_section_com_and():
     retriever.search("teste", source="manual", section="cap1")
     _, kwargs = fake_store.query.call_args
     assert kwargs["where"] == {"$and": [{"source": "manual"}, {"section": "cap1"}]}
+
+
+@pytest.mark.smoke
+def test_retriever_multi_search_deduplica_chunks_iguais_em_queries_diferentes():
+    """Mesmo chunk retornado em 2 queries deve aparecer 1 vez no resultado final."""
+    fake_store = MagicMock(spec=VectorStore)
+    chunk_a = Chunk(text="postura", source="manual", chunk_id="manual::p1::c0")
+    chunk_b = Chunk(text="ansiedade", source="cab34", chunk_id="cab34::p1::c0")
+    # Query 1 retorna A e B; Query 2 retorna B e A. Dedupe por chunk_id.
+    fake_store.query.side_effect = [
+        RetrievalResult(chunks=[chunk_a, chunk_b], scores=[0.9, 0.7]),
+        RetrievalResult(chunks=[chunk_b, chunk_a], scores=[0.85, 0.6]),
+    ]
+    retriever = Retriever(store=fake_store)
+    result = retriever.multi_search(
+        ["query clinica", "query mental"], top_k_per_query=2, total_k=4,
+    )
+    assert len(result.chunks) == 2
+    ids = [c.chunk_id for c in result.chunks]
+    assert "manual::p1::c0" in ids
+    assert "cab34::p1::c0" in ids
+
+
+@pytest.mark.smoke
+def test_retriever_multi_search_ignora_queries_vazias():
+    """Queries vazias ou whitespace devem ser ignoradas sem chamar o store."""
+    fake_store = MagicMock(spec=VectorStore)
+    fake_store.query.return_value = RetrievalResult(chunks=[], scores=[])
+    retriever = Retriever(store=fake_store)
+    result = retriever.multi_search(["", "  ", ""], top_k_per_query=3, total_k=6)
+    assert result.chunks == []
+    fake_store.query.assert_not_called()
+
+
+@pytest.mark.smoke
+def test_retriever_multi_search_interleaving_round_robin():
+    """Round-robin: 1o chunk da query 1, 1o da query 2, 2o da query 1..."""
+    fake_store = MagicMock(spec=VectorStore)
+    chunks_q1 = [
+        Chunk(text="a", source="s1", chunk_id="s1::p1::c0"),
+        Chunk(text="b", source="s1", chunk_id="s1::p1::c1"),
+    ]
+    chunks_q2 = [
+        Chunk(text="c", source="s2", chunk_id="s2::p1::c0"),
+        Chunk(text="d", source="s2", chunk_id="s2::p1::c1"),
+    ]
+    fake_store.query.side_effect = [
+        RetrievalResult(chunks=chunks_q1, scores=[0.9, 0.8]),
+        RetrievalResult(chunks=chunks_q2, scores=[0.85, 0.75]),
+    ]
+    retriever = Retriever(store=fake_store)
+    result = retriever.multi_search(["q1", "q2"], top_k_per_query=2, total_k=4)
+    ids = [c.chunk_id for c in result.chunks]
+    # Round-robin: q1[0], q2[0], q1[1], q2[1]
+    assert ids == ["s1::p1::c0", "s2::p1::c0", "s1::p1::c1", "s2::p1::c1"]
