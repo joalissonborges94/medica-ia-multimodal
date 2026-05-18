@@ -33,10 +33,17 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 # Copia o restante do projeto.
 COPY . .
 
+# Pre-build do indice Chroma DURANTE o build da imagem, nao no boot.
+# Em HF Spaces o boot do container tem timeout (~10min) e o build_rag_index
+# leva ~5-8min (download bge-m3 + indexar 9 PDFs), fazendo o app nao
+# responder em 7860 a tempo e disparando restart em loop.
+# Movendo pra Docker RUN o app sobe em ~30s no boot (so carrega modelos
+# em memoria; indice ja persiste no diretorio data/processed/chroma da
+# imagem).
+RUN python scripts/build_rag_index.py
+
 EXPOSE 7860
 
-# Entrypoint padrao: constroi o indice Chroma (se nao existir) e sobe o app.
-# Idempotente: se ja indexado, build_rag_index pula via upsert por chunk_id.
-# Em HF Spaces o disco persiste entre boots, entao a indexacao roda so na
-# primeira execucao apos o build da imagem.
-CMD ["sh", "-c", "python scripts/build_rag_index.py && python app.py"]
+# Entrypoint padrao: sobe o app Gradio diretamente. Indice Chroma ja foi
+# construido durante o build da imagem.
+CMD ["python", "app.py"]

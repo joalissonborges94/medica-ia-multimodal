@@ -601,6 +601,38 @@ A figura 8.6.7 detalha o resumo de anomalia, a tabela de triggers e o painel de 
 
 As quatro figuras 8.6.4 a 8.6.7 fecham a demonstração fim a fim do caso cirúrgico crítico: a entrada multimodal foi processada pelos pilares relevantes (vídeo e texto), a camada determinística do `RuleEngine` produziu nível e ações auditáveis, o RAG corretamente identificou ausência de cobertura temática e o LLM respeitou essa lacuna sem alucinar diretrizes.
 
+### 8.7 Auditoria e Reprodutibilidade
+
+A aba **Auditoria** consolida em uma única interface o histórico de execuções registradas pelo `src/audit.py` em `data/processed/audit.sqlite`. Cada chamada de `Orchestrator.process_case` produz um registro com snapshot completo dos artefatos do caso, viabilizando inspeção post hoc das decisões do pipeline sem necessidade de reprocessar entradas.
+
+#### Demonstração visual da aba Auditoria
+
+A figura 8.7.1 apresenta o topo da aba após o carregamento inicial. O painel exibe quatro KPIs derivados da contagem agregada no SQLite: TOTAL=20 casos listados, NORMAIS=0 sem anomalia, MODERADOS=15 em atenção e CRÍTICOS=5 em ação imediata. A ausência de casos classificados como normais reflete o desenho dos cenários de demonstração, que sempre disparam ao menos um trigger determinístico do `RuleEngine`. O dropdown Limite=20 controla a paginação, e a tabela Casos registrados exibe as primeiras cinco linhas (IDs 50, 49, 48, 47 e 46) com as colunas ID (chave auto-incremento do SQLite), Case ID (UUID curto), Criado em (timestamp UTC ISO 8601), Risco (badge Moderado ou Crítico) e Modalidades processadas, além do botão Ver detalhes por linha.
+
+![Topo da aba Auditoria com KPIs e início da tabela de casos](figures/screenshots/aba_auditoria_lista.png)
+
+*Figura 8.7.1: topo da aba Auditoria com KPIs TOTAL=20, NORMAIS=0, MODERADOS=15 e CRÍTICOS=5, dropdown Limite=20 e primeiras cinco linhas da tabela Casos registrados (IDs 50 a 46).*
+
+A figura 8.7.2 estende a visualização da tabela para onze linhas (IDs 50 a 40), evidenciando o volume acumulado de execuções incrementais durante o desenvolvimento. As linhas alternam entre badges Críticos e Moderados, com modalidades variando entre `video,text`, `video,audio,text` e combinações análogas conforme o cenário processado. No rodapé inicia-se o accordion fechado Detalhar e exportar um caso, que dá acesso à inspeção individual de cada registro. A interface não implementa autenticação ou separação por tenant neste estágio do projeto, decisão alinhada ao escopo acadêmico; uma evolução natural para ambiente produtivo seria adicionar escopo por usuário e controle de acesso.
+
+![Tabela completa da aba Auditoria com 11 casos visíveis](figures/screenshots/aba_auditoria_tabela.png)
+
+*Figura 8.7.2: tabela Casos registrados expandida exibindo onze linhas (IDs 50 a 40) com diversidade de níveis de risco e modalidades, e accordion fechado Detalhar e exportar um caso no rodapé.*
+
+A figura 8.7.3 mostra o accordion expandido após o clique em Ver detalhes na linha do caso ID 50. O campo Audit ID já vem pré-preenchido com o identificador do caso selecionado, e o botão Buscar detalhe materializa o registro lado a lado em duas colunas. Acima dos painéis, o badge **Moderado** acompanha o resumo `case_id=case-69af9a8169b6, criado em 2026-05-18T06:40:27.470873+00:00`. À esquerda, Relatório do caso renderiza o campo `report_md` em markdown clínico estruturado (Resumo, Achados, Diretrizes Aplicáveis e Recomendações), exatamente como produzido pelo `gpt-4.1-mini` no momento da inferência. À direita, Registro completo (JSON) exibe os campos auditáveis: `id`, `case_id`, `created_at`, `risk_level`, `modalities`, `triggers_json` com a lista de regras disparadas e seus campos de evidência, `explanation` com a mensagem agregada do classificador e `report_md` com o texto completo do relatório. A persistência é feita no momento da inferência, sem reprocessamento sob demanda.
+
+![Detalhe expandido do caso 50 com relatório markdown e JSON lado a lado](figures/screenshots/aba_auditoria_detalhe.png)
+
+*Figura 8.7.3: accordion Detalhar e exportar um caso expandido, com badge Moderado, painel Relatório do caso à esquerda renderizando o `report_md` e painel Registro completo (JSON) à direita exibindo `triggers_json`, `explanation` e demais campos auditáveis.*
+
+A figura 8.7.4 apresenta a continuação do detalhe, com o fechamento do JSON exibindo o campo `metadata_json` (que carrega `patient_id` e `text_context`) e, abaixo, a seção Exportar registro. O botão Exportar JSON gera um arquivo temporário (`audit_50_awgzks7p.json`, 2.3 KB) contendo o registro íntegro do caso, útil para compartilhar evidência clínica com auditores externos ou alimentar análise estatística post hoc. A persistência local em SQLite atende o escopo deste trabalho; em ambiente produtivo, uma evolução possível seria espelhar os registros em armazenamento cloud (Azure Blob Storage ou equivalente) com políticas de retenção e cifragem em repouso. O rodapé da aba mantém o footer do aplicativo com a versão `v0.1.0`.
+
+![Continuação do detalhe com metadata_json e botão Exportar JSON](figures/screenshots/aba_auditoria_exportar.png)
+
+*Figura 8.7.4: final do JSON do caso 50 com `metadata_json` contendo `patient_id` e `text_context`, seção Exportar registro com botão Exportar JSON e arquivo `audit_50_awgzks7p.json` (2.3 KB) disponibilizado para download.*
+
+As quatro figuras 8.7.1 a 8.7.4 fecham a demonstração da aba Auditoria: a tabela agrega o histórico de execuções com KPIs e paginação, o detalhe expandido reúne o relatório clínico e o registro JSON com todos os campos auditáveis, e o botão de exportação materializa cada caso em arquivo individual, fechando o ciclo de rastreabilidade fim a fim entre entrada multimodal, decisão do classificador e relatório clínico gerado.
+
 ---
 
 ## 9. Limitações e Trabalho Futuro
