@@ -15,10 +15,10 @@ from typing import NamedTuple
 
 logger = logging.getLogger(__name__)
 
-# Limites calibrados para a demo: input rapido (~30-60s) sem estourar memoria.
-MAX_VIDEO_BYTES: int = 30 * 1024 * 1024  # 30 MB
-MAX_AUDIO_BYTES: int = 15 * 1024 * 1024  # 15 MB
-MAX_DURATION_SECONDS: float = 60.0
+# Limites calibrados para a demo: input rapido (ate 2min) sem estourar memoria.
+MAX_VIDEO_BYTES: int = 60 * 1024 * 1024  # 60 MB
+MAX_AUDIO_BYTES: int = 30 * 1024 * 1024  # 30 MB
+MAX_DURATION_SECONDS: float = 120.0
 
 
 class ValidationResult(NamedTuple):

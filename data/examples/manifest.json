@@ -45,17 +45,6 @@
       "nivel_esperado": "moderate"
     },
     {
-      "nome": "Pre-natal - protocolo clinico",
-      "descricao": "Primeira consulta gestacional, trecho de protocolo. Enfermeiro explica plano de acompanhamento e exames (sorologia, HIV, hepatite B, tipagem sanguinea).",
-      "video_path": "data/examples/consultas/prenatal_protocolo/video.mp4",
-      "audio_path": "data/examples/consultas/prenatal_protocolo/audio.wav",
-      "context_text": "Primeira consulta gestacional em unidade basica de saude, conduzida pela equipe de enfermagem (simulacao academica).\nTrecho de protocolo clinico: enfermeiro explica o plano de acompanhamento da gestante, com previsao de pelo menos nove consultas ate o parto e atendimento multiprofissional (enfermagem, nutricao, psicologia).\nDetalhamento da bateria de exames laboratoriais previstos: sorologia (HIV, hepatite B, sifilis), tipagem sanguinea por papel filtro, exames complementares.\nAnamnese inclui investigacao de comorbidades (diabetes, hipertensao), nenhuma referida pela paciente.\nPostura corporal tranquila, paciente atenta as orientacoes.\nConduta esperada: preenchimento da caderneta da gestante, coleta de dados vitais, encaminhamentos laboratoriais.",
-      "patient_metadata": {
-        "id": "exemplo-prenatal-protocolo"
-      },
-      "nivel_esperado": "normal"
-    },
-    {
       "nome": "Cirurgia laparoscopica de rotina",
       "descricao": "Procedimento laparoscopico em andamento sem intercorrencia visivel.",
       "video_path": "data/examples/cirurgias/rotina/video.mp4",

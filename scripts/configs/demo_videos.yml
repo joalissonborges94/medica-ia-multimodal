@@ -40,14 +40,6 @@ cases:
     duration: 60
     extract_audio: true
 
-  prenatal_protocolo:
-    category: consultas
-    note: "Primeira consulta gestacional (simulacao academica). Trecho de protocolo clinico: enfermeiro explica plano de acompanhamento (9 consultas, equipe multiprofissional) e sequencia de exames (sorologia, HIV, hepatite B, tipagem sanguinea por papel filtro). Exercita Whisper em terminologia clinica e recuperacao RAG."
-    url: "https://www.youtube.com/watch?v=rzKnvhod8tU"
-    start: "00:06:50"
-    duration: 60
-    extract_audio: true
-
   rotina:
     category: cirurgias
     note: "Procedimento laparoscopico em andamento sem evento critico. Visualizacao da cavidade e instrumentos."

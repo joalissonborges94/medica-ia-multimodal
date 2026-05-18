@@ -43,7 +43,6 @@ CATEGORIA_POR_CASO: dict[str, str] = {
     "rastreio_mama":          "consultas",
     "dermatologica":          "consultas",
     "prenatal_acolhimento":   "consultas",
-    "prenatal_protocolo":     "consultas",
     "rotina":                 "cirurgias",
     "sangramento":            "cirurgias",
 }
@@ -92,17 +91,6 @@ CASES: dict[str, dict[str, str]] = {
             "e duvidas sobre como comunicar a noticia ao parceiro e a familia. "
             "Enfermeiro acolhe, oferece suporte e introduz o fluxo de "
             "acompanhamento multiprofissional."
-        ),
-    },
-    "prenatal_protocolo": {
-        "nivel": "normal",
-        "perfil": (
-            "Primeira consulta gestacional em atencao basica, conduzida pela "
-            "equipe de enfermagem. Trecho de protocolo clinico: enfermeiro "
-            "explica plano de acompanhamento (pelo menos nove consultas, equipe "
-            "multiprofissional) e bateria de exames laboratoriais previstos "
-            "(sorologia, HIV, hepatite B, tipagem sanguinea por papel filtro). "
-            "Anamnese investiga comorbidades, nenhuma referida."
         ),
     },
     "rotina": {

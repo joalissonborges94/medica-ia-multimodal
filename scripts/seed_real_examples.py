@@ -45,7 +45,6 @@ CATEGORIA_POR_CASO: dict[str, str] = {
     "rastreio_mama":          "consultas",
     "dermatologica":          "consultas",
     "prenatal_acolhimento":   "consultas",
-    "prenatal_protocolo":     "consultas",
     "rotina":                 "cirurgias",
     "sangramento":            "cirurgias",
 }
@@ -102,19 +101,6 @@ CASOS: list[dict] = [
         "audio_path": "data/examples/consultas/prenatal_acolhimento/audio.wav",
         "patient_metadata": {"id": "exemplo-prenatal-acolhimento"},
         "nivel_esperado": "moderate",
-    },
-    {
-        "key": "prenatal_protocolo",
-        "nome": "Pre-natal - protocolo clinico",
-        "descricao": (
-            "Primeira consulta gestacional, trecho de protocolo. "
-            "Enfermeiro explica plano de acompanhamento e exames "
-            "(sorologia, HIV, hepatite B, tipagem sanguinea)."
-        ),
-        "video_path": "data/examples/consultas/prenatal_protocolo/video.mp4",
-        "audio_path": "data/examples/consultas/prenatal_protocolo/audio.wav",
-        "patient_metadata": {"id": "exemplo-prenatal-protocolo"},
-        "nivel_esperado": "normal",
     },
     {
         "key": "rotina",

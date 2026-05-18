@@ -71,7 +71,6 @@ EXAMPLE_CASES: dict[str, str] = {
     "rastreio_mama":          "consultas",
     "dermatologica":          "consultas",
     "prenatal_acolhimento":   "consultas",
-    "prenatal_protocolo":     "consultas",
     "rotina":                 "cirurgias",
     "sangramento":            "cirurgias",
 }

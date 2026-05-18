@@ -228,14 +228,14 @@ def test_run_case_so_audio_persiste_no_audit_log(tmp_path: Path):
 
 
 @pytest.mark.integration
-def test_load_examples_carrega_7_casos():
-    """O manifest gerado por `scripts/seed_real_examples.py` deve produzir 7 linhas."""
+def test_load_examples_carrega_6_casos():
+    """O manifest gerado por `scripts/seed_real_examples.py` deve produzir 6 linhas."""
     from app import _load_examples
 
     rows = _load_examples()
-    # Pode ser 0 se o seed nao foi rodado, mas em CI/local apos seed tem 7
+    # Pode ser 0 se o seed nao foi rodado, mas em CI/local apos seed tem 6
     if rows:
-        assert len(rows) == 7
+        assert len(rows) == 6
         # Estrutura por linha: [video_path, audio_path, context_text, paciente_id]
         for row in rows:
             assert len(row) == 4
