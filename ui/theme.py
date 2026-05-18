@@ -353,20 +353,16 @@ gradio-app > .wrap {{
 /* ----------------------------------------------------------------------
    Input card das abas Video/Audio: quando a midia e removida, o card
    encolhe mas a coluna do lado (Resumo, com KPIs) mantem a altura.
-   Sem flex column o botao Analisar fica flutuando no meio do card ou
-   descolado do rodape. Marcamos o card com `elem_classes="input-card"`
-   e empurramos o ultimo filho (que envolve o botao) pra base via
-   `margin-top: auto`. Gradio renderiza gr.Button dentro de wrappers,
-   por isso o seletor mira o ultimo filho do card, nao o button direto.
+   Distribuimos os 3 filhos (titulo, midia, botao) com space-between:
+   titulo cola no topo, botao cola na base, area da midia ocupa o
+   espaco do meio centralizada.
    ---------------------------------------------------------------------- */
 .gradio-container .input-card {{
     display: flex !important;
     flex-direction: column !important;
+    justify-content: space-between !important;
     height: 100% !important;
     min-height: 100%;
-}}
-.gradio-container .input-card > *:last-child {{
-    margin-top: auto !important;
 }}
 
 /* ----------------------------------------------------------------------
