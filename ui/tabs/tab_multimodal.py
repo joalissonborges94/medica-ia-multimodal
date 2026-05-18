@@ -84,14 +84,14 @@ def render(
         )
         run_btn = gr.Button("Processar caso", variant="primary", size="lg")
 
-    # ----- 2. EXEMPLOS PRE-CARREGADOS (full-width) ------------------------
+    # ----- 2. EXEMPLOS PRE-CARREGADOS (full-width, fechado por default) ---
     if examples:
-        with gr.Group():
+        with gr.Accordion(examples_label, open=False):
             gr.HTML(
-                section_title(
-                    examples_label,
-                    "Clique em uma linha para preencher os campos acima.",
-                )
+                '<p style="margin: 0 0 12px 0; color: var(--body-text-color); '
+                'font-size: 12px; opacity: 0.75;">'
+                "Clique em uma linha para preencher os campos acima."
+                "</p>"
             )
             examples_component = gr.Examples(
                 examples=examples,
