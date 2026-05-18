@@ -355,10 +355,22 @@ gradio-app > .wrap {{
    pequena, caso do gr.Audio), o card encolhe mas a coluna do lado
    (Resumo com KPIs) mantem a altura, gerando espaco sobrando. Layout
    desejado: titulo no topo, midia centralizada no espaco do meio,
-   botao colado na base. Estrategia: card e flex column de altura 100%,
-   2o filho (midia) ganha `flex: 1` pra ocupar todo o espaco restante
-   e centraliza o conteudo interno verticalmente.
+   botao colado na base.
+
+   A column pai (.input-col) precisa ser flex column com height 100%
+   pra o filho .input-card poder esticar via height 100%. Sem isso, o
+   "height: 100%" do card nao tem referencia e ele encolhe pro
+   tamanho do conteudo, deixando o botao flutuando acima da borda.
    ---------------------------------------------------------------------- */
+.gradio-container .input-col {{
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+}}
+.gradio-container .input-col > .input-card,
+.gradio-container .input-col > * {{
+    flex: 1 1 auto !important;
+}}
 .gradio-container .input-card {{
     display: flex !important;
     flex-direction: column !important;
