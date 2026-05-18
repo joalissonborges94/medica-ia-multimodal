@@ -80,7 +80,14 @@ class AzureLanguageClient:
             "negative": float(result.confidence_scores.negative),
         }
         label = result.sentiment
-        confidence = scores.get(label, 0.0)
+        # Azure usa "mixed" como meta-label quando o texto tem partes
+        # positivas e negativas, mas nao retorna confidence pra ele.
+        # Pra esse caso, expomos a maior das polaridades (a que domina
+        # marginalmente o conflito), evitando KPI sempre 0%.
+        if label == "mixed":
+            confidence = max(scores["positive"], scores["negative"])
+        else:
+            confidence = scores.get(label, 0.0)
         return SentimentResult(label=label, confidence=confidence, scores=scores)
 
     def extract_key_phrases(self, text: str) -> list[str]:
