@@ -64,6 +64,16 @@ PREGNANCY_KEYWORDS: tuple[str, ...] = (
     "amament", "lactant", "concep",
 )
 
+# Keywords que indicam contexto cirurgico/laparoscopico. Quando o caso e
+# cirurgico e nenhum eixo emocional/violencia ativa, pulamos a query base
+# do RAG: nao temos diretrizes cirurgicas indexadas, entao o LLM declara
+# "tema fora das diretrizes" em vez de citar diretrizes ginecologicas
+# tangenciais (banca-aid pragmatico documentado no ADR-017).
+SURGICAL_KEYWORDS: tuple[str, ...] = (
+    "cirurg", "laparoscop", "intraoperat", "instrumental cirurg",
+    "grasper", "eletrocaut", "campo cirurg",
+)
+
 # Eixos tematicos detectados nos triggers/transcricao pra montar queries focadas.
 # Cada entry tem keywords (gatilhos) e um sufixo clinico que orienta o retriever
 # pro PDF correto. Multiplos eixos podem ser ativados pra um mesmo caso; cada
@@ -344,6 +354,7 @@ class Orchestrator:
         # contexto clinico, triggers), excluimos os PDFs obstetricos da query
         # base pra evitar que dominem o ranking em pacientes nao gestantes.
         is_pregnancy_case = any(kw in haystack for kw in PREGNANCY_KEYWORDS)
+        is_surgical_case = any(kw in haystack for kw in SURGICAL_KEYWORDS)
         clinical_query = " ".join([base_query, trigger_text]).strip()[:MAX_QUERY_CHARS]
         queries: list[str] = [clinical_query]
         sources_per_query: list[tuple[str, ...] | None] = [None]
@@ -367,12 +378,29 @@ class Orchestrator:
                 excluded_sources_per_query.append(None)
                 activated.append(axis_name)
 
+        # Em caso cirurgico sem sinal humano (sem eixo emocional, violencia
+        # ou reprodutivo ativados), nao temos diretrizes aplicaveis. Pular
+        # a query base evita que o RAG retorne chunks tangenciais (ex.: 1
+        # chunk de cancer de colo uterino que o LLM tenta "fazer caber"
+        # alucinando relacao com a cirurgia abdominal). Quando os chunks
+        # vem vazios, o LLM declara "tema fora das diretrizes indexadas"
+        # conforme regra 5 do prompt.
+        if is_surgical_case and not activated:
+            queries = []
+            sources_per_query = []
+            excluded_sources_per_query = []
+
         logger.info(
-            "RAG multi-query: %d queries (eixos ativados: %s, caso gestacional: %s)",
+            "RAG multi-query: %d queries (eixos ativados: %s, gestacional: %s, cirurgico: %s)",
             len(queries),
             activated or ["nenhum, so base"],
             is_pregnancy_case,
+            is_surgical_case,
         )
+
+        if not queries:
+            # Sem queries -> RAG vazio. LLM tratara como "tema fora".
+            return []
 
         try:
             result = self.retriever.multi_search(
