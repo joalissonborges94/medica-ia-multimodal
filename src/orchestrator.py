@@ -122,8 +122,7 @@ RAG_AXES: dict[str, dict[str, object]] = {
     "rastreio": {
         "keywords": (
             "nodulo", "mamograf", "papanicolau", "citologi", "rastrei",
-            "preventiv", "biops", "lesao", "tumor", "cancer", "neoplasia",
-            "hpv", "colposcop",
+            "preventiv", "tumor", "cancer", "neoplasia", "hpv", "colposcop",
         ),
         "suffix": (
             "rastreamento e deteccao precoce: cancer de mama, cancer de "
