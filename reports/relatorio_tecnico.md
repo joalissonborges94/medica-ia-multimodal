@@ -436,7 +436,39 @@ Consulta dermatológica com queixa de manchas faciais e componente emocional ace
 | Texto | Contexto de dermatologia + ansiedade | <!-- TODO --> |
 | Nível final | `moderate` esperado (pipeline corretamente não escalou para `critical` pois conteúdo real não é emergência) | <!-- TODO --> |
 
-<!-- TODO: print da aba Multimodal -->
+#### Demonstração visual da aba Multimodal
+
+A figura 8.3.1 apresenta o formulário do caso já preenchido na aba Multimodal. As três modalidades estão ativas simultaneamente: vídeo de consulta dermatológica com paciente e profissional em sala equipada com EPI, áudio de aproximadamente 35 segundos com forma de onda visível no player, e Contexto clínico descrevendo paciente com manchas faciais hiperpigmentadas e componente emocional acentuado. O identificador `exemplo-dermatologica` etiqueta a execução para rastreio na auditoria, e o botão Processar caso fica pronto para acionar a orquestração dos pilares de vídeo, áudio e texto.
+
+![Caso dermatológico preenchido na aba Multimodal](figures/screenshots/aba_multimodal_dermatologica_caso.png)
+
+*Figura 8.3.1: card Caso clínico com vídeo de consulta, áudio de 35 s carregado com waveform, contexto textual descrevendo manchas faciais hiperpigmentadas com componente emocional e identificador `exemplo-dermatologica`.*
+
+A figura 8.3.2 exibe o card Resultado consolidado após o processamento. O `AnomalyClassifier` atribui nível **MODERADO** a partir de três triggers oriundos exclusivamente do áudio, conforme os KPIs NIVEL=Moderado, TRIGGERS=3, MODALIDADES=3 (vídeo, áudio e texto) e DIRETRIZES=6 (chunks recuperados via RAG). A presença das três modalidades ativas demonstra que o gating de cena classificou o vídeo como CONSULTATION, suprimindo o YOLO custom e direcionando a análise visual para o `gpt-4o` multimodal (emoção facial e linguagem corporal). Case ID `case-9f2619d72072` e Audit ID `49` identificam o registro persistido em SQLite.
+
+![Resultado consolidado do caso dermatológico](figures/screenshots/aba_multimodal_dermatologica_resultado.png)
+
+*Figura 8.3.2: card Resultado consolidado com badge **MODERADO**, KPIs NIVEL=Moderado, TRIGGERS=3, MODALIDADES=3 e DIRETRIZES=6, com Case ID `case-9f2619d72072` e Audit ID `49`.*
+
+A figura 8.3.3 mostra o relatório clínico gerado pelo Azure OpenAI `gpt-4.1-mini` (via AI Foundry). As seções Resumo, Achados, Diretrizes Aplicáveis e Recomendações seguem o contrato do `src/report.py:SYSTEM_PROMPT_PT_BR`. Os Achados registram emoção vocal `medo` com confiança 0.85, tensão vocal sustentada por jitter e shimmer elevados, energia baixa (RMS), além de verbalizações textuais de desespero ("não sei", "tô desesperada"). O ponto a destacar é o comportamento da regra 4 do prompt do sistema, que evita inventar inconsistência quando as modalidades convergem: o LLM declara explicitamente que não há divergência entre voz e fala, e que a convergência reforça a angústia moderada. Em Diretrizes Aplicáveis, o relatório cita `(cab34_saude_mental) 89 SAÚDE MENTAL` e `(cab34_saude_mental) 99 SAÚDE MENTAL 6.4` ao tratar atendimento de queixas de ansiedade e tristeza na Atenção Básica e seguimento compartilhado com psiquiatria, além de `(ms_pcdt_ist_violencia) 53` com foco em manejo integral. A regra 5 do prompt impede citações fora dos chunks recuperados, preservando a auditabilidade. As Recomendações enumeram cinco ações: exames dermatológicos, avaliação clínica detalhada das lesões, monitoramento emocional, encaminhamento à saúde mental na Atenção Primária e orientação sobre uso correto de pomadas.
+
+![Relatório clínico gerado pelo LLM para o caso dermatológico](figures/screenshots/aba_multimodal_dermatologica_relatorio.png)
+
+*Figura 8.3.3: relatório clínico em Resumo, Achados, Diretrizes Aplicáveis e Recomendações, com convergência reconhecida entre texto ("tô desesperada") e voz (medo 0.85, tensão acústica), citações a `cab34_saude_mental` (páginas 89 e 99) e cinco recomendações enumeradas.*
+
+A figura 8.3.4 detalha o resumo de anomalia, a tabela de triggers e o conjunto de ações recomendadas. Três regras determinísticas do `RuleEngine` (`src/anomaly/rules.py`) sustentam o nível moderado: `audio.vocal_distress` (emoção `medo` com confiança 0.85), `audio.vocal_strain` (jitter 0.019 e shimmer 0.120 acima dos limiares) e `audio.low_energy` (RMS 0.0103 abaixo do limiar 0.015). Todos os triggers têm severidade Moderado e origem áudio, totalmente independentes do LLM. As três ações recomendadas pelas regras (conduzir entrevista focada em estado emocional, investigar fadiga, ansiedade ou dor, e avaliar exaustão, anemia ou sintomas depressivos) compõem a camada determinística e auditável da decisão.
+
+![Resumo de anomalia e triggers do caso dermatológico](figures/screenshots/aba_multimodal_dermatologica_anomalia.png)
+
+*Figura 8.3.4: painéis Resumo de anomalia (nível Moderado, três triggers, três ações recomendadas) e tabela de triggers com `audio.vocal_distress`, `audio.vocal_strain` e `audio.low_energy`, todos com severidade Moderado e origem áudio.*
+
+A figura 8.3.5 apresenta o painel Diretrizes consultadas com os seis chunks recuperados pelo retriever RAG. Três dos seis chunks são do CAB 34 Saúde Mental (Ministério da Saúde), nas páginas 90, 95 e 100, ao lado de dois chunks de `inca_cancer_colo_utero` (p. 10 e p. 76) e um de `ms_pcdt_ist_violencia` (p. 54). Essa distribuição valida o desenho multi-query por eixo temático (ADR-019 e ADR-017): o eixo `saude_mental` foi ativado pelas palavras "ansiedade", "tristeza" e "medo" no haystack consolidado a partir das saídas dos pilares, disparando uma query focada nas sources `cab34_saude_mental` e `manual_ms_prenatal`. Como a paciente não está em contexto gestacional, a denylist obstétrica excluiu `manual_ms_prenatal` da query base, e a allowlist por source garantiu que o eixo recuperasse exatamente os capítulos relevantes de Saúde Mental do CAB 34.
+
+![Diretrizes consultadas no caso dermatológico](figures/screenshots/aba_multimodal_dermatologica_diretrizes.png)
+
+*Figura 8.3.5: painel Diretrizes consultadas com os seis chunks recuperados: `inca_cancer_colo_utero` p. 10, `cab34_saude_mental` p. 100, `ms_pcdt_ist_violencia` p. 54, `cab34_saude_mental` p. 90, `inca_cancer_colo_utero` p. 76 e `cab34_saude_mental` p. 95.*
+
+As cinco figuras 8.3.1 a 8.3.5 fecham a demonstração fim a fim do caso dermatológico moderado: o orquestrador processou as três modalidades de entrada, o gating de cena escolheu corretamente o backend visual cloud para um contexto de consulta, o `RuleEngine` produziu três triggers de áudio auditáveis, o retriever multi-query ativou o eixo `saude_mental` e recuperou três chunks do CAB 34, e o LLM reconheceu convergência entre modalidades e citou somente diretrizes presentes nos chunks recuperados.
 
 ### 8.4 Pré-natal (Acolhimento emocional)
 
