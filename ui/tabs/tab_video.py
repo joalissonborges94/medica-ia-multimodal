@@ -80,7 +80,7 @@ def render(video_pipeline: VideoPipeline) -> None:
                 )
                 kpis_html = gr.HTML(value="")
 
-    detection_section = gr.Group(visible=False)
+    detection_section = gr.Column(visible=False)
     with detection_section:
         gr.HTML(
             section_title(
