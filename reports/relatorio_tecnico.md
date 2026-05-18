@@ -470,12 +470,30 @@ Procedimento laparoscópico com sangramento em foco operatório. Vídeo gerado p
 
 | Modalidade | Entrada | Saída resumida |
 |---|---|---|
-| Vídeo | `data/examples/cirurgias/sangramento/video.mp4` (30 frames @ 5 fps, ~6s) | <!-- TODO: detecção persistente de `blood` esperada, dispara trigger crítico --> |
+| Vídeo | `data/examples/cirurgias/sangramento/video.mp4` (30 frames @ 5 fps, ~6s) | `blood` e `l_hook_electrocautery` detectados em 6 frames consecutivos, dispara trigger crítico |
 | Áudio | n/a (cirurgia sem voz do paciente) | n/a |
-| Texto | Contexto de hemorragia intraoperatória + necessidade de hemostasia | <!-- TODO --> |
-| Nível final | `critical` esperado (trigger `rule_bleeding_detected`) | <!-- TODO --> |
+| Texto | Contexto de hemorragia intraoperatória + necessidade de hemostasia | Indicação textual de hemorragia reforça a saída visual |
+| Nível final | `critical` (trigger `rule_bleeding_detected`) | Badge **CRÍTICO** atribuído corretamente |
 
-<!-- TODO: print da aba Vídeo com bounding boxes de `blood` + print da aba Multimodal com alerta crítico -->
+A figura 8.6.1 apresenta o resumo da aba Vídeo após processamento. O classificador de cena identificou a entrada como `Cirurgia`, ativando o gating que suprime os pilares de emoção facial e linguagem corporal (rosto e corpo do paciente não estão visíveis em campo operatório laparoscópico). Os KPIs evidenciam 6 frames amostrados, 12 detecções totais distribuídas em 2 classes (`blood` e `l_hook_electrocautery`) e ausência intencional dos pilares afetivos.
+
+![Resumo da aba Vídeo para o caso de sangramento intraoperatório](figures/screenshots/aba_video_sangramento_resumo.png)
+
+*Figura 8.6.1: aba Vídeo com badge crítico, classificação de cena `Cirurgia` e KPIs do processamento. O badge "Emocao via: Azure GPT-vision" sinaliza o backend ativo para análise facial, enquanto os pilares de emoção e linguagem corporal aparecem como `n/a` por decisão do gating.*
+
+A figura 8.6.2 detalha a galeria de frames anotados. As bounding boxes em magenta marcam o instrumento `l_hook_electrocautery` (confiança entre 91% e 92%), e as bounding boxes em vermelho marcam a classe `blood`. O modelo demonstra estabilidade temporal: as duas classes co-ocorrem ao longo da sequência amostrada, confirmando o cenário de cauterização ativa em região com sangramento.
+
+![Galeria de frames com bounding boxes de blood e l_hook_electrocautery](figures/screenshots/aba_video_sangramento_deteccoes.png)
+
+*Figura 8.6.2: quatro thumbnails do campo cirúrgico com detecções do YOLO custom v1. Bounding boxes em magenta indicam `l_hook_electrocautery` e em vermelho indicam `blood`. Abaixo da galeria, a timeline de eventos agrega as 12 detecções em 6 frames.*
+
+A figura 8.6.3 mostra a tabela de eventos agregados por janelas de 5 segundos. A janela 0 a 4s concentra 5 frames com 10 detecções (`blood` 96% e `l_hook` 92% como classes dominantes); a janela 5 a 9s registra mais 1 frame com 2 detecções, mantendo a co-ocorrência. Esse padrão satisfaz o critério do `rule_bleeding_detected` (presença persistente de `blood` em frames consecutivos), justificando a atribuição automática do nível `critical`.
+
+![Tabela de eventos por janela e JSON bruto da auditoria](figures/screenshots/aba_video_sangramento_eventos.png)
+
+*Figura 8.6.3: agregação temporal das detecções em janelas de 5 segundos e início da visualização do JSON bruto exportado para a aba Auditoria. A persistência de `blood` em ambas as janelas alimenta o trigger crítico.*
+
+A combinação das três figuras demonstra o caminho fim a fim: o YOLO custom v1, treinado em CholecSeg8k (seção 7), detecta de forma consistente as classes alvo no vídeo de demonstração; o gating de cena bloqueia pilares afetivos irrelevantes para o contexto cirúrgico; e o anomaly classifier converte a evidência visual em nível de risco `critical`.
 
 ---
 
