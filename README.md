@@ -7,7 +7,7 @@ sdk: docker
 app_port: 7860
 pinned: false
 license: mit
-short_description: Análise multimodal (vídeo, áudio, RAG) aplicada à saúde da mulher
+short_description: Análise multimodal aplicada à saúde da mulher
 ---
 
 # medica-ia-multimodal
