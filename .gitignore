@@ -82,6 +82,9 @@ data/synthetic/audio_*.wav
 *.db
 *.sqlite
 *.sqlite3
+# Excecao: indice Chroma (vector store) e versionado via LFS pra evitar
+# rebuild do RAG no deploy. SQLite de auditoria continua ignorado.
+!data/processed/chroma/chroma.sqlite3
 
 # =====================================================================
 # Logs e relatorios temporarios
