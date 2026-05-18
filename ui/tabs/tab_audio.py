@@ -202,3 +202,30 @@ def render(process_audio: AudioProcessor) -> None:
         outputs=analyze_btn,
         queue=False,
     )
+
+    def _on_clear():
+        """Reseta todos os outputs pro estado inicial quando o audio e removido."""
+        return (
+            empty_state(
+                "Nenhum audio analisado ainda.",
+                hint="Faca upload e clique em Analisar para gerar o resumo.",
+            ),
+            "",
+            "",
+            None,
+            "",
+            {},
+        )
+
+    audio_input.clear(
+        fn=_on_clear,
+        outputs=[
+            status_html,
+            kpis_html,
+            summary_md,
+            features_plot,
+            features_md,
+            raw_json,
+        ],
+        queue=False,
+    )
