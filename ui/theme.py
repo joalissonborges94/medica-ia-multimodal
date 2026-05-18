@@ -351,18 +351,25 @@ gradio-app > .wrap {{
 }}
 
 /* ----------------------------------------------------------------------
-   Input card das abas Video/Audio: quando a midia e removida, o card
-   encolhe mas a coluna do lado (Resumo, com KPIs) mantem a altura.
-   Distribuimos os 3 filhos (titulo, midia, botao) com space-between:
-   titulo cola no topo, botao cola na base, area da midia ocupa o
-   espaco do meio centralizada.
+   Input card das abas Video/Audio: quando a midia e removida (ou e
+   pequena, caso do gr.Audio), o card encolhe mas a coluna do lado
+   (Resumo com KPIs) mantem a altura, gerando espaco sobrando. Layout
+   desejado: titulo no topo, midia centralizada no espaco do meio,
+   botao colado na base. Estrategia: card e flex column de altura 100%,
+   2o filho (midia) ganha `flex: 1` pra ocupar todo o espaco restante
+   e centraliza o conteudo interno verticalmente.
    ---------------------------------------------------------------------- */
 .gradio-container .input-card {{
     display: flex !important;
     flex-direction: column !important;
-    justify-content: space-between !important;
     height: 100% !important;
     min-height: 100%;
+}}
+.gradio-container .input-card > *:nth-child(2) {{
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
 }}
 
 /* ----------------------------------------------------------------------
