@@ -16,20 +16,25 @@ import gradio as gr
 from src.config.settings import settings
 from ui.components import section_title
 from ui.theme import (
-    ALERT_CRITICAL_BG,
     ALERT_MODERATE_BG,
     ALERT_NORMAL_BG,
+    PRIMARY_SUBTLE,
     TEXT_PRIMARY,
     TEXT_SECONDARY,
 )
 
 
 def _badge(status: str, label: str) -> str:
-    """Pill colorida para o estado: ok/warn/info."""
+    """Pill colorida para o estado: ok/warn/info.
+
+    `info` usa a paleta indigo do tema (azul) em vez de vermelho, pra
+    diferenciar visualmente de erro/critico. Estado "cloud ativo" e
+    informativo, nao alarme.
+    """
     cor_map = {
         "ok": (ALERT_NORMAL_BG, "#14532D"),
         "warn": (ALERT_MODERATE_BG, "#422006"),
-        "info": (ALERT_CRITICAL_BG, "#450A0A"),
+        "info": (PRIMARY_SUBTLE, "#1E1B4B"),
     }
     bg, fg = cor_map.get(status, cor_map["info"])
     style = (
