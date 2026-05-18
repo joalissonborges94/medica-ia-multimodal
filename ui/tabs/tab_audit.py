@@ -27,7 +27,11 @@ logger = logging.getLogger(__name__)
 AuditListFn = Callable[[int], list[dict]]
 AuditGetFn = Callable[[int], "dict | None"]
 
-LIST_HEADERS: list[str] = ["ID", "Case ID", "Criado em", "Risco", "Modalidades"]
+LIST_HEADERS: list[str] = ["ID", "Case ID", "Criado em", "Risco", "Modalidades", "Detalhes"]
+DETAIL_LINK_HTML: str = (
+    '<span class="audit-detail-link">Ver detalhes</span>'
+)
+DETAIL_COLUMN_INDEX: int = 5
 DEFAULT_LIMIT: int = 20
 
 
@@ -67,6 +71,7 @@ def _compute_refresh(limit: float, list_cases: AuditListFn) -> tuple[list[list],
                 case.get("created_at", ""),
                 risk_badge_inline(level),
                 modalities or "-",
+                DETAIL_LINK_HTML,
             ]
         )
     kpis = kpi_grid(
@@ -112,7 +117,7 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
         )
         list_table = gr.Dataframe(
             headers=LIST_HEADERS,
-            datatype=["number", "str", "str", "html", "str"],
+            datatype=["number", "str", "str", "html", "str", "html"],
             wrap=True,
             interactive=False,
             value=initial_rows,
@@ -244,29 +249,39 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
         show_progress="minimal",
     )
 
-    # Clique numa linha da tabela: extrai o ID da 1a coluna, preenche o
-    # input, dispara o detalhe, abre o accordion e rola ate ele (mesmo
-    # padrao de ancora usado na aba Multimodal).
-    def _on_row_select(evt: gr.SelectData, current_rows: list[list]):
-        if not current_rows or evt.index is None:
-            return (
-                gr.update(),
-                empty_state("Selecione uma linha valida."),
-                "",
-                {},
-                gr.update(),
-            )
-        # gr.SelectData.index pode vir como [row, col] (Dataframe) ou int.
-        row_idx = evt.index[0] if isinstance(evt.index, list) else evt.index
-        if row_idx >= len(current_rows):
-            return (
-                gr.update(),
-                empty_state("Linha fora dos limites."),
-                "",
-                {},
-                gr.update(),
-            )
-        audit_id_val = current_rows[row_idx][0]
+    # Clique na coluna "Detalhes" da tabela: extrai o ID da 1a coluna da
+    # linha, preenche o input, dispara o detalhe, abre o accordion e rola
+    # ate ele (mesmo padrao de ancora usado na aba Multimodal). Cliques em
+    # outras colunas sao no-op (so a coluna explicita aciona).
+    def _on_row_select(evt: gr.SelectData, current_rows):
+        # current_rows pode chegar como pandas DataFrame (Gradio Dataframe
+        # converte internamente) ou lista; tratamos ambos.
+        try:
+            import pandas as pd
+            if isinstance(current_rows, pd.DataFrame):
+                n_rows = len(current_rows)
+                get_id = lambda r: current_rows.iloc[r, 0]
+            else:
+                n_rows = len(current_rows or [])
+                get_id = lambda r: current_rows[r][0]
+        except Exception:
+            return (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
+
+        if evt.index is None or n_rows == 0:
+            return (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
+        # gr.SelectData.index vem como [row, col] em Dataframe.
+        if isinstance(evt.index, list):
+            row_idx, col_idx = evt.index[0], evt.index[1] if len(evt.index) > 1 else 0
+        else:
+            row_idx, col_idx = evt.index, DETAIL_COLUMN_INDEX
+
+        # No-op se a coluna clicada nao for "Detalhes"
+        if col_idx != DETAIL_COLUMN_INDEX:
+            return (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
+        if row_idx >= n_rows:
+            return (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
+
+        audit_id_val = get_id(row_idx)
         status, report_md, raw = _on_detail(audit_id_val)
         return (
             gr.update(value=audit_id_val),

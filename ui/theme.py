@@ -350,6 +350,25 @@ gradio-app > .wrap {{
     max-height: 520px;
 }}
 
+/* Link "Ver detalhes" na coluna Detalhes da tabela de auditoria.
+   Estiliza como botao discreto com cursor pointer pra deixar claro
+   que e clicavel. */
+.gradio-container .audit-detail-link {{
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: {PRIMARY}22;
+    color: {PRIMARY_SUBTLE};
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid {PRIMARY}55;
+    transition: background 0.15s ease;
+}}
+.gradio-container .audit-detail-link:hover {{
+    background: {PRIMARY}44;
+}}
+
 /* ----------------------------------------------------------------------
    Input card das abas Video/Audio: quando a midia e removida (ou e
    pequena, caso do gr.Audio), o card encolhe mas a coluna do lado
