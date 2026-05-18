@@ -105,6 +105,7 @@ class Retriever:
         top_k_per_query: int = 3,
         total_k: int = 6,
         min_score: float = DEFAULT_MIN_SCORE,
+        sources_per_query: list[tuple[str, ...] | None] | None = None,
     ) -> RetrievalResult:
         """Roda multiplas queries focadas e funde resultados, deduplicando por chunk_id.
 
@@ -128,28 +129,69 @@ class Retriever:
             top_k_per_query: chunks a buscar por query (antes do dedupe).
             total_k: chunks unicos no resultado final.
             min_score: limiar de score (default `DEFAULT_MIN_SCORE`).
+            sources_per_query: opcional, mesma cardinalidade que `queries`. Cada
+                entrada e uma tupla de sources permitidas (allowlist) ou `None`
+                pra busca global. Util pra queries focadas que devem buscar
+                apenas em PDFs especificos (ex.: query do eixo `saude_mental`
+                so consulta `cab34_saude_mental` e `manual_ms_prenatal`).
 
         Returns:
             `RetrievalResult` com ate `total_k` chunks distintos, ordenados
             por melhor score observado entre as queries.
         """
-        non_empty = [q.strip() for q in queries if q and q.strip()]
-        if not non_empty:
+        # Indices das queries nao vazias (preservar mapeamento pra sources_per_query)
+        non_empty_pairs = [
+            (i, q.strip())
+            for i, q in enumerate(queries)
+            if q and q.strip()
+        ]
+        if not non_empty_pairs:
             return RetrievalResult(chunks=[], scores=[])
 
-        # Roda cada query independente e mantem melhor score por chunk_id
+        # Roda cada query independente e mantem melhor score por chunk_id.
+        # Quando ha allowlist de sources, faz uma busca por source da lista e
+        # combina (Chroma where so aceita um $eq por campo, nao $in nativo
+        # pra lista pequena; iteramos pra manter compat).
         per_query_chunks: list[list[Chunk]] = []
         per_query_scores: list[list[float]] = []
         best_score_by_id: dict[str, float] = {}
         chunks_by_id: dict[str, Chunk] = {}
 
-        for query in non_empty:
-            result = self.search(
-                query, top_k=top_k_per_query, min_score=min_score,
+        for orig_idx, query in non_empty_pairs:
+            sources = (
+                sources_per_query[orig_idx]
+                if sources_per_query is not None and orig_idx < len(sources_per_query)
+                else None
             )
-            per_query_chunks.append(list(result.chunks))
-            per_query_scores.append(list(result.scores))
-            for chunk, score in zip(result.chunks, result.scores, strict=True):
+            chunks_acc: list[Chunk] = []
+            scores_acc: list[float] = []
+            if sources:
+                # Busca em cada source da allowlist e combina por melhor score.
+                for src in sources:
+                    res = self.search(
+                        query, top_k=top_k_per_query, source=src,
+                        min_score=min_score,
+                    )
+                    chunks_acc.extend(res.chunks)
+                    scores_acc.extend(res.scores)
+                # Ordena por score (maior primeiro) e mantem so top_k_per_query
+                order = sorted(
+                    range(len(chunks_acc)),
+                    key=lambda i: scores_acc[i],
+                    reverse=True,
+                )[:top_k_per_query]
+                chunks_acc = [chunks_acc[i] for i in order]
+                scores_acc = [scores_acc[i] for i in order]
+            else:
+                res = self.search(
+                    query, top_k=top_k_per_query, min_score=min_score,
+                )
+                chunks_acc = list(res.chunks)
+                scores_acc = list(res.scores)
+
+            per_query_chunks.append(chunks_acc)
+            per_query_scores.append(scores_acc)
+            for chunk, score in zip(chunks_acc, scores_acc, strict=True):
                 if score > best_score_by_id.get(chunk.chunk_id, -1.0):
                     best_score_by_id[chunk.chunk_id] = score
                     chunks_by_id[chunk.chunk_id] = chunk
@@ -174,7 +216,7 @@ class Retriever:
         final_scores = [best_score_by_id[cid] for cid in selected_ids]
         logger.info(
             "Retriever multi_search: %d querie(s), %d chunks unicos retornados",
-            len(non_empty),
+            len(non_empty_pairs),
             len(final_chunks),
         )
         return RetrievalResult(chunks=final_chunks, scores=final_scores)

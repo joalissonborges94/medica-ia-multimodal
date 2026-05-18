@@ -58,13 +58,14 @@ RAG_AXES: dict[str, dict[str, object]] = {
         "keywords": (
             "ansios", "depress", "medo", "tens", "sofrimento", "angust",
             "choro", "isolam", "desesper", "panico", "suicid", "automutil",
-            "transtorno mental", "saude mental", "psicol", "psiquia",
+            "transtorno mental", "saude mental", "psicol", "psiquia", "apreens",
         ),
         "suffix": (
             "manejo de transtornos mentais comuns na atencao primaria: "
             "ansiedade, depressao, sofrimento psiquico, encaminhamento para "
             "saude mental"
         ),
+        "sources": ("cab34_saude_mental", "manual_ms_prenatal"),
     },
     "violencia": {
         "keywords": (
@@ -75,6 +76,7 @@ RAG_AXES: dict[str, dict[str, object]] = {
             "acolhimento e linha de cuidado a mulheres em situacao de "
             "violencia, notificacao compulsoria, protocolo IST profilaxia"
         ),
+        "sources": ("ms_pcdt_ist_violencia",),
     },
     "reprodutivo": {
         "keywords": (
@@ -85,6 +87,11 @@ RAG_AXES: dict[str, dict[str, object]] = {
         "suffix": (
             "atencao a saude reprodutiva da mulher: pre-natal, parto, "
             "puerperio, contracepcao, planejamento reprodutivo"
+        ),
+        "sources": (
+            "manual_ms_prenatal", "ms_gestacao_alto_risco",
+            "cab26_saude_sexual_reprodutiva", "ms_parto_normal",
+            "febrasgo_preeclampsia",
         ),
     },
     "rastreio": {
@@ -97,6 +104,7 @@ RAG_AXES: dict[str, dict[str, object]] = {
             "rastreamento e deteccao precoce: cancer de mama, cancer de "
             "colo do utero, citologia, exames preventivos"
         ),
+        "sources": ("inca_cancer_mama", "inca_cancer_colo_utero"),
     },
 }
 
@@ -315,19 +323,24 @@ class Orchestrator:
         # e mensagens de trigger (todos lowercase pra match com keywords).
         haystack = " ".join([base_query, trigger_text]).lower()
 
-        # Sempre roda a query "clinica" base (contexto + transcricao + triggers).
+        # Sempre roda a query "clinica" base (contexto + transcricao + triggers)
+        # sem filtro de source: ela captura tema central do caso.
         clinical_query = " ".join([base_query, trigger_text]).strip()[:MAX_QUERY_CHARS]
         queries: list[str] = [clinical_query]
+        sources_per_query: list[tuple[str, ...] | None] = [None]
 
-        # Detecta eixos ativados pelas keywords e adiciona queries focadas.
+        # Detecta eixos ativados pelas keywords e adiciona queries focadas
+        # com allowlist de sources pra garantir representacao do PDF correto.
+        # Query focada usa SO o sufixo do eixo (sem context prefix), evitando
+        # que o embedding fique parecido demais com a query clinica.
         activated: list[str] = []
         for axis_name, axis in RAG_AXES.items():
             keywords: tuple[str, ...] = axis["keywords"]  # type: ignore[assignment]
             if any(kw in haystack for kw in keywords):
                 suffix: str = axis["suffix"]  # type: ignore[assignment]
-                # Query focada: contexto curto + sufixo clinico do eixo
-                focused = f"{base_query[:200]} {suffix}".strip()[:MAX_QUERY_CHARS]
-                queries.append(focused)
+                sources: tuple[str, ...] = axis["sources"]  # type: ignore[assignment]
+                queries.append(suffix[:MAX_QUERY_CHARS])
+                sources_per_query.append(sources)
                 activated.append(axis_name)
 
         logger.info(
@@ -338,7 +351,10 @@ class Orchestrator:
 
         try:
             result = self.retriever.multi_search(
-                queries, top_k_per_query=3, total_k=self.rag_top_k,
+                queries,
+                top_k_per_query=3,
+                total_k=self.rag_top_k,
+                sources_per_query=sources_per_query,
             )
         except Exception as exc:  # noqa: BLE001 - RAG pode falhar por falta de indice
             logger.warning("RAG retrieval falhou: %s", exc)
