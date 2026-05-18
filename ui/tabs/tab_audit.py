@@ -149,16 +149,17 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
             )
         )
 
-        with gr.Row(equal_height=False):
+        with gr.Row(equal_height=True):
             with gr.Column(scale=1):
-                with gr.Group():
+                with gr.Group(elem_classes="audit-detail-pane"):
                     gr.HTML(section_title("Relatorio do caso"))
-                    with gr.Column(elem_classes="content-box"):
+                    with gr.Column(elem_classes="content-box audit-detail-scroll"):
                         detail_md = gr.Markdown(value="")
             with gr.Column(scale=1):
-                with gr.Group():
+                with gr.Group(elem_classes="audit-detail-pane"):
                     gr.HTML(section_title("Registro completo (JSON)"))
-                    detail_json = gr.JSON(value={})
+                    with gr.Column(elem_classes="audit-detail-scroll"):
+                        detail_json = gr.JSON(value={})
 
         # ----- Card 2: Exportar JSON (acao secundaria, separada) -----------
         with gr.Group():
@@ -249,6 +250,11 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
         show_progress="minimal",
     )
 
+    # Flag passada do callback Python pro JS scroll: True quando o clique
+    # foi na coluna "Detalhes" (deve rolar pro accordion), False pra
+    # qualquer outra celula (no-op visual).
+    should_scroll = gr.State(value=False)
+
     # Clique na coluna "Detalhes" da tabela: extrai o ID da 1a coluna da
     # linha, preenche o input, dispara o detalhe, abre o accordion e rola
     # ate ele (mesmo padrao de ancora usado na aba Multimodal). Cliques em
@@ -265,21 +271,28 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
                 n_rows = len(current_rows or [])
                 get_id = lambda r: current_rows[r][0]
         except Exception:
-            return (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
+            return (
+                gr.update(), gr.update(), gr.update(), gr.update(),
+                gr.update(), False,
+            )
 
+        noop = (
+            gr.update(), gr.update(), gr.update(), gr.update(),
+            gr.update(), False,
+        )
         if evt.index is None or n_rows == 0:
-            return (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
+            return noop
         # gr.SelectData.index vem como [row, col] em Dataframe.
         if isinstance(evt.index, list):
             row_idx, col_idx = evt.index[0], evt.index[1] if len(evt.index) > 1 else 0
         else:
             row_idx, col_idx = evt.index, DETAIL_COLUMN_INDEX
 
-        # No-op se a coluna clicada nao for "Detalhes"
+        # No-op (e sem scroll) se a coluna clicada nao for "Detalhes"
         if col_idx != DETAIL_COLUMN_INDEX:
-            return (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
+            return noop
         if row_idx >= n_rows:
-            return (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
+            return noop
 
         audit_id_val = get_id(row_idx)
         status, report_md, raw = _on_detail(audit_id_val)
@@ -289,19 +302,24 @@ def render(list_cases: AuditListFn, get_case: AuditGetFn) -> None:
             report_md,
             raw,
             gr.update(open=True),
+            True,
         )
 
     list_table.select(
         fn=_on_row_select,
         inputs=[list_table],
-        outputs=[audit_id_input, status_html, detail_md, detail_json, detail_section],
+        outputs=[
+            audit_id_input, status_html, detail_md, detail_json,
+            detail_section, should_scroll,
+        ],
         show_progress="minimal",
     ).then(
         fn=None,
-        inputs=None,
+        inputs=[should_scroll],
         outputs=None,
         js=(
-            "() => { "
+            "(scroll) => { "
+            "  if (!scroll) return; "
             "  const el = document.getElementById('audit-detail-anchor'); "
             "  if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'}); "
             "}"

@@ -350,6 +350,19 @@ gradio-app > .wrap {{
     max-height: 520px;
 }}
 
+/* Paineis de detalhe da aba Auditoria: relatorio (markdown) e JSON
+   lado a lado precisam ter altura igual. JSON tem scroll proprio, mas
+   o markdown nao por default, fazendo as colunas ficarem assimetricas.
+   Aplicamos `.audit-detail-scroll` no wrapper interno pra fixar uma
+   altura comum com overflow auto. */
+.gradio-container .audit-detail-pane {{
+    height: 100% !important;
+}}
+.gradio-container .audit-detail-scroll {{
+    max-height: 520px;
+    overflow-y: auto !important;
+}}
+
 /* Link "Ver detalhes" na coluna Detalhes da tabela de auditoria.
    Estiliza como botao discreto com cursor pointer pra deixar claro
    que e clicavel. */
