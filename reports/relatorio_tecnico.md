@@ -10,9 +10,9 @@ Tech Challenge Fase 4, pós-graduação Tech IADT.
 
 ## 1. Resumo Executivo
 
-O projeto entrega um sistema de monitoramento multimodal voltado à saúde da mulher, processando vídeo, áudio e texto para gerar nível de risco, relatório clínico e alerta estruturado. Cobre três das quatro funcionalidades do enunciado (análise de vídeo, processamento de áudio em consultas, integração Azure Cognitive Services) e quatro dos cinco objetivos (detecção precoce de riscos materno-ginecológicos, bem-estar psicológico, uso de cloud, detecção de anomalias em tempo real). O detector de vídeo usa YOLOv8 customizado sobre CholecSeg8k para identificar instrumentos de cirurgia laparoscópica (`Grasper`, `L-hook Electrocautery`). O pipeline de áudio combina `faster-whisper`, `librosa` e `wav2vec2`. RAG sobre nove diretrizes clínicas brasileiras (Ministério da Saúde, FEBRASGO, INCA) enriquece o relatório. LLM é Azure OpenAI GPT-4.1-mini via AI Foundry, com fallback determinístico offline. A UI é Gradio Blocks publicada em Hugging Face Spaces.
+O projeto entrega um sistema de monitoramento multimodal voltado à saúde da mulher, processando vídeo, áudio e texto para gerar nível de risco, relatório clínico e alerta estruturado. Cobre três das quatro funcionalidades do enunciado (análise de vídeo, processamento de áudio em consultas, integração Azure Cognitive Services) e quatro dos cinco objetivos (detecção precoce de riscos materno-ginecológicos, bem-estar psicológico, uso de cloud, detecção de anomalias por caso). O detector de vídeo usa YOLOv8 customizado sobre CholecSeg8k para identificar instrumentos de cirurgia laparoscópica (`Grasper`, `L-hook Electrocautery`). O pipeline de áudio combina `faster-whisper`, `librosa` e `wav2vec2`. RAG sobre nove diretrizes clínicas brasileiras (Ministério da Saúde, FEBRASGO, INCA) enriquece o relatório. LLM é Azure OpenAI GPT-4.1-mini via AI Foundry, com fallback determinístico offline. A UI é Gradio Blocks publicada em Hugging Face Spaces.
 
-**Métricas-chave:** YOLOv8 customizado atinge mAP@50 = **0.989** e mAP@50-95 = **0.882** no test split do CholecSeg8k (808 imagens, 920 instâncias), com desempenho balanceado entre as 3 classes treinadas (`grasper`, `l_hook_electrocautery`, `blood`). Treino completo em ~17 min em GPU A100 (40 epochs, YOLOv8m, batch 16, imgsz 640). Pipeline multimodal cobre 3 das 4 funcionalidades do enunciado (vídeo, áudio e Azure Cognitive Services) e 4 dos 5 objetivos listados.
+**Métricas-chave:** YOLOv8 customizado atinge mAP@50 = **0.989** e mAP@50-95 = **0.882** no test split do CholecSeg8k (808 imagens, 920 instâncias), com desempenho balanceado entre as 3 classes treinadas (`grasper`, `l_hook_electrocautery`, `blood`). Treino completo em ~17 min em GPU A100 (40 epochs, YOLOv8n, batch 320, imgsz 640). Pipeline multimodal cobre 3 das 4 funcionalidades do enunciado (vídeo, áudio e Azure Cognitive Services) e 4 dos 5 objetivos listados.
 
 **Demo pública:** o sistema está disponível em [huggingface.co/spaces/joalissonborges/medica-ia-multimodal](https://huggingface.co/spaces/joalissonborges/medica-ia-multimodal), com as quatro abas (`Vídeo`, `Áudio`, `Multimodal`, `Auditoria`) e a aba `Configurações` operacionais sob o status `Running` do Hugging Face Spaces.
 
@@ -22,7 +22,7 @@ O projeto entrega um sistema de monitoramento multimodal voltado à saúde da mu
 
 ## 2. Contexto e Objetivo
 
-O sistema é continuação narrativa do assistente médico geral entregue na Fase 3, agora especializado em saúde da mulher. Tecnicamente parte do zero, com arquitetura voltada à análise multimodal e à detecção de anomalias (ADR-001).
+O sistema é independente da entrega da Fase 3, com arquitetura voltada à análise multimodal e à detecção de anomalias em saúde da mulher (ADR-001).
 
 O objetivo é demonstrar uma solução funcional que:
 
@@ -52,7 +52,7 @@ O objetivo é demonstrar uma solução funcional que:
 | 1 | Análise de vídeos clínicos (YOLOv8 customizado) | Coberta | Instrumentos cirúrgicos laparoscópicos (ADR-012) |
 | 2 | Processamento de gravações de voz em consultas | Coberta | Pipeline Whisper + librosa + wav2vec2 |
 | 3 | Monitoramento de sinais vitais | Adiada | ADR-014, fora do escopo |
-| 4 | Integração com Azure Cognitive Services | Coberta | Speech, Language, OpenAI, Face (RAI policy) |
+| 4 | Integração com Azure Cognitive Services | Coberta | Speech, Language, OpenAI (texto, vision, audio) |
 
 ### 3.2 Objetivos do enunciado
 
@@ -61,7 +61,7 @@ O objetivo é demonstrar uma solução funcional que:
 | 1 | Detecção precoce de riscos em saúde materna e ginecológica | Coberto |
 | 2 | Monitoramento de bem-estar psicológico feminino | Coberto |
 | 3 | Uso de serviços em nuvem para ampliar capacidade | Coberto |
-| 4 | Detecção de anomalias em tempo real | Coberto |
+| 4 | Detecção de anomalias em tempo real | Coberto (processamento por caso, alerta imediato após análise) |
 | 5 | Detecção de sinais de violência doméstica | Fora do escopo (risco ético, sem dataset rotulado) |
 
 ---
@@ -91,7 +91,7 @@ Três artefatos coexistem com responsabilidades distintas:
 | Artefato | Natureza | Quando entra |
 |---|---|---|
 | Dataset CholecSeg8k | 8080 frames anotados | Offline, antes do runtime. Treina `yolo_v1.pt` no Colab uma única vez |
-| PDFs de diretrizes (RAG) | 8 documentos clínicos PT-BR | Runtime, recuperados por similaridade no Chroma |
+| PDFs de diretrizes (RAG) | 9 documentos clínicos PT-BR | Runtime, recuperados por similaridade no Chroma |
 | LLM Azure OpenAI | Modelo generativo | Runtime, etapa final. Apenas redige relatório sobre evidências já consolidadas |
 
 ```mermaid
@@ -144,7 +144,7 @@ Pipeline em `src/video/pipeline.py`. Entrada: caminho de vídeo. Saída: lista d
 
 #### Classificação de cena e gating por pilares
 
-Antes de processar frame a frame, o pipeline classifica o tipo de cena via `src/video/scene_classifier.py`. A classificação amostra 5 frames distribuídos uniformemente e aplica duas heurísticas: detecção de face (MediaPipe Face Detection, com lazy import e fallback gracioso) e assinatura de saturação HSV. A saturação media por frame e o sinal primário de discriminação; o hue foi descartado como critério porque varia significativamente entre vídeos de cirurgia conforme o encoding MP4. O threshold de saturação (65) separa consultas clínicas (média 38-54 nos vídeos de demo) de cirurgias laparoscópicas (média 74-103).
+Antes de processar frame a frame, o pipeline classifica o tipo de cena via `src/video/scene_classifier.py`. A classificação amostra 5 frames distribuídos uniformemente e aplica duas heurísticas: detecção de face (MediaPipe Face Detection, com lazy import e fallback silencioso) e assinatura de saturação HSV. A saturação media por frame e o sinal primário de discriminação; o hue foi descartado como critério porque varia significativamente entre vídeos de cirurgia conforme o encoding MP4. O threshold de saturação (65) separa consultas clínicas (média 38-54 nos vídeos de demo) de cirurgias laparoscópicas (média 74-103).
 
 O resultado classifica a cena em `SURGERY`, `CONSULTATION`, `MIXED` ou `UNKNOWN`. Essa classificação ativa o gating por pilares:
 
@@ -272,7 +272,7 @@ UI Gradio Blocks em `app.py` com quatro abas: **Vídeo**, **Áudio**, **Multimod
 
 | Dataset | Fonte | Uso | Licença |
 |---|---|---|---|
-| CholecSeg8k | HF `minwoosun/CholecSeg8k`, Hong et al. (arXiv 2012.12453) | Treino YOLO custom | CC BY-NC-SA 4.0 |
+| CholecSeg8k | HF `minwoosun/CholecSeg8k`, Hong et al. (arXiv 2012.12463) | Treino YOLO custom | CC BY-NC-SA 4.0 |
 | CORAA-SER | HF `alefiury/CORAA-SER` | Validação cruzada wav2vec2 em PT-BR espontâneo | Termos HF |
 | AVOS Open Surgery | research.bidmc.org | Referência comparativa em demo | Pesquisa |
 | Geeky Medics (YouTube CC) | YouTube | Consulta clínica simulada para demo | CC |
@@ -292,7 +292,7 @@ Quando as chaves estão preenchidas no `.env`, o sistema usa os serviços gerenc
 | **Azure Language** | Análise de sentimento + key phrases na transcrição. Quando o label é `mixed`, expõe `max(positive, negative)` como confidence e a UI mostra a distribuição pos/neg | `src/audio/azure_language.py` | Pular esse pilar (não há substituto local equivalente) |
 | **Azure OpenAI Vision** (GPT-4o multimodal) | Estado emocional via linguagem corporal + face em vídeo, sem o viés de FER-2013 | `src/video/azure_openai_vision.py` (ativado por `AZURE_OPENAI_VISION_DEPLOYMENT`) | `FER` local (Py 3.12) |
 
-A aba **Configurações** da UI mostra em tempo real quais serviços estão ativos (cloud) ou em fallback (local).
+A aba **Configurações** da UI mostra imediatamente quais serviços estão ativos (cloud) ou em fallback (local).
 
 A escolha por Azure puro (em vez de AWS ou híbrido) está formalizada na ADR-004: o vídeo demo da entrega lista "Integração dos serviços Azure" como obrigatória, e tratar como requisito é mais seguro que apostar em interpretação literal do enunciado.
 
@@ -313,7 +313,7 @@ Após pesquisa empírica em Roboflow Universe, Kaggle, Hugging Face, PhysioNet, 
 | AutoLaparo-T3 | Histerectomia laparoscópica real (único dataset ginecológico público), 1.800 frames com anotação pixel-wise. Acesso solicitado e autorizado, mas link de download fornecido pela equipe estava inacessível no momento da implementação. Licença restrita a pesquisa acadêmica |
 | **CholecSeg8k** | 3.1 GB, anônimo via HF, classes adequadas, licença CC BY-NC-SA 4.0 |
 
-A decisão foi pivotar para CholecSeg8k (Hong et al., arXiv 2012.12453): 8080 frames anotados de colecistectomia laparoscópica, contendo `Grasper` e `L-hook Electrocautery`, instrumentos idênticos aos usados em cirurgia ginecológica laparoscópica. A transferência de domínio é justificada clinicamente pela técnica (mesmo trocarte, mesma pinça, mesmo eletrocautério).
+A decisão foi pivotar para CholecSeg8k (Hong et al., arXiv 2012.12463): 8080 frames anotados de colecistectomia laparoscópica, contendo `Grasper` e `L-hook Electrocautery`, instrumentos idênticos aos usados em cirurgia ginecológica laparoscópica. A transferência de domínio é justificada clinicamente pela técnica (mesmo trocarte, mesma pinça, mesmo eletrocautério).
 
 Splits utilizados: 5656 train, 1616 val, 808 test.
 
@@ -325,7 +325,7 @@ Conversão de máscaras de segmentação para bounding boxes YOLO em `data/proce
 |---|---|
 | Arquitetura | YOLOv8n (3,006,233 parâmetros, 8.1 GFLOPs) |
 | Classes | 3: `grasper` (id 0), `l_hook_electrocautery` (id 1), `blood` (id 2) |
-| Épocas | 40 (sem early stopping; treino completou) |
+| Épocas | 40 (patience=10 configurado; treino completou os 40 sem disparar early stopping) |
 | Batch size | 320 (A100 40 GB, ~40.7 GB de uso) |
 | Imagem (imgsz) | 640 |
 | Workers (dataloader) | 16 |
@@ -360,7 +360,7 @@ Por classe (test split):
 
 - Modelo aprendeu a classe minoritária (`blood`, apenas 71 instâncias no test) com qualidade comparável às majoritárias, demonstrando boa generalização mesmo com desbalanceamento.
 - 154 frames de "background" no test (sem nenhum label) confirmam a calibração de precision (0.98): o modelo não inventa detecções em frames vazios.
-- Speed: **1.8 ms por imagem em A100** (0.1 ms preprocess + 0.9 ms inference + 0.8 ms postprocess). Em CPU local (deploy HF Spaces) espera-se ~150-300 ms por imagem mantendo viabilidade pra demo em tempo real.
+- Speed: **1.8 ms por imagem em A100** (0.1 ms preprocess + 0.9 ms inference + 0.8 ms postprocess). Em CPU local (deploy HF Spaces) espera-se ~150-300 ms por imagem mantendo viabilidade pra demo.
 
 Curvas, matriz de confusão e exemplos com bounding boxes detectadas pelo modelo final estão em `MyDrive/medica-ia/yolo_runs/surgical_instruments/`. Os outputs ficam preservados no notebook (`notebooks/train_yolo_colab.ipynb`) pra reprodutibilidade.
 
@@ -466,7 +466,7 @@ A figura 8.3.4 detalha o resumo de anomalia, a tabela de triggers e o conjunto d
 
 *Figura 8.3.4: painéis Resumo de anomalia (nível Moderado, três triggers, três ações recomendadas) e tabela de triggers com `audio.vocal_distress`, `audio.vocal_strain` e `audio.low_energy`, todos com severidade Moderado e origem áudio.*
 
-A figura 8.3.5 apresenta o painel Diretrizes consultadas com os seis chunks recuperados pelo retriever RAG. Três dos seis chunks são do CAB 34 Saúde Mental (Ministério da Saúde), nas páginas 90, 95 e 100, ao lado de dois chunks de `inca_cancer_colo_utero` (p. 10 e p. 76) e um de `ms_pcdt_ist_violencia` (p. 54). Essa distribuição valida o desenho multi-query por eixo temático (ADR-019 e ADR-017): o eixo `saude_mental` foi ativado pelas palavras "ansiedade", "tristeza" e "medo" no haystack consolidado a partir das saídas dos pilares, disparando uma query focada nas sources `cab34_saude_mental` e `manual_ms_prenatal`. Como a paciente não está em contexto gestacional, a denylist obstétrica excluiu `manual_ms_prenatal` da query base, e a allowlist por source garantiu que o eixo recuperasse exatamente os capítulos relevantes de Saúde Mental do CAB 34.
+A figura 8.3.5 apresenta o painel Diretrizes consultadas com os seis chunks recuperados pelo retriever RAG. Três dos seis chunks são do CAB 34 Saúde Mental (Ministério da Saúde), nas páginas 90, 95 e 100, ao lado de dois chunks de `inca_cancer_colo_utero` (p. 10 e p. 76) e um de `ms_pcdt_ist_violencia` (p. 54). Essa distribuição valida o desenho multi-query por eixo temático (ADR-017): o eixo `saude_mental` foi ativado pelas palavras "ansiedade", "tristeza" e "medo" no haystack consolidado a partir das saídas dos pilares, disparando uma query focada nas sources `cab34_saude_mental` e `manual_ms_prenatal`. Como a paciente não está em contexto gestacional, a denylist obstétrica excluiu `manual_ms_prenatal` da query base, e a allowlist por source garantiu que o eixo recuperasse exatamente os capítulos relevantes de Saúde Mental do CAB 34.
 
 ![Diretrizes consultadas no caso dermatológico](figures/screenshots/aba_multimodal_dermatologica_diretrizes.png)
 
@@ -526,7 +526,7 @@ A figura 8.5.1 apresenta o formulário do caso já preenchido na aba Multimodal.
 
 *Figura 8.5.1: card Caso clínico com vídeo carregado, contexto textual descrevendo procedimento sem intercorrências, campo de áudio sem arquivo e identificador `exemplo-cirurgia-rotina`.*
 
-A figura 8.5.2 exibe o card Resultado consolidado após o processamento. O `AnomalyClassifier` atribui nível **MODERADO** sustentado por um único trigger oriundo da modalidade vídeo, conforme os KPIs NIVEL=Moderado, TRIGGERS=1, MODALIDADES=2 (vídeo e texto) e DIRETRIZES=0. A regra acionada é `surgical_instrument_presence` em nível Moderado, e a ausência de chunks recuperados ocorre porque o caso cirúrgico não ativa eixos humanos: conforme ADR-019, o orquestrador suprime a query base nesse cenário, evitando que o retriever retorne diretrizes tangencialmente relacionadas à ginecologia obstétrica indexada. Case ID `case-69af9a8169b6` e Audit ID `50` identificam o registro persistido.
+A figura 8.5.2 exibe o card Resultado consolidado após o processamento. O `AnomalyClassifier` atribui nível **MODERADO** sustentado por um único trigger oriundo da modalidade vídeo, conforme os KPIs NIVEL=Moderado, TRIGGERS=1, MODALIDADES=2 (vídeo e texto) e DIRETRIZES=0. A regra acionada é `surgical_instrument_presence` em nível Moderado, e a ausência de chunks recuperados ocorre porque o caso cirúrgico não ativa eixos humanos: conforme ADR-017, o orquestrador suprime a query base nesse cenário, evitando que o retriever retorne diretrizes tangencialmente relacionadas à ginecologia obstétrica indexada. Case ID `case-69af9a8169b6` e Audit ID `50` identificam o registro persistido.
 
 ![Resultado consolidado com badge moderado, 1 trigger e 0 diretrizes recuperadas](figures/screenshots/aba_multimodal_rotina_resultado.png)
 
@@ -585,7 +585,7 @@ A figura 8.6.4 apresenta o formulário do caso já preenchido na aba Multimodal.
 
 *Figura 8.6.4: card Caso clínico com vídeo carregado, contexto textual descrevendo lesão vascular e manejo hemodinâmico, campo de áudio sem arquivo e identificador da paciente vazio.*
 
-A figura 8.6.5 exibe o card Resultado consolidado após o processamento. O `AnomalyClassifier` atribui nível **CRÍTICO** somando dois triggers oriundos da modalidade vídeo, conforme os KPIs NIVEL=Crítico, TRIGGERS=2, MODALIDADES=2 (vídeo e texto) e DIRETRIZES=0. A ausência de diretrizes recuperadas reflete a refatoração multi-query (ADR-019): para casos cirúrgicos sem eixo humano ativado, o orquestrador suprime a query base e o retriever não retorna chunks tangencialmente relacionados à ginecologia obstétrica indexada. Case ID `case-6ecf6b9d3caf` e Audit ID `48` identificam o registro persistido para auditoria.
+A figura 8.6.5 exibe o card Resultado consolidado após o processamento. O `AnomalyClassifier` atribui nível **CRÍTICO** somando dois triggers oriundos da modalidade vídeo, conforme os KPIs NIVEL=Crítico, TRIGGERS=2, MODALIDADES=2 (vídeo e texto) e DIRETRIZES=0. A ausência de diretrizes recuperadas reflete a refatoração multi-query (ADR-017): para casos cirúrgicos sem eixo humano ativado, o orquestrador suprime a query base e o retriever não retorna chunks tangencialmente relacionados à ginecologia obstétrica indexada. Case ID `case-6ecf6b9d3caf` e Audit ID `48` identificam o registro persistido para auditoria.
 
 ![Resultado consolidado do caso cirúrgico crítico](figures/screenshots/aba_multimodal_sangramento_resultado.png)
 
@@ -663,7 +663,7 @@ Levantamentos feitos durante o projeto que apontam direções possíveis de melh
 
 ## 10. Conclusão
 
-O projeto entrega uma solução multimodal funcional cobrindo três das quatro funcionalidades e quatro dos cinco objetivos do enunciado, com integração Azure real (não simulada) e fallback gracioso quando as chaves não estão disponíveis. A pivotagem do alvo YOLO de "sangramento anômalo" para "instrumentos cirúrgicos laparoscópicos" (ADR-012) sustentou aderência LITERAL ao alvo 1 do enunciado mediante dataset público reproduzível (CholecSeg8k), preservando coerência clínica via transferência de domínio entre colecistectomia e cirurgia ginecológica laparoscópica. A separação explícita entre os três artefatos (dataset, RAG, LLM) torna o pipeline auditável e cada peça substituível.
+O projeto entrega uma solução multimodal funcional cobrindo três das quatro funcionalidades e quatro dos cinco objetivos do enunciado, com integração Azure real (não simulada) e fallback local quando as chaves não estão disponíveis. A pivotagem do alvo YOLO de "sangramento anômalo" para "instrumentos cirúrgicos laparoscópicos" (ADR-012) sustentou aderência LITERAL ao alvo 1 do enunciado mediante dataset público reproduzível (CholecSeg8k), preservando coerência clínica via transferência de domínio entre colecistectomia e cirurgia ginecológica laparoscópica. A separação explícita entre os três artefatos (dataset, RAG, LLM) torna o pipeline auditável e cada peça substituível.
 
 Quantitativamente, o detector custom convergiu com mAP@50 = 0.989 e mAP@50-95 = 0.882 no test split, mantendo desempenho equilibrado entre as 3 classes (variação de 0.982 a 0.993 em mAP@50), inclusive na classe minoritária `blood` (71 instâncias). A decisão de adicionar a classe `Blood` ao escopo das 3 classes finais, justificada em ADR-013, ampliou a cobertura do detector de 1 para 2 dos 4 entregáveis sugeridos pelo enunciado (detecção de instrumentos e detecção de sangramento intraoperatório), com custo de treino marginal. As limitações de viés reconhecidas em wav2vec2 e FER foram mitigadas arquiteturalmente com clientes alternativos plugáveis (`AzureOpenAIAudioEmotion` e `AzureOpenAIVisionEmotion`), que assumem o pilar quando os respectivos deployments Azure são provisionados, mantendo fallback local funcional caso contrário.
 
@@ -687,6 +687,7 @@ Quantitativamente, o detector custom convergiu com mAP@50 = 0.989 e mAP@50-95 = 
 - Ministério da Saúde. *PCDT de IST e Atenção a Vítimas de Violência*.
 - Ministério da Saúde. *Diretrizes de Atenção ao Parto Normal*.
 - Ministério da Saúde. *Caderno de Atenção Básica nº 26: Saúde Sexual e Reprodutiva*.
+- Ministério da Saúde. *Caderno de Atenção Básica nº 34: Saúde Mental*.
 
 ### Modelos e Frameworks
 
@@ -708,7 +709,7 @@ Quantitativamente, o detector custom convergiu com mAP@50 = 0.989 e mAP@50-95 = 
 
 - `docs/overview.md`
 - `docs/arquitetura/arquitetura.md`
-- `docs/arquitetura/decisoes_tecnicas.md` (ADRs 001 a 015)
+- `docs/arquitetura/decisoes_tecnicas.md` (ADRs 001 a 019)
 - `docs/arquitetura/modelos_e_datasets.md`
 - `docs/arquitetura/padroes_codigo.md`
 - `README.md`

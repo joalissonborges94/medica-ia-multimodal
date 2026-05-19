@@ -2,11 +2,11 @@
 
 ## O Que É
 
-Sistema de monitoramento multimodal aplicado à saúde da mulher, desenvolvido para o Tech Challenge Fase 4 da pós-graduação Tech IADT. Processa vídeo, áudio e texto para identificar precocemente sinais de risco em saúde materna e bem-estar psicológico, gerando alertas em tempo real para a equipe clínica.
+Sistema de monitoramento multimodal aplicado à saúde da mulher, desenvolvido para o Tech Challenge Fase 4 da pós-graduação Tech IADT. Processa vídeo, áudio e texto para identificar precocemente sinais de risco em saúde materna e bem-estar psicológico, gerando alertas estruturados para a equipe clínica.
 
 ## Contexto
 
-Continuação narrativa do assistente médico geral entregue na Fase 3, agora especializado em saúde da mulher. Tecnicamente, o projeto não reaproveita código da Fase 3, parte do zero com arquitetura própria voltada para análise multimodal e detecção de anomalias.
+Sistema independente da entrega da Fase 3. A arquitetura parte do zero, voltada para análise multimodal e detecção de anomalias em saúde da mulher.
 
 ## Objetivo
 

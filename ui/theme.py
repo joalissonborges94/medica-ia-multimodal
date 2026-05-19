@@ -440,7 +440,7 @@ gradio-app > .wrap {{
     overflow: hidden;
 }}
 .gradio-container .compact-gallery .thumbnail-item img {{
-    object-fit: cover !important;
+    object-fit: contain !important;
 }}
 
 /* ----------------------------------------------------------------------

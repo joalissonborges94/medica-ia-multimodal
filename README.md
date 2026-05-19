@@ -79,7 +79,7 @@ Quando as chaves estão preenchidas no `.env`, o sistema usa os serviços gerenc
 | **Azure Language** | Análise de sentimento + key phrases na transcrição | `src/audio/azure_language.py` | Pular esse pilar (não há substituto local equivalente) |
 | **Azure OpenAI Vision** (GPT-4o multimodal) | Estado emocional via linguagem corporal + face em vídeo | `src/video/azure_openai_vision.py` (código pronto, deployment Azure pendente) | `FER` local (Py 3.12) |
 
-A aba **Configurações** da UI mostra em tempo real quais serviços estão ativos (cloud) ou em fallback (local).
+A aba **Configurações** da UI mostra imediatamente quais serviços estão ativos (cloud) ou em fallback (local).
 
 ## Docker
 
