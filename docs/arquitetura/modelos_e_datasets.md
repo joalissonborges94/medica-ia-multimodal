@@ -40,7 +40,7 @@ Lista consolidada de modelos pré-treinados, datasets e outras fontes de dados u
 
 | Dataset | Fonte | Uso | Observação |
 |---|---|---|---|
-| **CholecSeg8k** | Hugging Face (`minwoosun/CholecSeg8k`), Hong et al., arXiv 2012.12453, CC BY-NC-SA 4.0 | Treino YOLO custom para instrumentos cirúrgicos | 8080 frames, 3.1 GB; classes alvo `Grasper` + `L-hook Electrocautery`; splits 5656/1616/808. ADR-012 |
+| **CholecSeg8k** | Hugging Face (`minwoosun/CholecSeg8k`), Hong et al., arXiv 2012.12463, CC BY-NC-SA 4.0 | Treino YOLO custom para instrumentos cirúrgicos | 8080 frames, 3.1 GB; classes alvo `Grasper` + `L-hook Electrocautery`; splits 5656/1616/808. ADR-012 |
 
 ### Datasets de demonstração
 
@@ -65,7 +65,7 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 
 ### Texto e RAG (knowledge base)
 
-8 PDFs públicos indexados no Chroma. Cada documento cobre cenário clínico distinto:
+9 PDFs públicos indexados no Chroma. Cada documento cobre cenário clínico distinto:
 
 | Documento | Slug | Fonte | Cenário coberto |
 |---|---|---|---|
@@ -102,7 +102,7 @@ Conjunto de mídias reais usadas exclusivamente na demo e no vídeo de entrega (
 
 ## Licenças e Considerações Legais
 
-- CholecSeg8k: licença CC BY-NC-SA 4.0. Uso académico/demo permitido, citar Hong et al. (arXiv 2012.12453)
+- CholecSeg8k: licença CC BY-NC-SA 4.0. Uso académico/demo permitido, citar Hong et al. (arXiv 2012.12463)
 - CORAA-SER: verificar termos da Hugging Face (`alefiury/CORAA-SER`) antes de redistribuir
 - PDFs do MS, FEBRASGO e INCA são públicos para uso educacional
 - Áudios gerados por TTS Azure têm uso comercial permitido

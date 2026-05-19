@@ -25,7 +25,7 @@ O sistema combina três artefatos de natureza distinta. Confundir os três é o 
 | Artefato | O que é | Quando entra |
 |---|---|---|
 | **Dataset (CholecSeg8k)** | 8080 frames anotados de cirurgia laparoscópica (Grasper + L-hook Electrocautery) | Offline, **antes do runtime**. Usado uma única vez no Colab para treinar `yolo_v1.pt`. ADR-012 |
-| **PDFs de diretrizes (RAG)** | 8 documentos clínicos PT-BR indexados no Chroma | Runtime, **no momento da inferência**. Recuperados por similaridade para enriquecer o relatório |
+| **PDFs de diretrizes (RAG)** | 9 documentos clínicos PT-BR indexados no Chroma | Runtime, **no momento da inferência**. Recuperados por similaridade para enriquecer o relatório |
 | **LLM (Azure OpenAI GPT-4.1-mini)** | Modelo generativo de propósito geral | Runtime, **na etapa final**. Gera relatório clínico a partir das evidências consolidadas |
 
 Em outras palavras: o **dataset** vira pesos `.pt`, que viram um **detector** chamado a cada frame; os **PDFs** viram chunks vetoriais consultados conforme triggers; o **LLM** apenas redige texto sobre o que os dois primeiros já decidiram. O LLM não treina nem indexa nada em runtime.

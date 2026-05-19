@@ -285,7 +285,7 @@ B. Adiar formalmente, marcar como `⏸️ Adiado` no roadmap
 **Justificativa:**
 - Estimativa de esforco adicional significativo (modelagem de serie temporal + nova aba + novos triggers + integracao no orquestrador) para ganho marginal frente ao requisito de >=2 funcionalidades ja cumprido.
 - Quebra coerência multimodal: vídeo + áudio + texto formam uma análise unificada (humana, qualitativa); série temporal de PA/CTG é outro paradigma (numérico, monitoramento contínuo) e exigiria UX própria.
-- Aderência ao padrão "stub-first + fallback gracioso": registrar como adiado é melhor do que entregar versão parcial.
+- Aderência ao padrão "stub-first + fallback local": registrar como adiado é melhor do que entregar versão parcial.
 
 **Consequências:**
 - Roadmap exibe `⏸️ Adiado` para sinais vitais; mencionado em "Próximos Passos para Evoluir" em `arquitetura.md`.
@@ -316,7 +316,7 @@ C. Remover YOLOv8 Pose e ensinar o GPT-vision a emitir tambem a categoria de lin
 - `src/video/pose.py` removido. `PostureCategory`, `PoseLandmark`, `PoseEstimator`, `classify_posture` deixam de existir. Schema `VideoEvent` perde o campo `pose_landmarks`.
 - `EmotionScore` ganha campo opcional `body_language: str | None`. Backends que nao oferecem o sinal (FER local) deixam `None`.
 - Codigo do pilar removido foi preservado em workspace pessoal (`medica-ia-workspace/execucao/yolo_pose_backup.md`) pra eventual restauracao futura.
-- `scene_classifier.py` mantem uso de `mediapipe.solutions.face_detection` (face apenas, sem pose), com lazy import e fallback gracioso quando mediapipe nao esta disponivel.
+- `scene_classifier.py` mantem uso de `mediapipe.solutions.face_detection` (face apenas, sem pose), com lazy import e fallback silencioso (sem erro) quando mediapipe nao esta disponivel.
 
 ---
 
@@ -405,7 +405,7 @@ C. Manter o toggle `USE_CLOUD_EMOTION` como flag generica desacoplada do Face, c
 - `Settings` perde dois campos secretos e um boolean toggle. Testes que validavam o default de `use_cloud_emotion` foram simplificados (`tests/unit/test_config.py`).
 - `.env.example` mais enxuto. Quem ja tinha `AZURE_FACE_KEY` / `AZURE_FACE_ENDPOINT` no `.env` local pode remover manualmente; Pydantic Settings ignora chaves extras (`extra="ignore"`).
 - Aba de Configuracoes deixa de listar Azure Face entre os servicos Azure. A linha "Emocao facial" agora reflete apenas dois estados: GPT-vision ativo (cloud) ou FER local (fallback).
-- `FacialEmotionDetector` continua intacto como fallback offline, conforme padrao "stub-first + fallback gracioso" adotado em todo o projeto.
+- `FacialEmotionDetector` continua intacto como fallback offline, conforme padrao "stub-first + fallback local" adotado em todo o projeto.
 
 ---
 
