@@ -75,7 +75,6 @@ Detalhes em [arquitetura/arquitetura.md](arquitetura/arquitetura.md) e [arquitet
 ## Equipe e Ambiente
 
 - Grupo: Joalisson Borges, Luis Gustavo Santini, Marina Souza Lucas, Diego Santos
-- Desenvolvimento em macOS Apple Silicon, com aceleração via MPS quando aplicável
 - Treino de YOLO no Google Colab (uso pontual de GPU gratuita)
 
 ## Métricas de Sucesso
