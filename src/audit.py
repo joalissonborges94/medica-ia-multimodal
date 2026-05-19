@@ -1,12 +1,11 @@
-"""Log de auditoria em SQLite (ADR-010).
+"""Log de auditoria em SQLite.
 
 Registra cada caso processado pelo orquestrador com timestamp,
 modalidades, nivel de risco, triggers e ids relacionados. Schema pensado
 para consulta direta via SQL e para a aba "Auditoria" da UI.
 
-Path do banco e configuravel; default `data/processed/audit.sqlite` na
-raiz do projeto. O modulo cria o diretorio e o schema sob demanda na
-primeira escrita.
+Default `data/processed/audit.sqlite` na raiz. Diretorio e schema sao
+criados sob demanda na primeira escrita.
 """
 
 from __future__ import annotations

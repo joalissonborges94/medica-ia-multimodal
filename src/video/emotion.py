@@ -4,16 +4,13 @@ Oferece dois backends:
 
 - `FacialEmotionDetector` (FER local): usa `justinshenk/fer`. Exige
   `Pillow` legado (nao builda em Python 3.14). Em ambiente sem suporte,
-  faz fallback gracioso e retorna lista vazia.
-
+  retorna lista vazia em vez de levantar excecao.
 - `AzureOpenAIVisionEmotion` (cloud): usa GPT-4o vision no Azure AI
   Foundry, sem o vies de FER-2013 (que rotula faces femininas em repouso
-  como `angry`/`sad`). Ativado quando
-  `AZURE_OPENAI_VISION_DEPLOYMENT` esta preenchido no `.env`.
+  como `angry`/`sad`). Ativado quando `AZURE_OPENAI_VISION_DEPLOYMENT`
+  esta preenchido no `.env`.
 
-A funcao `get_facial_emotion_classifier()` seleciona automaticamente o
-backend disponivel, seguindo o mesmo padrao de
-`get_emotion_classifier()` em `src/audio/emotion.py`.
+`get_facial_emotion_classifier()` seleciona o backend disponivel.
 """
 
 from __future__ import annotations
@@ -139,10 +136,8 @@ def get_facial_emotion_classifier() -> FacialEmotionClassifierProtocol:
 
     Quando `AZURE_OPENAI_VISION_DEPLOYMENT` esta preenchido E o cliente
     Azure consegue inicializar, retorna `AzureOpenAIVisionEmotion`
-    (multimodal cloud, sem vies de FER-2013). Caso contrario, cai para
-    `FacialEmotionDetector` (FER local).
-
-    A decisao acontece no momento da chamada, lazy.
+    (cloud, sem vies de FER-2013). Caso contrario, cai para
+    `FacialEmotionDetector` (FER local). A decisao e lazy.
     """
     if settings.azure_openai_vision_deployment:
         from src.video.azure_openai_vision import AzureOpenAIVisionEmotion

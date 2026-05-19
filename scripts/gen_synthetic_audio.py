@@ -1,11 +1,9 @@
 """Gera audios sinteticos para teste do pipeline de audio.
 
-Sem TTS Azure (Tarefa 2.8 adiada para o pre-demo), gera 4 `.wav` curtos com
-caracteristicas acusticas distintas para validar `extract_features` e o
-classificador de emocao. Cada audio e nao-falado (ondas + ruido); a
-transcricao via Whisper retornara texto vazio ou nonsense, o que e
-aceitavel para smoke. Quando Azure TTS estiver configurado, este script
-sera ampliado para gerar audios falados em PT-BR.
+Sem TTS Azure, gera 4 `.wav` curtos com caracteristicas acusticas
+distintas para validar `extract_features` e o classificador de emocao.
+Cada audio e nao-falado (ondas + ruido); a transcricao via Whisper
+retornara texto vazio ou nonsense, o que e aceitavel para smoke.
 
 Uso:
     python scripts/gen_synthetic_audio.py

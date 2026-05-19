@@ -1,20 +1,11 @@
-"""Cliente unificado para Azure AI Foundry (endpoint v1 OpenAI-compativel).
+"""Cliente Azure AI Foundry (endpoint v1 OpenAI-compativel).
 
-Segue o padrao `is_configured` + fallback gracioso adotado no projeto:
-sem credenciais, o cliente retorna `None` em todas as chamadas e o codigo
-chamador deve degradar para um fallback deterministico (ver `src/report.py`).
+Sem credenciais, `chat()` retorna `None` e o caller degrada para
+fallback deterministico em `src/report.py`.
 
-Provedor principal de LLM do projeto (ADR-005). Modelo default
-`gpt-4.1-mini` em deployment com o mesmo nome (ver setup_servicos.md S5).
-
-Endpoint esperado (Azure AI Foundry): caminho terminando em `/openai/v1`.
-A classe normaliza URLs que vierem com `/responses` ou `/chat/completions`
-no fim, ja que o Foundry exibe varias variantes na aba "Consume".
-
-API publica:
-    client = AzureOpenAIClient()
-    if client.is_configured:
-        text = client.chat([{"role": "user", "content": "..."}])
+Endpoint precisa terminar em `/openai/v1`. URLs com `/responses` ou
+`/chat/completions` no fim sao normalizadas (Foundry mostra varias
+variantes na aba "Consume").
 """
 
 from __future__ import annotations

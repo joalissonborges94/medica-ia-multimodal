@@ -23,9 +23,8 @@ DEFAULT_COLLECTION = "diretrizes_clinicas"
 def _detect_device() -> str:
     """Detecta melhor device disponivel pra inferencia do embedder.
 
-    Ordem de preferencia: cuda (NVIDIA GPU) > mps (Apple Silicon) > cpu.
-    No M2 Pro, MPS acelera bge-m3 em ~3-5x vs CPU. Em GPU NVIDIA, ~10-30x.
-    Fallback gracioso pra cpu se torch nao estiver disponivel.
+    Ordem de preferencia: cuda > mps > cpu. Cai pra cpu se torch nao
+    estiver disponivel.
     """
     try:
         import torch
@@ -55,8 +54,8 @@ class VectorStore:
             persist_dir: diretorio do indice Chroma (default `settings.rag_index_path`).
             embedder_name: modelo sentence-transformers (default `BAAI/bge-m3`).
             collection_name: nome da colecao Chroma.
-            device: `cuda` / `mps` / `cpu`. Quando `None`, auto-detect (preferencia
-                cuda > mps > cpu). MPS acelera ~3-5x no Apple Silicon.
+            device: `cuda` / `mps` / `cpu`. Quando `None`, auto-detect
+                (preferencia cuda > mps > cpu).
         """
         self.persist_dir: Path = (persist_dir or settings.rag_index_absolute()).resolve()
         self.embedder_name: str = embedder_name

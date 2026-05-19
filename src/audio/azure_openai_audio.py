@@ -1,22 +1,14 @@
 """Cliente Azure OpenAI multimodal (audio) para classificacao de emocao vocal.
 
-Usa um deployment de modelo de audio (ex: `gpt-4o-mini-audio-preview`) no
-mesmo endpoint do Foundry ja configurado pelo `AzureOpenAIClient`. Envia
-o WAV em base64 + prompt JSON-mode e recebe uma classificacao de emocao
-compativel com a interface do `VocalEmotionClassifier` (retorna
-`EmotionScore` ou `None` em fallback gracioso).
+Envia WAV em base64 + prompt JSON-mode pra um deployment de modelo de audio
+(ex: `gpt-4o-mini-audio-preview`) no mesmo endpoint do Foundry usado pelo
+`AzureOpenAIClient`. Retorna `EmotionScore` ou `None` se o servico nao
+estiver configurado/disponivel.
 
-Motivacao (ver project_modelos_emocao_enviesados na memoria do projeto):
-o `wav2vec2-base-superb-er` foi treinado em RAVDESS (atores americanos,
-fala teatral) e atribui `angry` com confianca >0.95 a praticamente qualquer
-voz feminina em PT-BR (inclusive TTS de alta qualidade). Um LLM multimodal
-analisa diretamente o sinal acustico em conjunto com o conteudo da fala,
-sem vies daquele dominio de treino.
-
-API publica:
-    classifier = AzureOpenAIAudioEmotion()
-    if classifier.is_configured:
-        score = classifier.classify(Path("audio.wav"))
+Motivacao: o `wav2vec2-base-superb-er` foi treinado em RAVDESS (atores
+americanos, fala teatral) e atribui `angry` com confianca >0.95 a
+praticamente qualquer voz feminina em PT-BR. Um LLM multimodal analisa o
+sinal acustico junto com o conteudo da fala, sem esse vies de dominio.
 """
 
 from __future__ import annotations

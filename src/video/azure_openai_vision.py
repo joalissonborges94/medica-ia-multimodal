@@ -1,27 +1,19 @@
 """Cliente Azure OpenAI multimodal (visao) para classificacao de estado emocional.
 
-Usa um deployment de modelo de visao (ex: `gpt-4o-mini` ou `gpt-4o`) no
-mesmo endpoint do Foundry ja configurado pelo `AzureOpenAIClient`. Envia
-o frame em base64 PNG + prompt JSON-mode e recebe uma classificacao de
-emocao compativel com `src.video.types.EmotionScore`.
+Envia frame em base64 PNG + prompt JSON-mode pra um deployment de visao
+(ex: `gpt-4o-mini` ou `gpt-4o`) no mesmo endpoint do Foundry usado pelo
+`AzureOpenAIClient`. Retorna `EmotionScore` compativel com
+`src.video.types`.
 
 Motivacoes:
 
-1. FER baseado em FER-2013 e treinado em fotos atuadas e tem forte vies
-   pra `angry`/`sad` em rostos femininos PT-BR em situacao clinica neutra
-   (ver project_modelos_emocao_enviesados na memoria do projeto). LLM
-   multimodal analisa visualmente em contexto, sem herdar esse vies.
-
-2. Conteudo de consulta clinica em PT-BR (simulacoes academicas pos-2020)
-   frequentemente usa mascaras de EPI, mascarando microexpressoes faciais.
-   O prompt instrui o LLM a usar **linguagem corporal** (postura, gestos,
-   posicionamento, mao, tronco) como sinal primario, com face como sinal
-   complementar quando visivel.
-
-API publica:
-    classifier = AzureOpenAIVisionEmotion()
-    if classifier.is_configured:
-        score = classifier.classify(frame_bgr)  # ou Path("face.jpg")
+1. FER baseado em FER-2013 tem forte vies pra `angry`/`sad` em rostos
+   femininos PT-BR em situacao clinica neutra. LLM multimodal analisa em
+   contexto, sem herdar esse vies.
+2. Consulta clinica em PT-BR (simulacoes pos-2020) frequentemente usa
+   mascaras de EPI, ocultando microexpressoes faciais. O prompt instrui o
+   LLM a usar linguagem corporal (postura, gestos, posicionamento) como
+   sinal primario, com face como sinal complementar quando visivel.
 """
 
 from __future__ import annotations
@@ -88,8 +80,7 @@ def _normalize_base_url(endpoint: str) -> str:
 def _encode_image(image: Path | np.ndarray) -> str | None:
     """Converte imagem (Path ou ndarray BGR) em string base64 PNG.
 
-    Retorna `None` em caso de falha de leitura/encoding (chamador trata
-    como fallback gracioso).
+    Retorna `None` em caso de falha de leitura/encoding.
     """
     if isinstance(image, Path):
         if not image.exists():

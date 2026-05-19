@@ -52,7 +52,7 @@ MAX_QUERY_CHARS: int = 400
 # PDFs centrados em cuidado obstetrico/gestacional. Quando o haystack do caso
 # nao contem keywords de gestacao, esses documentos sao excluidos da query
 # base do RAG pra evitar que o pipeline cite diretrizes pre-natais a
-# pacientes nao gestantes (band-aid pragmatico; ver ADR-017).
+# pacientes nao gestantes.
 OBSTETRIC_SOURCES: tuple[str, ...] = (
     "manual_ms_prenatal",
     "ms_gestacao_alto_risco",
@@ -68,7 +68,7 @@ PREGNANCY_KEYWORDS: tuple[str, ...] = (
 # cirurgico e nenhum eixo emocional/violencia ativa, pulamos a query base
 # do RAG: nao temos diretrizes cirurgicas indexadas, entao o LLM declara
 # "tema fora das diretrizes" em vez de citar diretrizes ginecologicas
-# tangenciais (banca-aid pragmatico documentado no ADR-017).
+# tangenciais.
 SURGICAL_KEYWORDS: tuple[str, ...] = (
     "cirurg", "laparoscop", "intraoperat", "instrumental cirurg",
     "grasper", "eletrocaut", "campo cirurg",

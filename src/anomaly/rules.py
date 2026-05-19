@@ -4,14 +4,13 @@ Cada regra e uma funcao pura que recebe a saida agregada dos pipelines
 de video e audio (`list[VideoEvent]` e `AudioAnalysis`) e devolve um
 `Trigger` quando o criterio clinico e atingido, ou `None` caso contrario.
 
-Filosofia: regras tem prioridade sobre o modelo estatistico
-porque sao auditaveis e diretamente justificaveis em contexto clinico.
-O classificador final (4.3) combina ambos preservando triggers criticos.
+Regras tem prioridade sobre o modelo estatistico porque sao auditaveis
+e diretamente justificaveis em contexto clinico. `AnomalyClassifier`
+combina ambos preservando triggers criticos.
 
-Thresholds vivem como constantes no topo do modulo para facilitar tuning
-e revisao em PR. Valores iniciais sao chutes calibrados em literatura
-clinica leve (jitter/shimmer) e em proporcoes empiricas (frames com
-distress); devem ser revisitados quando dados reais estiverem disponiveis.
+Thresholds vivem como constantes no topo do modulo. Valores iniciais
+sao calibrados em literatura clinica leve (jitter/shimmer) e em
+proporcoes empiricas (frames com distress).
 """
 
 from __future__ import annotations
@@ -511,9 +510,9 @@ def derive_risk_level(triggers: list[Trigger]) -> RiskLevel:
 def recommend_actions(triggers: list[Trigger]) -> list[str]:
     """Sugere acoes clinicas baseadas nos triggers disparados.
 
-    Lista preliminar de orientacoes em PT-BR. O relatorio final (4.6) usa
-    LLM para texto naturalizado; aqui mantemos um fallback deterministico
-    para casos em que o LLM nao estiver disponivel.
+    Lista preliminar de orientacoes em PT-BR. O relatorio final usa LLM
+    para texto naturalizado; este e o fallback deterministico quando o
+    LLM nao esta disponivel.
     """
     actions: list[str] = []
     seen: set[str] = set()
@@ -556,9 +555,9 @@ def build_anomaly_result(
 ) -> AnomalyResult:
     """Atalho que aplica regras, deduz nivel e monta `AnomalyResult`.
 
-    Util como fallback enquanto o classificador completo (4.3) nao existe.
-    O classificador final substitui esta funcao agregando o Isolation
-    Forest, mas pode reusa-la como base de regras.
+    `AnomalyClassifier` cobre o caminho completo (regras + Isolation
+    Forest); esta funcao serve como base de regras quando o detector
+    estatistico nao e desejado.
     """
     triggers = evaluate_rules(video_events, audio_analysis)
     level = derive_risk_level(triggers)

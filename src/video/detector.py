@@ -3,9 +3,9 @@
 A classe `BleedingDetector` (nome historico, agora generico) opera com
 qualquer arquivo `.pt` compativel com YOLOv8. Por padrao usa o stub
 `yolov8n.pt` (classes COCO, sem relevancia clinica direta) para destravar o
-pipeline. Quando os pesos custom de instrumentos cirurgicos (treinados em
-CholecSeg8k) estao disponiveis em `YOLO_WEIGHTS_PATH`, o detector os carrega
-automaticamente (ADR-006, ADR-011, ADR-012).
+pipeline. Quando pesos custom de instrumentos cirurgicos (treinados em
+CholecSeg8k) estao disponiveis em `YOLO_WEIGHTS_PATH`, o detector os
+carrega automaticamente.
 """
 
 from __future__ import annotations

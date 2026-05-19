@@ -1,7 +1,7 @@
 """Testes smoke do cliente Azure OpenAI.
 
-Sem chamadas reais ao servico: mocks isolam o SDK `openai` e validam o
-comportamento `is_configured` + fallback gracioso.
+Sem chamadas reais ao servico: mocks isolam o SDK `openai` e validam
+`is_configured` + retorno `None` quando o servico nao esta configurado.
 """
 
 from __future__ import annotations

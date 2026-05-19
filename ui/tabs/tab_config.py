@@ -116,7 +116,7 @@ def _status_panel() -> str:
             "emocao + linguagem corporal numa chamada."
         )
     else:
-        emocao_facial_detail = "FER local (Py 3.12) com fallback gracioso em Py 3.14."
+        emocao_facial_detail = "FER local (Py 3.12); em Py 3.14 retorna lista vazia."
     linhas.append(
         _row(
             "Emocao facial",

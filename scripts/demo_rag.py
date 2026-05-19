@@ -1,10 +1,8 @@
-"""Demo do retriever RAG com 5 queries clinicas (Tarefa 3.8).
+"""Demo do retriever RAG com 5 queries clinicas.
 
 Roda 5 perguntas representativas e imprime os top-2 chunks recuperados
-com seus scores. Util para julgar qualidade da recuperacao apos
-`build_rag_index.py`. Quando os PDFs reais estiverem em `data/raw/`
-(S7 e S8 do `setup_servicos.md`), rerodar para validar com conteudo
-oficial.
+com seus scores. Util pra julgar qualidade da recuperacao apos
+`build_rag_index.py`.
 
 Uso:
     python scripts/demo_rag.py

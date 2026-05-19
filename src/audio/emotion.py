@@ -1,8 +1,8 @@
 """Classificador de emocao em fala via wav2vec2 (HuggingFace).
 
 Usa `superb/wav2vec2-base-superb-er` (treinado em IEMOCAP, 4 emocoes).
-Lazy-load + fallback gracioso: se o modelo nao puder ser carregado
-(rede, espaco em disco, incompatibilidade), retorna `None` sem quebrar.
+Lazy-load: se o modelo nao puder ser carregado, retorna `None` em vez
+de levantar excecao.
 
 Quando `AZURE_OPENAI_AUDIO_DEPLOYMENT` esta preenchido em `.env`, o pipeline
 usa `AzureOpenAIAudioEmotion` em vez deste (caminho multimodal sem vies de

@@ -5,7 +5,6 @@ Uso:
 
 Se nenhum caminho for passado, gera um video sintetico curto (5 segundos
 de retangulo se movendo) em `data/synthetic/demo_video.mp4` e processa-o.
-Util para validar a Tarefa 1.11 (saida como `list[VideoEvent]`).
 """
 
 from __future__ import annotations

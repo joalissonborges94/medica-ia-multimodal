@@ -1,9 +1,8 @@
 """Sistema de alertas a partir do `AnomalyResult`.
 
-Foco da Fase 4: estruturar um Alert auditavel e disparar no canal local
-(logger + console). O design e extensivel para canais externos
-(e-mail, SMS, webhook) sem alterar o orquestrador, bastando registrar
-novos `dispatcher`s no `dispatch_alert`.
+Estrutura um `Alert` auditavel e dispara no canal local (logger + console).
+Canais externos (e-mail, SMS, webhook) podem ser adicionados registrando
+novos `dispatcher`s em `dispatch_alert` sem alterar o orquestrador.
 """
 
 from __future__ import annotations

@@ -214,9 +214,9 @@ def test_caso_so_audio_funciona_sem_video(tmp_path):
 
 @pytest.mark.integration
 def test_caso_so_video_funciona_sem_audio(tmp_path):
-    """So video + instrumento detectado: nivel `moderate` (semantica nova
-    ADR-012: deteccao de instrumento e documentacao, nao alerta critico).
-    Critical exige sinal humano (vocal/textual/facial).
+    """So video + instrumento detectado: nivel `moderate` (deteccao de
+    instrumento e documentacao, nao alerta critico). Critical exige sinal
+    humano (vocal/textual/facial).
     """
     orch = _orchestrator(
         tmp_path=tmp_path,

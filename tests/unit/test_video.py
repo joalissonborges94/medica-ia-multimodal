@@ -262,8 +262,8 @@ def test_classify_scene_type_retorna_cirurgia_quando_hue_cirurgico(tmp_path, mon
 def test_classify_scene_type_retorna_unknown_quando_mediapipe_ausente(tmp_path):
     """Quando mediapipe nao esta disponivel, classificacao usa so HSV (sem face).
 
-    O fallback gracioso nao deve lancar excecao. O resultado pode ser
-    MIXED, SURGERY ou CONSULTATION dependendo do frame, mas nunca uma excecao.
+    A funcao nao deve lancar excecao. O resultado pode ser MIXED, SURGERY
+    ou CONSULTATION dependendo do frame, mas nunca uma excecao.
     """
     fake_video = tmp_path / "sem_mp.mp4"
     fake_video.touch()

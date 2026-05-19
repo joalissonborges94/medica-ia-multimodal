@@ -475,7 +475,7 @@ def main(argv: list[str] | None = None) -> int:
 
     falhas = sum(1 for _, ok, _, _ in resultados if not ok)
     if falhas:
-        print(f"\n{falhas} passo(s) falharam. O app ainda roda com fallback gracioso.")
+        print(f"\n{falhas} passo(s) falharam. O app ainda roda com os fallbacks disponiveis.")
         return 1
     print("\nSetup completo. Pode rodar `python app.py`.")
     return 0

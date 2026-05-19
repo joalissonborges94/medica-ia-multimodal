@@ -4,8 +4,7 @@ Uso:
     python scripts/demo_audio.py <caminho_do_audio>
 
 Sem argumento, gera audios sinteticos via `gen_synthetic_audio.py` e
-processa o cenario `normal`. Util para validar a Tarefa 2.12
-(saida como `AudioAnalysis`).
+processa o cenario `normal`.
 """
 
 from __future__ import annotations

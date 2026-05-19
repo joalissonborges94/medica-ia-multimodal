@@ -178,7 +178,7 @@ class StatisticalAnomalyDetector:
         return self._fitted
 
     def _ensure_model(self) -> None:
-        """Lazy-load do `IsolationForest`. Falha graciosamente."""
+        """Lazy-load do `IsolationForest`. Marca-se indisponivel se sklearn ausente."""
         if self._model is not None or self._available:
             return
         try:

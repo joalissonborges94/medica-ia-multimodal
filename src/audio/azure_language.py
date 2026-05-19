@@ -1,8 +1,6 @@
 """Cliente Azure Language: sentimento + key phrases sobre transcricao textual.
 
-Segue o padrao `is_configured` + fallback gracioso: retorna `None`/lista vazia
-se as credenciais nao estiverem presentes (Tarefa 2.2 adiada). O pipeline
-continua funcional sem este servico.
+Sem credenciais, retorna `None`/lista vazia e o pipeline continua funcional.
 """
 
 from __future__ import annotations
