@@ -54,10 +54,11 @@ O índice RAG (Chroma + bge-m3 sobre 9 PDFs de diretrizes clínicas MS/INCA/FEBR
 
 ### Regenerar o índice RAG (opcional)
 
-Só é necessário se você adicionar/remover PDFs em `data/raw/`. O script é idempotente (não duplica chunks). Demora ~3 min em CPU rápido e pode levar bem mais em máquinas mais lentas, já que a primeira execução também baixa o modelo `bge-m3` (~2 GB).
+Só é necessário se você adicionar/remover PDFs em `data/raw/`. Por padrão, se o índice já existe em `data/processed/chroma/`, o script sai imediatamente sem trabalho (não duplica chunks, nem re-embeda, nem baixa modelo). Use `--force` pra reindexar do zero, que aí sim demora ~3 min em CPU rápido (e bem mais em máquinas lentas, já que a primeira execução baixa o `bge-m3`, ~2 GB).
 
 ```bash
-python scripts/build_rag_index.py
+python scripts/build_rag_index.py          # no-op se ja existe
+python scripts/build_rag_index.py --force  # reindexa
 ```
 
 Opcional: `python scripts/warmup.py` faz setup completo idempotente (re-baixa PDFs se sumirem, prepara dataset, gera índice RAG, baixa modelos). Aceita filtros `--models`, `--datasets`, `--pdfs`, `--examples`, `--skip-rag`. Detalhes em `python scripts/warmup.py --help`.

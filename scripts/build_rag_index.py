@@ -1,15 +1,18 @@
 """Constroi o indice Chroma a partir dos PDFs em `data/raw/`.
 
 Procura PDFs com prefixo `manual_ms_*` ou `febrasgo_*` (reais ou sinteticos)
-e faz upsert no vector store. Idempotente: rodar varias vezes nao duplica
-chunks (chunk_id e estavel).
+e faz upsert no vector store. Idempotente: por padrao aborta cedo se o
+indice ja existe no disco, evitando re-embedar tudo (bge-m3 leva horas
+em CPU). Use `--force` pra reindexar do zero.
 
 Uso:
-    python scripts/build_rag_index.py
+    python scripts/build_rag_index.py            # no-op se ja existe
+    python scripts/build_rag_index.py --force    # reindexa
 """
 
 from __future__ import annotations
 
+import argparse
 import logging
 import sys
 from pathlib import Path
@@ -24,6 +27,7 @@ logger = logging.getLogger("build_rag_index")
 
 INPUT_DIR = Path("data/raw")
 PATTERNS = ("manual_ms_*.pdf", "febrasgo_*.pdf", "*.pdf")
+MIN_SQLITE_BYTES = 64 * 1024
 
 
 def _coletar_documentos() -> list[Path]:
@@ -36,7 +40,37 @@ def _coletar_documentos() -> list[Path]:
     return encontrados
 
 
+def _indice_ja_persistido(persist_dir: Path) -> bool:
+    """Detecta se o indice Chroma ja esta materializado no disco.
+
+    Checa o `chroma.sqlite3` com tamanho minimo e ao menos um subdiretorio
+    HNSW gerado. Esses dois sinais juntos descartam o caso de diretorio
+    recem-criado vazio e o caso de pointer LFS nao baixado.
+    """
+    sqlite = persist_dir / "chroma.sqlite3"
+    if not sqlite.exists() or sqlite.stat().st_size < MIN_SQLITE_BYTES:
+        return False
+    return any(p.is_dir() for p in persist_dir.iterdir())
+
+
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="reindexa do zero mesmo que ja exista indice persistido",
+    )
+    args = parser.parse_args()
+
+    store = VectorStore()
+
+    if not args.force and _indice_ja_persistido(store.persist_dir):
+        logger.info(
+            "Indice ja existe em %s. Nada a fazer (use --force pra reindexar).",
+            store.persist_dir,
+        )
+        return
+
     docs = _coletar_documentos()
     if not docs:
         logger.warning(
@@ -45,7 +79,6 @@ def main() -> None:
         )
         sys.exit(1)
 
-    store = VectorStore()
     store.load()
     if not store._available:
         logger.error("VectorStore nao disponivel. Verifique chromadb e sentence-transformers.")
