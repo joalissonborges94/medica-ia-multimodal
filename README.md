@@ -32,7 +32,8 @@ UI Gradio com 4 abas: **Vídeo**, **Áudio**, **Multimodal** e **Auditoria**. Se
 Pré-requisitos: Python ≥ 3.12, ~6 GB livres em disco (modelos + dataset).
 
 ```bash
-# 1. Clonar e entrar no diretório
+# 1. Clonar e entrar no diretório (use Git LFS pra baixar o índice + PDFs)
+git lfs install
 git clone <repo-url> medica-ia-multimodal && cd medica-ia-multimodal
 
 # 2. Criar venv e instalar dependências
@@ -44,16 +45,19 @@ pip install -r requirements.txt
 cp .env.example .env
 # Editar .env preenchendo as chaves Azure que você tiver
 
-# 4. Gerar o índice RAG (~3 min). Os 9 PDFs de diretrizes clínicas
-#    (MS/INCA/FEBRASGO, ~48 MB) já vêm versionados em `data/raw/`,
-#    então não é preciso baixar nada. Modelos (YOLO stub, Whisper,
-#    wav2vec2, bge-m3) são baixados lazy pelos próprios pipelines na
-#    primeira chamada.
-python scripts/build_rag_index.py
-
-# 5. Subir a UI Gradio
+# 4. Subir a UI Gradio
 python app.py
 # Abrir http://127.0.0.1:7860
+```
+
+O índice RAG (Chroma + bge-m3 sobre 9 PDFs de diretrizes clínicas MS/INCA/FEBRASGO) já vem pronto em `data/processed/chroma/`, versionado via Git LFS. Os PDFs originais ficam em `data/raw/`. Modelos (YOLO stub, Whisper, wav2vec2, bge-m3) são baixados lazy pelos próprios pipelines na primeira chamada.
+
+### Regenerar o índice RAG (opcional)
+
+Só é necessário se você adicionar/remover PDFs em `data/raw/`. O script é idempotente (não duplica chunks). Demora ~3 min em CPU rápido e pode levar bem mais em máquinas mais lentas, já que a primeira execução também baixa o modelo `bge-m3` (~2 GB).
+
+```bash
+python scripts/build_rag_index.py
 ```
 
 Opcional: `python scripts/warmup.py` faz setup completo idempotente (re-baixa PDFs se sumirem, prepara dataset, gera índice RAG, baixa modelos). Aceita filtros `--models`, `--datasets`, `--pdfs`, `--examples`, `--skip-rag`. Detalhes em `python scripts/warmup.py --help`.
